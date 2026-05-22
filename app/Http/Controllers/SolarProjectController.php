@@ -114,6 +114,7 @@ class SolarProjectController extends Controller
             );
 
             [$created, $updated] = $this->storeWeatherData($solarProject, $payload);
+            $total = $solarProject->weatherData()->count();
         } catch (Throwable $exception) {
             report($exception);
 
@@ -124,7 +125,7 @@ class SolarProjectController extends Controller
 
         return back()->with(
             'status',
-            "Datos climáticos sincronizados. Nuevos: {$created}. Existentes actualizados: {$updated}.",
+            "Datos climáticos sincronizados. Nuevos: {$created}. Existentes actualizados: {$updated}. Total del proyecto: {$total}.",
         );
     }
 
