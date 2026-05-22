@@ -57,6 +57,11 @@ class SolarProject extends Model
         return $this->hasMany(ApiWeatherData::class);
     }
 
+    public function weatherStationReadings(): HasMany
+    {
+        return $this->hasMany(WeatherStationReading::class);
+    }
+
     public function calculationResult(): HasOne
     {
         return $this->hasOne(CalculationResult::class);

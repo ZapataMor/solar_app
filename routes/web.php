@@ -19,6 +19,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('solar-projects.calculate');
     Route::post('solar-projects/{solarProject}/fetch-weather-data', [SolarProjectController::class, 'fetchWeatherData'])
         ->name('solar-projects.fetch-weather-data');
+    Route::post('solar-projects/{solarProject}/fetch-weather-station-data', [SolarProjectController::class, 'fetchWeatherStationData'])
+        ->name('solar-projects.fetch-weather-station-data');
 });
 
 require __DIR__.'/settings.php';

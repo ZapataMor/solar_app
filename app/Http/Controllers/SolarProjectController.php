@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SolarProject;
+use App\Models\WeatherStationReading;
 use App\Services\NasaPowerService;
 use App\Services\SolarCalculationService;
 use Carbon\Carbon;
@@ -60,7 +61,7 @@ class SolarProjectController extends Controller
             'calculationResult',
             'monthlyResults' => fn ($query) => $query->orderBy('month_number'),
         ])
-            ->loadCount('weatherData');
+            ->loadCount(['weatherData', 'weatherStationReadings']);
 
         return view('solar-projects.show', [
             'solarProject' => $solarProject,
@@ -134,6 +135,83 @@ class SolarProjectController extends Controller
         return back()->with(
             'status',
             "Datos climáticos sincronizados. Nuevos: {$created}. Existentes actualizados: {$updated}. Total del proyecto: {$total}.",
+        );
+    }
+
+    public function fetchWeatherStationData(Request $request, SolarProject $solarProject): RedirectResponse
+    {
+        $this->authorizeOwner($request, $solarProject);
+
+        $start = $solarProject->start_date->copy()->startOfDay();
+        $end = $solarProject->end_date->copy()->endOfDay();
+
+        $associated = WeatherStationReading::query()
+            ->whereNull('solar_project_id')
+            ->whereBetween('measured_at', [$start, $end])
+            ->update(['solar_project_id' => $solarProject->id]);
+
+        $readings = $solarProject->weatherStationReadings()
+            ->whereBetween('measured_at', [$start, $end])
+            ->orderBy('measured_at')
+            ->get();
+
+        if ($readings->isEmpty()) {
+            return back()->withErrors([
+                'weather_station' => 'No hay lecturas del centro meteorologico para el rango de fechas del proyecto.',
+            ]);
+        }
+
+        $dailyReadings = $readings
+            ->groupBy(fn (WeatherStationReading $reading) => $reading->measured_at->toDateString())
+            ->map(function ($dayReadings) {
+                $radiation = $dayReadings
+                    ->map(fn (WeatherStationReading $reading) => $reading->radiationValue())
+                    ->filter(fn (?float $value) => $value !== null)
+                    ->average();
+
+                if ($radiation === null) {
+                    return null;
+                }
+
+                return [
+                    'date_time' => Carbon::parse($dayReadings->first()->measured_at)->startOfDay(),
+                    'allsky_sfc_sw_dwn' => $radiation,
+                    't2m' => $dayReadings->average(fn (WeatherStationReading $reading) => $reading->temperature !== null ? (float) $reading->temperature : null),
+                    'rh2m' => $dayReadings->average(fn (WeatherStationReading $reading) => $reading->humidity !== null ? (float) $reading->humidity : null),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        if ($dailyReadings->isEmpty()) {
+            return back()->withErrors([
+                'weather_station' => 'Las lecturas del centro meteorologico no tienen datos de radiacion solar o UV.',
+            ]);
+        }
+
+        $created = 0;
+        $updated = 0;
+
+        DB::transaction(function () use ($solarProject, $dailyReadings, &$created, &$updated): void {
+            foreach ($dailyReadings as $dailyReading) {
+                $weatherData = $solarProject->weatherData()->updateOrCreate(
+                    ['date_time' => $dailyReading['date_time']],
+                    [
+                        'allsky_sfc_sw_dwn' => $dailyReading['allsky_sfc_sw_dwn'],
+                        't2m' => $dailyReading['t2m'],
+                        'rh2m' => $dailyReading['rh2m'],
+                        'prectotcorr' => null,
+                        'ws10m' => null,
+                    ],
+                );
+
+                $weatherData->wasRecentlyCreated ? $created++ : $updated++;
+            }
+        });
+
+        return back()->with(
+            'status',
+            "Datos del centro meteorologico obtenidos. Lecturas asociadas: {$associated}. Dias nuevos: {$created}. Dias actualizados: {$updated}.",
         );
     }
 
@@ -291,6 +369,24 @@ class SolarProjectController extends Controller
     {
         $monthlyResults = $solarProject->monthlyResults;
         $calculationResult = $solarProject->calculationResult;
+        $weatherStationReadings = $solarProject->weatherStationReadings()
+            ->whereBetween('measured_at', [
+                $solarProject->start_date->copy()->startOfDay(),
+                $solarProject->end_date->copy()->endOfDay(),
+            ])
+            ->orderBy('measured_at')
+            ->get();
+        $stationRadiationValues = $weatherStationReadings
+            ->map(fn (WeatherStationReading $reading) => $reading->radiationValue())
+            ->filter(fn (?float $value) => $value !== null)
+            ->values();
+        $stationDailyRadiation = $weatherStationReadings
+            ->groupBy(fn (WeatherStationReading $reading) => $reading->measured_at->toDateString())
+            ->map(fn ($dayReadings) => $dayReadings
+                ->map(fn (WeatherStationReading $reading) => $reading->radiationValue())
+                ->filter(fn (?float $value) => $value !== null)
+                ->average())
+            ->filter(fn (?float $value) => $value !== null);
 
         return [
             'chartData' => [
@@ -313,6 +409,23 @@ class SolarProjectController extends Controller
                 'generation' => $monthlyResults->sum('estimated_generation_kwh'),
                 'consumption' => $monthlyResults->sum('estimated_consumption_kwh'),
                 'savings' => $monthlyResults->sum('estimated_savings_cop'),
+            ],
+            'weatherStationStats' => [
+                'total' => $weatherStationReadings->count(),
+                'averageRadiation' => $stationRadiationValues->average(),
+                'maxRadiation' => $stationRadiationValues->max(),
+                'averageUva' => $weatherStationReadings->avg('uva'),
+                'averageUvb' => $weatherStationReadings->avg('uvb'),
+                'maxUvIndex' => $weatherStationReadings->max('uv_index'),
+                'latest' => $weatherStationReadings->sortByDesc('measured_at')->first(),
+            ],
+            'recentWeatherStationReadings' => $weatherStationReadings
+                ->sortByDesc('measured_at')
+                ->take(8)
+                ->values(),
+            'weatherStationChartData' => [
+                'labels' => $stationDailyRadiation->keys()->values()->all(),
+                'radiation' => $stationDailyRadiation->map(fn ($value) => (float) $value)->values()->all(),
             ],
         ];
     }

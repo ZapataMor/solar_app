@@ -70,90 +70,111 @@ const moneyFormatter = new Intl.NumberFormat('es-CO', {
 
 const initSolarCharts = () => {
     const dataElement = document.getElementById('solar-monthly-chart-data');
+    const weatherStationDataElement = document.getElementById('weather-station-chart-data');
 
     destroySolarCharts();
 
-    if (!dataElement) {
-        return;
+    if (dataElement) {
+        const chartData = JSON.parse(dataElement.textContent);
+        const labels = chartData.labels ?? [];
+
+        if (labels.length > 0) {
+            createChart('solar-generation-chart', {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Generacion estimada kWh',
+                        data: chartData.generation ?? [],
+                        backgroundColor: '#f59e0b',
+                        borderColor: '#d97706',
+                        borderWidth: 1,
+                    }],
+                },
+                options: baseOptions('kWh', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)} kWh`),
+            });
+
+            createChart('solar-consumption-generation-chart', {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Generacion mensual kWh',
+                            data: chartData.generation ?? [],
+                            backgroundColor: '#22c55e',
+                            borderColor: '#16a34a',
+                            borderWidth: 1,
+                        },
+                        {
+                            label: 'Consumo mensual kWh',
+                            data: chartData.consumption ?? [],
+                            backgroundColor: '#3b82f6',
+                            borderColor: '#2563eb',
+                            borderWidth: 1,
+                        },
+                    ],
+                },
+                options: baseOptions('kWh', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)} kWh`),
+            });
+
+            createChart('solar-savings-chart', {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Ahorro estimado COP',
+                        data: chartData.savings ?? [],
+                        backgroundColor: '#14b8a6',
+                        borderColor: '#0f766e',
+                        borderWidth: 1,
+                    }],
+                },
+                options: baseOptions('COP', (context) => `${context.dataset.label}: ${moneyFormatter.format(context.parsed.y)}`),
+            });
+
+            createChart('solar-coverage-chart', {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Cobertura %',
+                        data: chartData.coverage ?? [],
+                        backgroundColor: 'rgba(168, 85, 247, 0.16)',
+                        borderColor: '#9333ea',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.35,
+                    }],
+                },
+                options: baseOptions('%', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)}%`),
+            });
+        }
     }
 
-    const chartData = JSON.parse(dataElement.textContent);
-    const labels = chartData.labels ?? [];
+    if (weatherStationDataElement) {
+        const weatherStationData = JSON.parse(weatherStationDataElement.textContent);
+        const weatherStationLabels = weatherStationData.labels ?? [];
 
-    if (labels.length === 0) {
-        return;
+        if (weatherStationLabels.length > 0) {
+            createChart('weather-station-radiation-chart', {
+                type: 'line',
+                data: {
+                    labels: weatherStationLabels,
+                    datasets: [{
+                        label: 'Radiacion centro meteorologico',
+                        data: weatherStationData.radiation ?? [],
+                        backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.35,
+                    }],
+                },
+                options: baseOptions('Radiacion', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)}`),
+            });
+        }
     }
-
-    createChart('solar-generation-chart', {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Generacion estimada kWh',
-                data: chartData.generation ?? [],
-                backgroundColor: '#f59e0b',
-                borderColor: '#d97706',
-                borderWidth: 1,
-            }],
-        },
-        options: baseOptions('kWh', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)} kWh`),
-    });
-
-    createChart('solar-consumption-generation-chart', {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                {
-                    label: 'Generacion mensual kWh',
-                    data: chartData.generation ?? [],
-                    backgroundColor: '#22c55e',
-                    borderColor: '#16a34a',
-                    borderWidth: 1,
-                },
-                {
-                    label: 'Consumo mensual kWh',
-                    data: chartData.consumption ?? [],
-                    backgroundColor: '#3b82f6',
-                    borderColor: '#2563eb',
-                    borderWidth: 1,
-                },
-            ],
-        },
-        options: baseOptions('kWh', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)} kWh`),
-    });
-
-    createChart('solar-savings-chart', {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Ahorro estimado COP',
-                data: chartData.savings ?? [],
-                backgroundColor: '#14b8a6',
-                borderColor: '#0f766e',
-                borderWidth: 1,
-            }],
-        },
-        options: baseOptions('COP', (context) => `${context.dataset.label}: ${moneyFormatter.format(context.parsed.y)}`),
-    });
-
-    createChart('solar-coverage-chart', {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Cobertura %',
-                data: chartData.coverage ?? [],
-                backgroundColor: 'rgba(168, 85, 247, 0.16)',
-                borderColor: '#9333ea',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.35,
-            }],
-        },
-        options: baseOptions('%', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)}%`),
-    });
 };
 
 document.addEventListener('DOMContentLoaded', initSolarCharts);

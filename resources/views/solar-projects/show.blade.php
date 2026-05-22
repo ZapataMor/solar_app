@@ -3,6 +3,10 @@
     $calculationResult = $solarProject->calculationResult;
     $monthlyResults = $solarProject->monthlyResults;
     $hasWeatherData = $solarProject->weather_data_count > 0;
+    $weatherStationStats = $weatherStationStats ?? [];
+    $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
+    $hasWeatherStationData = ($weatherStationStats['total'] ?? 0) > 0;
+    $latestWeatherStationReading = $weatherStationStats['latest'] ?? null;
 
     $formatNumber = fn ($value, int $decimals = 2) => number_format((float) $value, $decimals, ',', '.');
     $formatKwh = fn ($value) => $formatNumber($value) . ' kWh';
@@ -46,6 +50,12 @@
             </div>
         @endif
 
+        @if ($errors->has('weather_station'))
+            <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+                {{ $errors->first('weather_station') }}
+            </div>
+        @endif
+
         @if ($errors->has('solar_calculation'))
             <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
                 {{ $errors->first('solar_calculation') }}
@@ -74,6 +84,10 @@
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Registros climaticos almacenados</dt>
                     <dd class="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">{{ number_format($solarProject->weather_data_count, 0, ',', '.') }}</dd>
+                </div>
+                <div>
+                    <dt class="text-zinc-500 dark:text-zinc-400">Lecturas centro meteorologico</dt>
+                    <dd class="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }}</dd>
                 </div>
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Fecha inicial</dt>
@@ -156,6 +170,13 @@
                     </button>
                 </form>
 
+                <form method="POST" action="{{ route('solar-projects.fetch-weather-station-data', $solarProject) }}">
+                    @csrf
+                    <button type="submit" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 dark:bg-amber-400 dark:text-zinc-950 dark:hover:bg-amber-300">
+                        Obtener datos desde centro metereologico
+                    </button>
+                </form>
+
                 <form method="POST" action="{{ route('solar-projects.calculate', $solarProject) }}">
                     @csrf
                     <button type="submit" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
@@ -171,6 +192,74 @@
                     Volver al listado
                 </a>
             </div>
+        </section>
+
+        <section class="space-y-4 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+            <div>
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-50">Centro meteorologico</h2>
+                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Lecturas locales de radiacion tomadas con la logica de UVA, UVB e indice UV del sistema de estacion.</p>
+            </div>
+
+            @if ($hasWeatherStationData)
+                <dl class="grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <dt class="text-zinc-500 dark:text-zinc-400">Lecturas asociadas</dt>
+                        <dd class="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ number_format($weatherStationStats['total'], 0, ',', '.') }}</dd>
+                    </div>
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <dt class="text-zinc-500 dark:text-zinc-400">Radiacion promedio</dt>
+                        <dd class="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ $formatNumber($weatherStationStats['averageRadiation'] ?? 0, 3) }}</dd>
+                    </div>
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <dt class="text-zinc-500 dark:text-zinc-400">Indice UV maximo</dt>
+                        <dd class="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ $formatNumber($weatherStationStats['maxUvIndex'] ?? 0, 2) }}</dd>
+                    </div>
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <dt class="text-zinc-500 dark:text-zinc-400">Ultima medicion</dt>
+                        <dd class="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ $latestWeatherStationReading?->measured_at?->format('Y-m-d H:i') ?? 'Sin fecha' }}</dd>
+                    </div>
+                </dl>
+
+                <div class="grid gap-4 xl:grid-cols-2">
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Radiacion diaria del centro meteorologico</h3>
+                        <div class="mt-4 h-72">
+                            <canvas id="weather-station-radiation-chart" aria-label="Radiacion diaria del centro meteorologico" role="img"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
+                            <thead>
+                                <tr class="text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                    <th class="px-3 py-2">Fecha</th>
+                                    <th class="px-3 py-2">Radiacion</th>
+                                    <th class="px-3 py-2">UVA</th>
+                                    <th class="px-3 py-2">UVB</th>
+                                    <th class="px-3 py-2">IUV</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                @foreach ($recentWeatherStationReadings as $reading)
+                                    <tr class="text-zinc-700 dark:text-zinc-200">
+                                        <td class="px-3 py-2 font-medium">{{ $reading->measured_at->format('Y-m-d H:i') }}</td>
+                                        <td class="px-3 py-2">{{ $reading->radiationValue() !== null ? $formatNumber($reading->radiationValue(), 3) : 'N/A' }}</td>
+                                        <td class="px-3 py-2">{{ $reading->uva !== null ? $formatNumber($reading->uva, 3) : 'N/A' }}</td>
+                                        <td class="px-3 py-2">{{ $reading->uvb !== null ? $formatNumber($reading->uvb, 3) : 'N/A' }}</td>
+                                        <td class="px-3 py-2">{{ $reading->uv_index !== null ? $formatNumber($reading->uv_index, 3) : 'N/A' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <script type="application/json" id="weather-station-chart-data">@json($weatherStationChartData)</script>
+            @else
+                <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                    Aun no hay lecturas del centro meteorologico asociadas a este proyecto. Cuando la estacion envie datos al endpoint o existan lecturas sin asociar en el rango, usa el boton para obtenerlas.
+                </div>
+            @endif
         </section>
 
         <section class="space-y-4 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
