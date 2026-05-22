@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -28,8 +27,6 @@ return new class extends Migration
             $table->unique(['solar_project_id', 'month_number']);
         });
 
-        DB::statement('ALTER TABLE monthly_results ADD CONSTRAINT monthly_results_month_check CHECK (month_number BETWEEN 1 AND 12)');
-        DB::statement('ALTER TABLE monthly_results ADD CONSTRAINT monthly_results_days_check CHECK (days_in_month BETWEEN 28 AND 31)');
     }
 
     /**

@@ -17,7 +17,12 @@ class SolarProjectTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post(route('solar-projects.store'), $this->validPayload());
+        $response = $this->actingAs($user)->post(route('solar-projects.store'), [
+            ...$this->validPayload(),
+            'location_name' => 'Otra ciudad',
+            'latitude' => 0,
+            'longitude' => 0,
+        ]);
 
         $solarProject = SolarProject::query()->first();
 
@@ -88,11 +93,13 @@ class SolarProjectTest extends TestCase
         $this->actingAs($user)
             ->post(route('solar-projects.fetch-weather-data', $solarProject))
             ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Datos climáticos sincronizados. Nuevos: 2. Existentes actualizados: 0. Total del proyecto: 2.')
             ->assertRedirect();
 
         $this->actingAs($user)
             ->post(route('solar-projects.fetch-weather-data', $solarProject))
             ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Datos climáticos sincronizados. Nuevos: 0. Existentes actualizados: 2. Total del proyecto: 2.')
             ->assertRedirect();
 
         $this->assertSame(2, ApiWeatherData::query()->whereBelongsTo($solarProject)->count());
@@ -107,6 +114,7 @@ class SolarProjectTest extends TestCase
         ]);
 
         Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://power.larc.nasa.gov/api/temporal/hourly/point')
+            && $request['parameters'] === 'ALLSKY_SFC_SW_DWN,T2M,RH2M,PRECTOTCORR,WS10M'
             && (float) $request['latitude'] === SolarProject::LATITUDE
             && (float) $request['longitude'] === SolarProject::LONGITUDE
             && $request['start'] === '20170101'
