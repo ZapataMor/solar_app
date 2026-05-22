@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\DB;
 class SolarCalculationService
 {
     /**
-     * NASA POWER hourly ALLSKY_SFC_SW_DWN is stored as Wh/m2 per hour.
-     * Summing a day and dividing by 1000 gives daily HSP in kWh/m2/day.
+     * NASA POWER daily ALLSKY_SFC_SW_DWN is stored as W/m2.
+     * Multiplying by 24 and dividing by 1000 gives daily HSP in kWh/m2/day.
      */
     public function calculate(SolarProject $solarProject): SolarProject
     {
@@ -137,7 +137,7 @@ class SolarCalculationService
             ) {
                 $dailyRadiation = $monthData
                     ->groupBy(fn ($weatherData) => $weatherData->date_time->toDateString())
-                    ->map(fn (Collection $dayData) => $dayData->sum(fn ($weatherData) => (float) $weatherData->allsky_sfc_sw_dwn) / 1000);
+                    ->map(fn (Collection $dayData) => $dayData->average(fn ($weatherData) => (float) $weatherData->allsky_sfc_sw_dwn) * 24 / 1000);
 
                 $daysInMonth = $dailyRadiation->count();
                 $averageDailyRadiation = $daysInMonth > 0 ? $dailyRadiation->average() : 0;

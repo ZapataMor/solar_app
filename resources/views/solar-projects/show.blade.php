@@ -248,6 +248,51 @@
             </section>
         @endif
 
+        @if ($monthlyResults->isNotEmpty())
+            <section class="space-y-4 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                <div>
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-50">Graficos de resultados</h2>
+                    <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Visualizacion mensual de generacion, consumo, ahorro y cobertura energetica.</p>
+                </div>
+
+                <div class="grid gap-4 xl:grid-cols-2">
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Generacion mensual estimada</h3>
+                        <div class="mt-4 h-72">
+                            <canvas id="solar-generation-chart" aria-label="Generacion mensual estimada" role="img"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Consumo vs generacion</h3>
+                        <div class="mt-4 h-72">
+                            <canvas id="solar-consumption-generation-chart" aria-label="Consumo vs generacion" role="img"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Ahorro mensual estimado</h3>
+                        <div class="mt-4 h-72">
+                            <canvas id="solar-savings-chart" aria-label="Ahorro mensual estimado" role="img"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Cobertura energetica mensual</h3>
+                        <div class="mt-4 h-72">
+                            <canvas id="solar-coverage-chart" aria-label="Cobertura energetica mensual" role="img"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <script type="application/json" id="solar-monthly-chart-data">@json($chartData)</script>
+            </section>
+        @else
+            <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                Ejecuta los calculos solares para visualizar los graficos del proyecto.
+            </div>
+        @endif
+
         <section class="space-y-4 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-50">Resultados mensuales</h2>
 
@@ -320,7 +365,5 @@
                 </dl>
             </section>
         @endif
-
-        <script type="application/json" id="solar-monthly-chart-data">@json($chartData)</script>
     </div>
 </x-layouts::app>

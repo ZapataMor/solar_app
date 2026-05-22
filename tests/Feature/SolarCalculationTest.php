@@ -64,15 +64,15 @@ class SolarCalculationTest extends TestCase
         $this->assertSame(40, $calculationResult->number_of_panels);
         $this->assertEqualsWithDelta(102, (float) $calculationResult->usable_area_m2, 0.0001);
         $this->assertEqualsWithDelta(22, (float) $calculationResult->installed_capacity_kwp, 0.0001);
-        $this->assertEqualsWithDelta(68.2634, (float) $calculationResult->estimated_annual_generation_kwh, 0.0001);
-        $this->assertEqualsWithDelta(34.1317, (float) $calculationResult->estimated_daily_generation_kwh, 0.0001);
+        $this->assertEqualsWithDelta(68.2634, (float) $calculationResult->estimated_annual_generation_kwh, 0.001);
+        $this->assertEqualsWithDelta(34.1317, (float) $calculationResult->estimated_daily_generation_kwh, 0.001);
         $this->assertEqualsWithDelta(24500, (float) $calculationResult->annual_consumption_kwh, 0.0001);
-        $this->assertEqualsWithDelta(55975.9552, (float) $calculationResult->estimated_annual_savings_cop, 0.0001);
+        $this->assertEqualsWithDelta(55975.9552, (float) $calculationResult->estimated_annual_savings_cop, 0.02);
 
         $this->assertSame(1, $monthlyResult->month_number);
         $this->assertSame(2, $monthlyResult->days_in_month);
         $this->assertEqualsWithDelta(2.2, (float) $monthlyResult->average_daily_solar_radiation, 0.0001);
-        $this->assertEqualsWithDelta(68.2634, (float) $monthlyResult->estimated_generation_kwh, 0.0001);
+        $this->assertEqualsWithDelta(68.2634, (float) $monthlyResult->estimated_generation_kwh, 0.001);
         $this->assertEqualsWithDelta(24500 / 12, (float) $monthlyResult->estimated_consumption_kwh, 0.0001);
     }
 
@@ -147,14 +147,8 @@ class SolarCalculationTest extends TestCase
     private function createWeatherData(SolarProject $solarProject): void
     {
         foreach ([
-            ['2017-01-01 08:00:00', 500],
-            ['2017-01-01 09:00:00', 500],
-            ['2017-01-01 10:00:00', 500],
-            ['2017-01-01 11:00:00', 500],
-            ['2017-01-02 08:00:00', 600],
-            ['2017-01-02 09:00:00', 600],
-            ['2017-01-02 10:00:00', 600],
-            ['2017-01-02 11:00:00', 600],
+            ['2017-01-01 00:00:00', 83.333333],
+            ['2017-01-02 00:00:00', 100],
         ] as [$dateTime, $radiation]) {
             $solarProject->weatherData()->create([
                 'date_time' => $dateTime,

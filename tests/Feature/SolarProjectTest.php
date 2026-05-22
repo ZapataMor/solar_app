@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -55,31 +56,31 @@ class SolarProjectTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_fetch_weather_data_stores_hourly_values_without_duplicates(): void
+    public function test_fetch_weather_data_stores_daily_values_without_duplicates(): void
     {
         Http::fake([
             'power.larc.nasa.gov/*' => Http::response([
                 'properties' => [
                     'parameter' => [
                         'ALLSKY_SFC_SW_DWN' => [
-                            '2017010100' => 0,
-                            '2017010101' => 0.12,
+                            '20170101' => 5.2,
+                            '20170102' => 5.4,
                         ],
                         'T2M' => [
-                            '2017010100' => 26.3,
-                            '2017010101' => 26.1,
+                            '20170101' => 26.3,
+                            '20170102' => 26.1,
                         ],
                         'RH2M' => [
-                            '2017010100' => 78.5,
-                            '2017010101' => 80.1,
+                            '20170101' => 78.5,
+                            '20170102' => 80.1,
                         ],
                         'PRECTOTCORR' => [
-                            '2017010100' => 0,
-                            '2017010101' => 0.03,
+                            '20170101' => 0,
+                            '20170102' => 0.03,
                         ],
                         'WS10M' => [
-                            '2017010100' => 5.2,
-                            '2017010101' => 5.4,
+                            '20170101' => 5.2,
+                            '20170102' => 5.4,
                         ],
                     ],
                 ],
@@ -89,6 +90,10 @@ class SolarProjectTest extends TestCase
         $user = User::factory()->create();
         $solarProject = $user->solarProjects()->create($this->projectAttributes());
         $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+        $solarProject->weatherData()->create([
+            'date_time' => '2017-01-01 01:00:00',
+            'allsky_sfc_sw_dwn' => 500,
+        ]);
 
         $this->actingAs($user)
             ->post(route('solar-projects.fetch-weather-data', $solarProject))
@@ -103,24 +108,63 @@ class SolarProjectTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(2, ApiWeatherData::query()->whereBelongsTo($solarProject)->count());
-        $this->assertDatabaseHas('api_weather_data', [
+        $this->assertDatabaseMissing('api_weather_data', [
             'solar_project_id' => $solarProject->id,
             'date_time' => '2017-01-01 01:00:00',
-            'allsky_sfc_sw_dwn' => 0.12,
+        ]);
+        $this->assertDatabaseHas('api_weather_data', [
+            'solar_project_id' => $solarProject->id,
+            'date_time' => '2017-01-02 00:00:00',
+            'allsky_sfc_sw_dwn' => 5.4,
             't2m' => 26.1,
             'rh2m' => 80.1,
             'prectotcorr' => 0.03,
             'ws10m' => 5.4,
         ]);
 
-        Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://power.larc.nasa.gov/api/temporal/hourly/point')
+        Http::assertSent(fn ($request) => str_starts_with($request->url(), 'https://power.larc.nasa.gov/api/temporal/daily/point')
             && $request['parameters'] === 'ALLSKY_SFC_SW_DWN,T2M,RH2M,PRECTOTCORR,WS10M'
             && (float) $request['latitude'] === SolarProject::LATITUDE
             && (float) $request['longitude'] === SolarProject::LONGITUDE
             && $request['start'] === '20170101'
             && $request['end'] === '20170102'
             && $request['community'] === 'SB'
+            && $request['time-standard'] === 'LST'
             && $request['format'] === 'JSON');
+    }
+
+    public function test_fetch_weather_data_caps_future_end_date_to_latest_available_date(): void
+    {
+        Carbon::setTestNow('2026-05-22 12:00:00');
+
+        Http::fake([
+            'power.larc.nasa.gov/*' => Http::response([
+                'properties' => [
+                    'parameter' => [
+                        'ALLSKY_SFC_SW_DWN' => [
+                            '20260521' => 5.1,
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'start_date' => '2026-05-21',
+            'end_date' => '2026-12-31',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.fetch-weather-data', $solarProject))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        Http::assertSent(fn ($request) => $request['start'] === '20260521'
+            && $request['end'] === '20260521');
+
+        Carbon::setTestNow();
     }
 
     /**

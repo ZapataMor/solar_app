@@ -116,7 +116,7 @@ class SolarProjectController extends Controller
         $this->authorizeOwner($request, $solarProject);
 
         try {
-            $payload = $nasaPowerService->fetchHourlyData(
+            $payload = $nasaPowerService->fetchDailyData(
                 $solarProject->start_date,
                 $solarProject->end_date,
             );
@@ -239,16 +239,21 @@ class SolarProjectController extends Controller
             ->values();
 
         if ($timestamps->isEmpty()) {
-            throw new \RuntimeException('NASA POWER response does not contain hourly values.');
+            throw new \RuntimeException('NASA POWER response does not contain daily values.');
         }
 
         $created = 0;
         $updated = 0;
 
         DB::transaction(function () use ($solarProject, $parameters, $timestamps, &$created, &$updated) {
+            $solarProject->weatherData()
+                ->get()
+                ->filter(fn ($weatherData) => ! $weatherData->date_time->isStartOfDay())
+                ->each->delete();
+
             foreach ($timestamps as $timestamp) {
                 $weatherData = $solarProject->weatherData()->updateOrCreate(
-                    ['date_time' => Carbon::createFromFormat('YmdH', (string) $timestamp)],
+                    ['date_time' => Carbon::createFromFormat('Ymd', (string) $timestamp)->startOfDay()],
                     [
                         'allsky_sfc_sw_dwn' => $this->cleanWeatherValue($parameters['ALLSKY_SFC_SW_DWN'][$timestamp] ?? null),
                         't2m' => $this->cleanWeatherValue($parameters['T2M'][$timestamp] ?? null),

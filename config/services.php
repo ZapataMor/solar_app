@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'nasa_power' => [
+        'verify_ssl' => env('NASA_POWER_VERIFY_SSL', false),
+    ],
+
 ];

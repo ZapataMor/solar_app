@@ -22,7 +22,11 @@ class SolarDashboardTest extends TestCase
             ->assertSee('Informacion general del proyecto')
             ->assertSee('Este proyecto aun no tiene parametros tecnicos registrados.')
             ->assertSee('Este proyecto aun no tiene datos climaticos sincronizados.')
-            ->assertSee('Ejecuta los calculos solares para visualizar los resultados.');
+            ->assertSee('Ejecuta los calculos solares para visualizar los resultados.')
+            ->assertSee('Ejecuta los calculos solares para visualizar los graficos del proyecto.')
+            ->assertDontSee('Graficos de resultados')
+            ->assertDontSee('solar-monthly-chart-data', false)
+            ->assertDontSee('solar-generation-chart', false);
     }
 
     public function test_show_displays_general_results_when_they_exist(): void
@@ -48,7 +52,95 @@ class SolarDashboardTest extends TestCase
         $solarProject = $user->solarProjects()->create($this->projectAttributes());
         $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
         $solarProject->calculationResult()->create($this->calculationResultAttributes(85));
+        $this->createMonthlyResults($solarProject);
 
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Resultados mensuales')
+            ->assertSee('Totales anuales')
+            ->assertSee('Mejores y peores meses')
+            ->assertSee('Mayor generacion estimada')
+            ->assertSee('Enero')
+            ->assertSee('Febrero');
+    }
+
+    public function test_show_displays_chart_section_and_chart_data_when_monthly_results_exist(): void
+    {
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create($this->projectAttributes());
+        $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+        $solarProject->calculationResult()->create($this->calculationResultAttributes(85));
+        $this->createMonthlyResults($solarProject);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Graficos de resultados')
+            ->assertSee('Generacion mensual estimada')
+            ->assertSee('Consumo vs generacion')
+            ->assertSee('Ahorro mensual estimado')
+            ->assertSee('Cobertura energetica mensual')
+            ->assertSee('solar-generation-chart', false)
+            ->assertSee('solar-consumption-generation-chart', false)
+            ->assertSee('solar-savings-chart', false)
+            ->assertSee('solar-coverage-chart', false)
+            ->assertSee('solar-monthly-chart-data', false)
+            ->assertSee('"labels":["enero","febrero"]', false)
+            ->assertSee('"generation":[1100,900]', false)
+            ->assertSee('"consumption":[1000,1000]', false)
+            ->assertSee('"savings":[902000,738000]', false)
+            ->assertSee('"coverage":[110,90]', false);
+    }
+
+    public function test_show_does_not_render_chart_containers_when_monthly_results_do_not_exist(): void
+    {
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create($this->projectAttributes());
+        $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+        $solarProject->calculationResult()->create($this->calculationResultAttributes(85));
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Ejecuta los calculos solares para visualizar los graficos del proyecto.')
+            ->assertDontSee('Graficos de resultados')
+            ->assertDontSee('solar-monthly-chart-data', false)
+            ->assertDontSee('solar-generation-chart', false)
+            ->assertDontSee('solar-consumption-generation-chart', false)
+            ->assertDontSee('solar-savings-chart', false)
+            ->assertDontSee('solar-coverage-chart', false);
+    }
+
+    public function test_show_displays_coverage_interpretation_message(): void
+    {
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create($this->projectAttributes());
+        $solarProject->calculationResult()->create($this->calculationResultAttributes(55));
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Interpretacion de resultados')
+            ->assertSee('La generacion estimada tendria una cobertura media del consumo anual.');
+    }
+
+    public function test_user_cannot_view_dashboard_for_foreign_project(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $solarProject = $owner->solarProjects()->create($this->projectAttributes());
+        $this->createMonthlyResults($solarProject);
+
+        $this->actingAs($otherUser)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertForbidden()
+            ->assertDontSee('Graficos de resultados')
+            ->assertDontSee('solar-monthly-chart-data', false);
+    }
+
+    private function createMonthlyResults(SolarProject $solarProject): void
+    {
         $solarProject->monthlyResults()->create([
             'month_number' => 1,
             'month_name' => 'enero',
@@ -70,40 +162,6 @@ class SolarDashboardTest extends TestCase
             'coverage_percentage' => 90,
             'estimated_savings_cop' => 738000,
         ]);
-
-        $this->actingAs($user)
-            ->get(route('solar-projects.show', $solarProject))
-            ->assertOk()
-            ->assertSee('Resultados mensuales')
-            ->assertSee('Totales anuales')
-            ->assertSee('Mejores y peores meses')
-            ->assertSee('Mayor generacion estimada')
-            ->assertSee('Enero')
-            ->assertSee('Febrero');
-    }
-
-    public function test_show_displays_coverage_interpretation_message(): void
-    {
-        $user = User::factory()->create();
-        $solarProject = $user->solarProjects()->create($this->projectAttributes());
-        $solarProject->calculationResult()->create($this->calculationResultAttributes(55));
-
-        $this->actingAs($user)
-            ->get(route('solar-projects.show', $solarProject))
-            ->assertOk()
-            ->assertSee('Interpretacion de resultados')
-            ->assertSee('La generacion estimada tendria una cobertura media del consumo anual.');
-    }
-
-    public function test_user_cannot_view_dashboard_for_foreign_project(): void
-    {
-        $owner = User::factory()->create();
-        $otherUser = User::factory()->create();
-        $solarProject = $owner->solarProjects()->create($this->projectAttributes());
-
-        $this->actingAs($otherUser)
-            ->get(route('solar-projects.show', $solarProject))
-            ->assertForbidden();
     }
 
     /**
