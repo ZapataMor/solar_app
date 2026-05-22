@@ -125,7 +125,7 @@ class SolarDashboardTest extends TestCase
             ->assertSee('La generacion estimada tendria una cobertura media del consumo anual.');
     }
 
-    public function test_user_cannot_view_dashboard_for_foreign_project(): void
+    public function test_user_cannot_view_foreign_project_summary(): void
     {
         $owner = User::factory()->create();
         $otherUser = User::factory()->create();

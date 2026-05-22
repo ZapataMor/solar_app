@@ -65,7 +65,7 @@ class SolarProjectController extends Controller
 
         return view('solar-projects.show', [
             'solarProject' => $solarProject,
-            ...$this->dashboardData($solarProject),
+            ...$this->projectSummaryData($solarProject),
         ]);
     }
 
@@ -365,7 +365,7 @@ class SolarProjectController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function dashboardData(SolarProject $solarProject): array
+    private function projectSummaryData(SolarProject $solarProject): array
     {
         $monthlyResults = $solarProject->monthlyResults;
         $calculationResult = $solarProject->calculationResult;

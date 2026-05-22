@@ -1,13 +1,12 @@
 <?php
 
+use App\Http\Controllers\ApiDataController;
 use App\Http\Controllers\SolarProjectController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::redirect('/', '/login')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('dashboard', 'dashboard')->name('dashboard');
-
     Route::get('solar-projects', [SolarProjectController::class, 'index'])->name('solar-projects.index');
     Route::get('solar-projects/create', [SolarProjectController::class, 'create'])->name('solar-projects.create');
     Route::post('solar-projects', [SolarProjectController::class, 'store'])->name('solar-projects.store');
@@ -21,6 +20,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('solar-projects.fetch-weather-data');
     Route::post('solar-projects/{solarProject}/fetch-weather-station-data', [SolarProjectController::class, 'fetchWeatherStationData'])
         ->name('solar-projects.fetch-weather-station-data');
+
+    Route::get('api-data', ApiDataController::class)->name('api-data.index');
 });
 
 require __DIR__.'/settings.php';
