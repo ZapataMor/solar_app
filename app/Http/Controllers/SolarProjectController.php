@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SolarProject;
 use App\Services\NasaPowerService;
+use App\Services\SolarCalculationService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,10 +55,17 @@ class SolarProjectController extends Controller
     {
         $this->authorizeOwner($request, $solarProject);
 
-        $solarProject->load(['technicalParameter'])
+        $solarProject->load([
+            'technicalParameter',
+            'calculationResult',
+            'monthlyResults' => fn ($query) => $query->orderBy('month_number'),
+        ])
             ->loadCount('weatherData');
 
-        return view('solar-projects.show', compact('solarProject'));
+        return view('solar-projects.show', [
+            'solarProject' => $solarProject,
+            ...$this->dashboardData($solarProject),
+        ]);
     }
 
     public function edit(Request $request, SolarProject $solarProject): View
@@ -127,6 +135,40 @@ class SolarProjectController extends Controller
             'status',
             "Datos climáticos sincronizados. Nuevos: {$created}. Existentes actualizados: {$updated}. Total del proyecto: {$total}.",
         );
+    }
+
+    public function calculate(
+        Request $request,
+        SolarProject $solarProject,
+        SolarCalculationService $solarCalculationService,
+    ): RedirectResponse {
+        $this->authorizeOwner($request, $solarProject);
+
+        $solarProject->loadCount('weatherData');
+
+        if ($solarProject->technicalParameter()->doesntExist()) {
+            return back()->withErrors([
+                'solar_calculation' => 'No es posible ejecutar calculos solares sin parametros tecnicos.',
+            ]);
+        }
+
+        if ($solarProject->weather_data_count === 0) {
+            return back()->withErrors([
+                'solar_calculation' => 'No es posible ejecutar calculos solares sin datos climaticos de NASA POWER.',
+            ]);
+        }
+
+        try {
+            $solarCalculationService->calculate($solarProject);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'solar_calculation' => 'No fue posible ejecutar los calculos solares. Revise los datos del proyecto e intente nuevamente.',
+            ]);
+        }
+
+        return back()->with('status', 'Calculos solares ejecutados correctamente.');
     }
 
     /**
@@ -235,5 +277,55 @@ class SolarProjectController extends Controller
     private function authorizeOwner(Request $request, SolarProject $solarProject): void
     {
         abort_unless($solarProject->user_id === $request->user()->id, 403);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dashboardData(SolarProject $solarProject): array
+    {
+        $monthlyResults = $solarProject->monthlyResults;
+        $calculationResult = $solarProject->calculationResult;
+
+        return [
+            'chartData' => [
+                'labels' => $monthlyResults->pluck('month_name')->values()->all(),
+                'generation' => $monthlyResults->pluck('estimated_generation_kwh')->map(fn ($value) => (float) $value)->values()->all(),
+                'consumption' => $monthlyResults->pluck('estimated_consumption_kwh')->map(fn ($value) => (float) $value)->values()->all(),
+                'savings' => $monthlyResults->pluck('estimated_savings_cop')->map(fn ($value) => (float) $value)->values()->all(),
+                'coverage' => $monthlyResults->pluck('coverage_percentage')->map(fn ($value) => (float) $value)->values()->all(),
+            ],
+            'coverageInterpretation' => $calculationResult
+                ? $this->coverageInterpretation((float) $calculationResult->coverage_percentage)
+                : null,
+            'monthlyHighlights' => [
+                'highestGeneration' => $monthlyResults->sortByDesc(fn ($result) => (float) $result->estimated_generation_kwh)->first(),
+                'lowestGeneration' => $monthlyResults->sortBy(fn ($result) => (float) $result->estimated_generation_kwh)->first(),
+                'highestSavings' => $monthlyResults->sortByDesc(fn ($result) => (float) $result->estimated_savings_cop)->first(),
+                'lowestCoverage' => $monthlyResults->sortBy(fn ($result) => (float) $result->coverage_percentage)->first(),
+            ],
+            'monthlyTotals' => [
+                'generation' => $monthlyResults->sum('estimated_generation_kwh'),
+                'consumption' => $monthlyResults->sum('estimated_consumption_kwh'),
+                'savings' => $monthlyResults->sum('estimated_savings_cop'),
+            ],
+        ];
+    }
+
+    private function coverageInterpretation(float $coveragePercentage): string
+    {
+        if ($coveragePercentage >= 100) {
+            return 'La generacion estimada podria cubrir la totalidad del consumo anual registrado.';
+        }
+
+        if ($coveragePercentage >= 70) {
+            return 'La generacion estimada tendria una cobertura alta del consumo anual.';
+        }
+
+        if ($coveragePercentage >= 40) {
+            return 'La generacion estimada tendria una cobertura media del consumo anual.';
+        }
+
+        return 'La generacion estimada tendria una cobertura baja frente al consumo anual registrado.';
     }
 }

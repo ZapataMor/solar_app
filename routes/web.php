@@ -15,6 +15,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('solar-projects/{solarProject}/edit', [SolarProjectController::class, 'edit'])->name('solar-projects.edit');
     Route::put('solar-projects/{solarProject}', [SolarProjectController::class, 'update'])->name('solar-projects.update');
     Route::delete('solar-projects/{solarProject}', [SolarProjectController::class, 'destroy'])->name('solar-projects.destroy');
+    Route::post('solar-projects/{solarProject}/calculate', [SolarProjectController::class, 'calculate'])
+        ->name('solar-projects.calculate');
     Route::post('solar-projects/{solarProject}/fetch-weather-data', [SolarProjectController::class, 'fetchWeatherData'])
         ->name('solar-projects.fetch-weather-data');
 });
