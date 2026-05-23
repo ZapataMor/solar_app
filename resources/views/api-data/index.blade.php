@@ -63,24 +63,12 @@
                 {{ $errors->first('weather_station') }}
             </div>
         @endif
-<<<<<<< HEAD
-        
-        <section class="solar-card">
-=======
-
         <section class="solar-card" data-weather-station-sync data-sync-interval="15000">
->>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
             <div class="solar-page-header">
                 <div>
                     <p class="solar-kicker">Estacion local</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Centro meteorologico</h2>
                     <p class="solar-subtitle mt-2">Lecturas locales con mas personalidad visual y mejor lectura de variables ambientales.</p>
-<<<<<<< HEAD
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="solar-pill solar-pill-warn">{{ number_format($weatherStationCount, 0, ',', '.') }} registros</span>
-                    <form method="POST" action="{{ route('api-data.fetch-weather-station-data') }}">
-=======
                     <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-weather-station-status>
                         Actualizacion automatica activa.
                     </p>
@@ -90,21 +78,12 @@
                         {{ number_format($weatherStationCount, 0, ',', '.') }} registros
                     </span>
                     <form method="POST" action="{{ route('api-data.fetch-weather-station-data') }}" data-weather-station-fetch-form>
->>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
                         @csrf
                         <button type="submit" class="solar-button-secondary">Obtener datos de estacion</button>
                     </form>
                 </div>
             </div>
 
-<<<<<<< HEAD
-            <div class="solar-table-shell mt-6">
-                <div class="solar-table-scroll">
-                    <table class="solar-table solar-table-wide" style="--solar-table-min: 1320px;">
-                        <thead>
-                            <tr>
-                                <th>Proyecto</th>
-=======
             <script id="weather-station-realtime-chart-data" type="application/json">@json($weatherStationChartRows)</script>
 
             <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
@@ -129,7 +108,6 @@
                     <table class="solar-table min-w-[1240px]">
                         <thead>
                             <tr>
->>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
                                 <th>Fecha</th>
                                 <th>Dispositivo</th>
                                 <th>Radiacion</th>
@@ -144,18 +122,10 @@
                                 <th>IUV</th>
                             </tr>
                         </thead>
-<<<<<<< HEAD
-                        <tbody>
-                            @forelse ($weatherStationRows as $row)
-                                <tr>
-                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $row->project_name ?? 'Sin asociar' }}</td>
-                                    <td>{{ $formatDate($row->recorded_at) }}</td>
-=======
                         <tbody data-weather-station-rows>
                             @forelse ($weatherStationRows as $row)
                                 <tr>
                                     <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
->>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
                                     <td>{{ $row->device_code ?? 'N/A' }}</td>
                                     <td>{{ $formatNumber($row->radiation, 3) }}</td>
                                     <td>{{ $formatNumber($row->temperature, 2) }}</td>
@@ -170,11 +140,7 @@
                                 </tr>
                             @empty
                                 <tr>
-<<<<<<< HEAD
-                                    <td colspan="13" class="py-10 text-center">
-=======
                                     <td colspan="12" class="py-10 text-center">
->>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
                                         Aun no hay lecturas registradas desde el centro meteorologico.
                                     </td>
                                 </tr>
