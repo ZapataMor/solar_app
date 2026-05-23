@@ -114,120 +114,124 @@
 @endphp
 
 <x-layouts::app :title="$solarProject->name">
-    <div class="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden">
-        <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
-            <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="solar-page w-full min-w-0 max-w-full overflow-x-hidden">
+        <div class="solar-hero w-full min-w-0 max-w-full">
+            <div class="solar-page-header">
                 <div class="min-w-0 max-w-3xl">
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">Dashboard Solar</p>
-                    <h1 class="mt-2 text-2xl font-semibold text-zinc-950 sm:text-3xl dark:text-zinc-50">{{ $solarProject->name }}</h1>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                    <p class="solar-kicker">Dashboard solar</p>
+                    <h1 class="solar-title">{{ $solarProject->name }}</h1>
+                    <p class="solar-subtitle">
                         {{ $solarProject->location_name }} · {{ $solarProject->start_date->format('Y-m-d') }} al {{ $solarProject->end_date->format('Y-m-d') }}
                     </p>
-                    <p class="mt-4 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                    <p class="mt-4 max-w-2xl text-sm leading-6 text-[color:var(--solar-text-muted)]">
                         {{ $solarProject->description ?: 'Proyecto sin descripcion registrada.' }}
                     </p>
                 </div>
 
                 <div class="flex flex-wrap gap-2">
-                    <a href="{{ route('solar-projects.edit', $solarProject) }}" class="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
+                    <a href="{{ route('solar-projects.edit', $solarProject) }}" class="solar-button-secondary">
                         Editar proyecto
                     </a>
-                    <a href="{{ route('solar-projects.index') }}" class="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
+                    <a href="{{ route('solar-projects.index') }}" class="solar-button-ghost">
                         Volver al listado
                     </a>
                 </div>
             </div>
 
             <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Periodo</p>
-                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $solarProject->start_date->format('Y-m-d') }} al {{ $solarProject->end_date->format('Y-m-d') }}</p>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Periodo</p>
+                    <p class="solar-metric-value text-2xl">{{ $solarProject->start_date->format('Y-m-d') }}</p>
+                    <p class="solar-metric-copy">Hasta {{ $solarProject->end_date->format('Y-m-d') }}</p>
                 </div>
 
-                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Consumo base</p>
-                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatKwh($solarProject->annual_consumption_kwh) }}</p>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Consumo base</p>
+                    <p class="solar-metric-value text-2xl">{{ $formatKwh($solarProject->annual_consumption_kwh) }}</p>
+                    <p class="solar-metric-copy">Demanda anual estimada del escenario.</p>
                 </div>
 
-                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Datos NASA</p>
-                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($solarProject->weather_data_count, 0, ',', '.') }} registros</p>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Datos NASA</p>
+                    <p class="solar-metric-value text-2xl">{{ number_format($solarProject->weather_data_count, 0, ',', '.') }}</p>
+                    <p class="solar-metric-copy">Registros climaticos satelitales disponibles.</p>
                 </div>
 
-                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Centro meteorologico</p>
-                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</p>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Estacion local</p>
+                    <p class="solar-metric-value text-2xl">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }}</p>
+                    <p class="solar-metric-copy">Lecturas locales para contexto real de Riohacha.</p>
                 </div>
             </div>
         </div>
 
         @if (session('status'))
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <div class="solar-alert solar-alert-success">
                 {{ session('status') }}
             </div>
         @endif
 
         @if ($errors->has('weather_data'))
-            <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+            <div class="solar-alert solar-alert-danger">
                 {{ $errors->first('weather_data') }}
             </div>
         @endif
 
         @if ($errors->has('weather_station'))
-            <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+            <div class="solar-alert solar-alert-danger">
                 {{ $errors->first('weather_station') }}
             </div>
         @endif
 
         @if ($errors->has('solar_calculation'))
-            <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+            <div class="solar-alert solar-alert-danger">
                 {{ $errors->first('solar_calculation') }}
             </div>
         @endif
 
         <div class="grid min-w-0 max-w-full gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,0.95fr)]">
             <section class="min-w-0 space-y-6">
-                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="solar-card-strong w-full min-w-0 max-w-full">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div class="min-w-0 max-w-3xl">
-                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">Resumen ejecutivo principal</p>
-                            <h2 class="mt-2 text-xl font-semibold text-zinc-950 dark:text-zinc-50 sm:text-2xl">Lectura general del proyecto</h2>
-                            <p class="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
+                            <p class="solar-kicker">Resumen ejecutivo principal</p>
+                            <h2 class="mt-2 text-3xl text-[color:var(--solar-text)]">Lectura general del proyecto</h2>
+                            <p class="mt-3 text-sm leading-6 text-[color:var(--solar-text)]">
                                 {{ $canonicalExecutiveSummary }}
                             </p>
                         </div>
 
-                        <div class="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+                        <div class="solar-pill">
                             {{ $executiveSummary['enabled'] ? 'Resumen IA opcional' : 'Resumen consolidado por reglas' }}
                         </div>
                     </div>
 
                     <div class="mt-6 grid gap-4 lg:grid-cols-3">
-                        <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Estado energetico general</p>
+                        <div class="solar-subcard">
+                            <p class="solar-metric-label">Estado energetico general</p>
                             <p class="mt-2 text-lg font-semibold {{ $coverageTone }}">
                                 {{ $dashboard['state']['title'] ?? 'Estado pendiente' }}
                             </p>
-                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ $canonicalStateSummary }}</p>
+                            <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]">{{ $canonicalStateSummary }}</p>
                         </div>
 
-                        <div class="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/30">
-                            <p class="text-xs font-medium uppercase tracking-wide text-red-600 dark:text-red-300">Riesgo principal</p>
-                            <p class="mt-2 text-sm font-semibold text-red-950 dark:text-red-100">{{ $canonicalRisk }}</p>
-                            <p class="mt-2 text-sm text-red-800 dark:text-red-200">Es el punto que mas puede limitar cobertura, ahorro o continuidad operativa.</p>
+                        <div class="solar-subcard solar-subcard-danger">
+                            <p class="solar-metric-label solar-subcard-title-danger">Riesgo principal</p>
+                            <p class="solar-subcard-emphasis mt-2 text-sm font-semibold">{{ $canonicalRisk }}</p>
+                            <p class="solar-subcard-copy mt-2 text-sm">Es el punto que mas puede limitar cobertura, ahorro o continuidad operativa.</p>
                         </div>
 
-                        <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/60 dark:bg-sky-950/30">
-                            <p class="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">Recomendacion principal</p>
-                            <p class="mt-2 text-sm font-semibold text-sky-950 dark:text-sky-100">{{ $canonicalRecommendation }}</p>
-                            <p class="mt-2 text-sm text-sky-800 dark:text-sky-200">Accion prioritaria para mejorar el resultado operativo del sistema.</p>
+                        <div class="solar-subcard solar-subcard-success">
+                            <p class="solar-metric-label solar-subcard-title-success">Recomendacion principal</p>
+                            <p class="solar-subcard-emphasis mt-2 text-sm font-semibold">{{ $canonicalRecommendation }}</p>
+                            <p class="solar-subcard-copy mt-2 text-sm">Accion prioritaria para mejorar el resultado operativo del sistema.</p>
                         </div>
                     </div>
 
                     @if ($supportingSignals->isNotEmpty())
-                        <div class="mt-5 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Senales de soporte</p>
-                            <ul class="mt-3 space-y-2 text-sm text-zinc-600 dark:text-zinc-300">
+                        <div class="solar-subcard mt-5">
+                            <p class="solar-metric-label">Senales de soporte</p>
+                            <ul class="mt-3 space-y-2 text-sm text-[color:var(--solar-text-muted)]">
                                 @foreach ($supportingSignals as $signal)
                                     <li>{{ $signal }}</li>
                                 @endforeach
@@ -236,100 +240,102 @@
                     @endif
                 </div>
 
-                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="solar-card w-full min-w-0 max-w-full">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Indicadores clave</h2>
-                            <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Metrica ejecutiva del proyecto y del dimensionamiento.</p>
+                            <p class="solar-kicker">KPIs del sistema</p>
+                            <h2 class="text-2xl text-[color:var(--solar-text)]">Indicadores clave</h2>
+                            <p class="solar-subtitle mt-2">Metrica ejecutiva del proyecto y del dimensionamiento con mayor contraste visual.</p>
                         </div>
                     </div>
 
                     <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cobertura estimada</p>
-                            <p class="mt-2 text-2xl font-semibold {{ $coverageTone }}">
+                        <div class="solar-metric-card min-w-0">
+                            <p class="solar-metric-label">Cobertura estimada</p>
+                            <p class="solar-metric-value {{ $coverageTone }}">
                                 {{ $calculationResult ? $formatPercent($calculationResult->coverage_percentage) : 'Pendiente' }}
                             </p>
-                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Porcentaje del consumo anual cubierto por la generacion estimada.</p>
+                            <p class="solar-metric-copy">Porcentaje del consumo anual cubierto por la generacion estimada.</p>
                         </div>
-                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Ahorro anual</p>
-                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                        <div class="solar-metric-card min-w-0">
+                            <p class="solar-metric-label">Ahorro anual</p>
+                            <p class="solar-metric-value text-[color:var(--solar-text)]">
                                 {{ $calculationResult ? $formatMoney($calculationResult->estimated_annual_savings_cop) : 'Pendiente' }}
                             </p>
-                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Impacto economico anual estimado.</p>
+                            <p class="solar-metric-copy">Impacto economico anual estimado.</p>
                         </div>
-                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Generacion anual</p>
-                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                        <div class="solar-metric-card min-w-0">
+                            <p class="solar-metric-label">Generacion anual</p>
+                            <p class="solar-metric-value text-[color:var(--solar-text)]">
                                 {{ $calculationResult ? $formatKwh($calculationResult->estimated_annual_generation_kwh) : 'Pendiente' }}
                             </p>
-                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Energia solar proyectada para el ano.</p>
+                            <p class="solar-metric-copy">Energia solar proyectada para el ano.</p>
                         </div>
-                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Balance anual</p>
-                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                        <div class="solar-metric-card min-w-0">
+                            <p class="solar-metric-label">Balance anual</p>
+                            <p class="solar-metric-value text-[color:var(--solar-text)]">
                                 {{ $calculationResult ? $formatKwh($energyDifference) : 'Pendiente' }}
                             </p>
-                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Generacion estimada menos consumo anual.</p>
+                            <p class="solar-metric-copy">Generacion estimada menos consumo anual.</p>
                         </div>
-                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Capacidad instalada</p>
-                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                        <div class="solar-metric-card min-w-0">
+                            <p class="solar-metric-label">Capacidad instalada</p>
+                            <p class="solar-metric-value text-[color:var(--solar-text)]">
                                 {{ $calculationResult ? $formatKwp($calculationResult->installed_capacity_kwp) : 'Pendiente' }}
                             </p>
-                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                            <p class="solar-metric-copy">
                                 {{ $calculationResult ? number_format($calculationResult->number_of_panels, 0, ',', '.') . ' paneles' : 'Sin calculo disponible' }}
                             </p>
                         </div>
-                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Consumo anual</p>
-                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                        <div class="solar-metric-card min-w-0">
+                            <p class="solar-metric-label">Consumo anual</p>
+                            <p class="solar-metric-value text-[color:var(--solar-text)]">
                                 {{ $calculationResult ? $formatKwh($calculationResult->annual_consumption_kwh) : $formatKwh($solarProject->annual_consumption_kwh) }}
                             </p>
-                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Base de demanda usada para el analisis.</p>
+                            <p class="solar-metric-copy">Base de demanda usada para el analisis.</p>
                         </div>
                     </div>
 
                     @unless ($hasWeatherData)
-                        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                        <div class="solar-alert solar-alert-warning mt-4">
                             Aun no hay datos NASA POWER almacenados. Cargalos desde Datos APIs antes de ejecutar la simulacion con NASA.
                         </div>
                     @endunless
                 </div>
 
                 @if ($monthlyResults->isNotEmpty())
-                    <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                    <section class="solar-card w-full min-w-0 max-w-full">
                         <div>
-                            <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Graficos de resultados</h2>
-                            <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Comparacion mensual de generacion, consumo, ahorro y cobertura.</p>
+                            <p class="solar-kicker">Analitica visual</p>
+                            <h2 class="text-2xl text-[color:var(--solar-text)]">Graficos de resultados</h2>
+                            <p class="solar-subtitle mt-2">Comparacion mensual de generacion, consumo, ahorro y cobertura.</p>
                         </div>
 
                         <div class="mt-4 grid min-w-0 gap-4 xl:grid-cols-2">
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Generacion mensual estimada</h3>
-                                <div class="mt-4 h-56 sm:h-64 lg:h-72">
+                            <div class="solar-chart-panel min-w-0">
+                                <h3 class="text-sm font-semibold text-[color:var(--solar-text)]">Generacion mensual estimada</h3>
+                                <div class="solar-chart-canvas mt-4 h-56 sm:h-64 lg:h-72">
                                     <canvas id="solar-generation-chart" aria-label="Generacion mensual estimada" role="img"></canvas>
                                 </div>
                             </div>
 
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Consumo vs generacion</h3>
-                                <div class="mt-4 h-56 sm:h-64 lg:h-72">
+                            <div class="solar-chart-panel min-w-0">
+                                <h3 class="text-sm font-semibold text-[color:var(--solar-text)]">Consumo vs generacion</h3>
+                                <div class="solar-chart-canvas mt-4 h-56 sm:h-64 lg:h-72">
                                     <canvas id="solar-consumption-generation-chart" aria-label="Consumo vs generacion" role="img"></canvas>
                                 </div>
                             </div>
 
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Ahorro mensual estimado</h3>
-                                <div class="mt-4 h-56 sm:h-64 lg:h-72">
+                            <div class="solar-chart-panel min-w-0">
+                                <h3 class="text-sm font-semibold text-[color:var(--solar-text)]">Ahorro mensual estimado</h3>
+                                <div class="solar-chart-canvas mt-4 h-56 sm:h-64 lg:h-72">
                                     <canvas id="solar-savings-chart" aria-label="Ahorro mensual estimado" role="img"></canvas>
                                 </div>
                             </div>
 
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Cobertura energetica mensual</h3>
-                                <div class="mt-4 h-56 sm:h-64 lg:h-72">
+                            <div class="solar-chart-panel min-w-0">
+                                <h3 class="text-sm font-semibold text-[color:var(--solar-text)]">Cobertura energetica mensual</h3>
+                                <div class="solar-chart-canvas mt-4 h-56 sm:h-64 lg:h-72">
                                     <canvas id="solar-coverage-chart" aria-label="Cobertura energetica mensual" role="img"></canvas>
                                 </div>
                             </div>
@@ -338,19 +344,20 @@
                         <script type="application/json" id="solar-monthly-chart-data">@json($chartData)</script>
                     </section>
 
-                    <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                    <section class="solar-card w-full min-w-0 max-w-full">
                         <div class="flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Resultados mensuales</h2>
-                                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Detalle completo de produccion, cobertura y ahorro por mes.</p>
+                                <p class="solar-kicker">Desglose mensual</p>
+                                <h2 class="text-2xl text-[color:var(--solar-text)]">Resultados mensuales</h2>
+                                <p class="solar-subtitle mt-2">Detalle completo de produccion, cobertura y ahorro por mes.</p>
                             </div>
                         </div>
 
-                        <div class="mt-4 min-w-0 max-w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+                        <div class="solar-table-shell mt-4 min-w-0 max-w-full">
                             <div class="min-w-0 max-w-full overflow-x-auto">
-                            <table class="min-w-[760px] divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
-                                <thead class="bg-zinc-50 dark:bg-zinc-950/60">
-                                    <tr class="text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            <table class="solar-table min-w-[760px]">
+                                <thead>
+                                    <tr>
                                         <th class="px-3 py-2">Mes</th>
                                         <th class="px-3 py-2">Dias</th>
                                         <th class="px-3 py-2">Radiacion diaria</th>
@@ -360,9 +367,9 @@
                                         <th class="px-3 py-2">Ahorro</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                <tbody>
                                     @foreach ($monthlyResults as $monthlyResult)
-                                        <tr class="text-zinc-700 dark:text-zinc-200">
+                                        <tr>
                                             <td class="px-3 py-2 font-medium">{{ ucfirst($monthlyResult->month_name) }}</td>
                                             <td class="px-3 py-2">{{ $monthlyResult->days_in_month }}</td>
                                             <td class="px-3 py-2">{{ $formatNumber($monthlyResult->average_daily_solar_radiation) }} kWh/m2/dia</td>
@@ -373,7 +380,7 @@
                                         </tr>
                                     @endforeach
                                 </tbody>
-                                <tfoot class="border-t border-zinc-200 text-sm font-semibold text-zinc-950 dark:border-zinc-700 dark:text-zinc-50">
+                                <tfoot class="border-t border-[rgba(129,88,44,0.12)] text-sm font-semibold text-[color:var(--solar-text)]">
                                     <tr>
                                         <td class="px-3 py-3" colspan="3">Totales anuales</td>
                                         <td class="px-3 py-3">{{ $formatKwh($monthlyTotals['generation']) }}</td>
@@ -388,51 +395,52 @@
                     </section>
 
                     @if ($weatherSupportsValue)
-                        <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                        <section class="solar-card w-full min-w-0 max-w-full">
                             <div class="flex flex-wrap items-start justify-between gap-4">
                                 <div>
-                                    <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Detalle meteorologico</h2>
-                                    <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Se muestra solo porque aporta contexto a riesgo, radiacion o seguimiento operativo.</p>
+                                    <p class="solar-kicker">Clima y radiacion</p>
+                                    <h2 class="text-2xl text-[color:var(--solar-text)]">Detalle meteorologico</h2>
+                                    <p class="solar-subtitle mt-2">Se muestra solo porque aporta contexto a riesgo, radiacion o seguimiento operativo.</p>
                                 </div>
-                                <div class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                <div class="solar-pill">
                                     {{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas
                                 </div>
                             </div>
 
                             <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
-                                <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Lectura actual</p>
-                                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestCurrentAnalysis }}</p>
+                                <div class="solar-subcard">
+                                    <p class="solar-metric-label">Lectura actual</p>
+                                    <p class="mt-2 text-sm font-semibold text-[color:var(--solar-text)]">{{ $latestCurrentAnalysis }}</p>
                                     <dl class="mt-4 grid gap-3 sm:grid-cols-2">
-                                        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Ultima medicion</dt>
-                                            <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestWeatherStationReading?->measured_at?->format('Y-m-d H:i') ?? 'Sin fecha' }}</dd>
+                                        <div class="solar-subcard">
+                                            <dt class="solar-metric-label">Ultima medicion</dt>
+                                            <dd class="mt-1 text-sm font-semibold text-[color:var(--solar-text)]">{{ $latestWeatherStationReading?->measured_at?->format('Y-m-d H:i') ?? 'Sin fecha' }}</dd>
                                         </div>
-                                        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Radiacion promedio</dt>
-                                            <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($weatherStationStats['averageRadiation'] ?? 0, 3) }}</dd>
+                                        <div class="solar-subcard">
+                                            <dt class="solar-metric-label">Radiacion promedio</dt>
+                                            <dd class="mt-1 text-sm font-semibold text-[color:var(--solar-text)]">{{ $formatNumber($weatherStationStats['averageRadiation'] ?? 0, 3) }}</dd>
                                         </div>
                                     </dl>
                                 </div>
 
-                                <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Tendencia historica</p>
-                                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestHistoricalAnalysis }}</p>
+                                <div class="solar-subcard">
+                                    <p class="solar-metric-label">Tendencia historica</p>
+                                    <p class="mt-2 text-sm font-semibold text-[color:var(--solar-text)]">{{ $latestHistoricalAnalysis }}</p>
                                     <dl class="mt-4 grid gap-3 sm:grid-cols-2">
-                                        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Indice UV maximo</dt>
-                                            <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($weatherStationStats['maxUvIndex'] ?? 0, 2) }}</dd>
+                                        <div class="solar-subcard">
+                                            <dt class="solar-metric-label">Indice UV maximo</dt>
+                                            <dd class="mt-1 text-sm font-semibold text-[color:var(--solar-text)]">{{ $formatNumber($weatherStationStats['maxUvIndex'] ?? 0, 2) }}</dd>
                                         </div>
-                                        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Centro meteorologico</dt>
-                                            <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</dd>
+                                        <div class="solar-subcard">
+                                            <dt class="solar-metric-label">Centro meteorologico</dt>
+                                            <dd class="mt-1 text-sm font-semibold text-[color:var(--solar-text)]">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</dd>
                                         </div>
                                     </dl>
                                 </div>
                             </div>
 
-                            <div class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <div class="h-56 min-w-0 max-w-full sm:h-64 lg:h-72 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-950/60">
+                            <div class="solar-chart-panel mt-4">
+                                <div class="solar-chart-canvas h-56 min-w-0 max-w-full sm:h-64 lg:h-72">
                                     <canvas id="weather-station-radiation-chart" aria-label="Radiacion diaria del centro meteorologico" role="img"></canvas>
                                 </div>
                             </div>
@@ -471,111 +479,114 @@
                         </section>
                     @endif
                 @else
-                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                    <div class="solar-alert solar-alert-warning">
                         {{ $calculationResult ? 'Los calculos generales existen, pero aun no hay resultados mensuales registrados.' : 'Ejecuta los calculos solares para visualizar los resultados y graficos del proyecto.' }}
                     </div>
                 @endif
             </section>
 
             <aside class="min-w-0 space-y-6">
-                <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                <section class="solar-card w-full min-w-0 max-w-full">
                     <div>
-                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Acciones</h2>
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Flujo operativo recomendado para actualizar el proyecto.</p>
+                        <p class="solar-kicker">Workflow</p>
+                        <h2 class="text-2xl text-[color:var(--solar-text)]">Acciones</h2>
+                        <p class="solar-subtitle mt-2">Flujo operativo recomendado para actualizar el proyecto.</p>
                     </div>
 
                     <div class="mt-4 space-y-3">
                         <form method="POST" action="{{ route('solar-projects.calculate-weather-station', $solarProject) }}">
                             @csrf
-                            <button type="submit" class="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-medium text-white hover:bg-amber-600 dark:bg-amber-400 dark:text-zinc-950 dark:hover:bg-amber-300">
+                            <button type="submit" class="solar-button w-full">
                                 Ejecutar datos con estacion
                             </button>
                         </form>
 
                         <form method="POST" action="{{ route('solar-projects.calculate', $solarProject) }}">
                             @csrf
-                            <button type="submit" class="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
+                            <button type="submit" class="solar-button-secondary w-full">
                                 Ejecutar datos con NASA
                             </button>
                         </form>
 
-                        <a href="{{ route('api-data.index') }}" class="block w-full rounded-xl border border-zinc-300 px-4 py-3 text-center text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
+                        <a href="{{ route('api-data.index') }}" class="solar-button-ghost block w-full">
                             Ir a Datos APIs
                         </a>
                     </div>
                 </section>
 
-                <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                <section class="solar-card w-full min-w-0 max-w-full">
                     <div>
-                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Contexto del proyecto</h2>
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Base tecnica y operativa usada para interpretar los resultados.</p>
+                        <p class="solar-kicker">Contexto base</p>
+                        <h2 class="text-2xl text-[color:var(--solar-text)]">Contexto del proyecto</h2>
+                        <p class="solar-subtitle mt-2">Base tecnica y operativa usada para interpretar los resultados.</p>
                     </div>
 
-                    <dl class="mt-4 space-y-3">
-                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Ubicacion</dt>
-                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $solarProject->location_name }}</dd>
+                    <dl class="solar-data-list mt-4">
+                        <div class="solar-data-row">
+                            <dt>Ubicacion</dt>
+                            <dd>{{ $solarProject->location_name }}</dd>
                         </div>
-                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Coordenadas</dt>
-                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatCoordinate($solarProject->latitude) }}, {{ $formatCoordinate($solarProject->longitude) }}</dd>
+                        <div class="solar-data-row">
+                            <dt>Coordenadas</dt>
+                            <dd>{{ $formatCoordinate($solarProject->latitude) }}, {{ $formatCoordinate($solarProject->longitude) }}</dd>
                         </div>
-                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Tarifa energetica</dt>
-                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatMoney($solarProject->energy_rate_cop_kwh) }}/kWh</dd>
+                        <div class="solar-data-row">
+                            <dt>Tarifa energetica</dt>
+                            <dd>{{ $formatMoney($solarProject->energy_rate_cop_kwh) }}/kWh</dd>
                         </div>
-                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Datos NASA</dt>
-                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($solarProject->weather_data_count, 0, ',', '.') }} registros</dd>
+                        <div class="solar-data-row">
+                            <dt>Datos NASA</dt>
+                            <dd>{{ number_format($solarProject->weather_data_count, 0, ',', '.') }} registros</dd>
                         </div>
-                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Centro meteorologico</dt>
-                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</dd>
+                        <div class="solar-data-row">
+                            <dt>Centro meteorologico</dt>
+                            <dd>{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</dd>
                         </div>
                     </dl>
 
                     @if ($technicalParameter)
-                        <dl class="mt-4 space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-                            <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                                <dt class="text-sm text-zinc-600 dark:text-zinc-400">Area disponible</dt>
-                                <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($technicalParameter->available_area_m2) }} m2</dd>
+                        <dl class="solar-data-list mt-4 border-t border-[rgba(129,88,44,0.12)] pt-4">
+                            <div class="solar-data-row">
+                                <dt>Area disponible</dt>
+                                <dd>{{ $formatNumber($technicalParameter->available_area_m2) }} m2</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                                <dt class="text-sm text-zinc-600 dark:text-zinc-400">Area utilizable</dt>
-                                <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatPercent($technicalParameter->usable_area_percentage) }}</dd>
+                            <div class="solar-data-row">
+                                <dt>Area utilizable</dt>
+                                <dd>{{ $formatPercent($technicalParameter->usable_area_percentage) }}</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                                <dt class="text-sm text-zinc-600 dark:text-zinc-400">Potencia por panel</dt>
-                                <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($technicalParameter->panel_power_w) }} W</dd>
+                            <div class="solar-data-row">
+                                <dt>Potencia por panel</dt>
+                                <dd>{{ $formatNumber($technicalParameter->panel_power_w) }} W</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                                <dt class="text-sm text-zinc-600 dark:text-zinc-400">Area del panel</dt>
-                                <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($technicalParameter->panel_area_m2) }} m2</dd>
+                            <div class="solar-data-row">
+                                <dt>Area del panel</dt>
+                                <dd>{{ $formatNumber($technicalParameter->panel_area_m2) }} m2</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                                <dt class="text-sm text-zinc-600 dark:text-zinc-400">Performance ratio</dt>
-                                <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($technicalParameter->performance_ratio, 3) }}</dd>
+                            <div class="solar-data-row">
+                                <dt>Performance ratio</dt>
+                                <dd>{{ $formatNumber($technicalParameter->performance_ratio, 3) }}</dd>
                             </div>
-                            <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
-                                <dt class="text-sm text-zinc-600 dark:text-zinc-400">Perdidas del sistema</dt>
-                                <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatPercent($technicalParameter->system_losses_percentage) }}</dd>
+                            <div class="solar-data-row">
+                                <dt>Perdidas del sistema</dt>
+                                <dd>{{ $formatPercent($technicalParameter->system_losses_percentage) }}</dd>
                             </div>
                         </dl>
                     @else
-                        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                        <div class="solar-alert solar-alert-warning mt-4">
                             Este proyecto aun no tiene parametros tecnicos registrados.
                         </div>
                     @endif
                 </section>
 
                 @if ($monthlyResults->isNotEmpty())
-                    <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                    <section class="solar-card w-full min-w-0 max-w-full">
                         <div>
-                            <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Mejores y peores meses</h2>
-                            <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Resumen rapido para detectar estacionalidad.</p>
+                            <p class="solar-kicker">Estacionalidad</p>
+                            <h2 class="text-2xl text-[color:var(--solar-text)]">Mejores y peores meses</h2>
+                            <p class="solar-subtitle mt-2">Resumen rapido para detectar estacionalidad.</p>
                         </div>
 
-                        <dl class="mt-4 space-y-3 text-sm">
+                        <dl class="solar-data-list mt-4 text-sm">
                             <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
                                 <dt class="text-zinc-500 dark:text-zinc-400">Mayor generacion estimada</dt>
                                 <dd class="mt-1 font-semibold text-zinc-950 dark:text-zinc-50">{{ ucfirst($monthlyHighlights['highestGeneration']->month_name) }} · {{ $formatKwh($monthlyHighlights['highestGeneration']->estimated_generation_kwh) }}</dd>

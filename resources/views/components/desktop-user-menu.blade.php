@@ -1,5 +1,6 @@
 <flux:dropdown position="bottom" align="start">
     <flux:sidebar.profile
+        class="solar-user-trigger"
         :name="auth()->user()->name"
         :initials="auth()->user()->initials()"
         icon:trailing="chevrons-up-down"

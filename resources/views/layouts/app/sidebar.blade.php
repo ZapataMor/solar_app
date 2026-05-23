@@ -1,21 +1,26 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+    <body class="solar-shell-body min-h-dvh antialiased">
+        <flux:sidebar sticky collapsible="mobile" class="solar-shell-sidebar">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('solar-projects.index') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
+            <div class="solar-sidebar-intro">
+                <p>Riohacha Solar Intelligence</p>
+                <p>Dashboard premium para analisis energetico, clima, radiacion y decisiones operativas con contexto local.</p>
+            </div>
+
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" wire:navigate>
+                <flux:sidebar.group :heading="__('Centro solar')" class="grid solar-nav-heading">
+                    <flux:sidebar.item class="solar-nav-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" wire:navigate>
                         {{ __('Proyectos solares') }}
                     </flux:sidebar.item>
-                    <flux:sidebar.item icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" wire:navigate>
+                    <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" wire:navigate>
                         {{ __('Datos APIs') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
@@ -24,12 +29,8 @@
             <flux:spacer />
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
+                <flux:sidebar.item class="solar-nav-item" icon="sparkles" :href="route('solar-projects.create')" wire:navigate>
+                    {{ __('Nuevo proyecto') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 
@@ -37,7 +38,7 @@
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden">
+        <flux:header class="solar-shell-header lg:hidden">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
             <flux:spacer />

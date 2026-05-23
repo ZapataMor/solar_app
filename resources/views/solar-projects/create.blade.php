@@ -1,9 +1,10 @@
 <x-layouts::app :title="__('Crear proyecto solar')">
-    <div class="mx-auto max-w-4xl space-y-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Crear proyecto solar</h1>
-            <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Registra la información técnica inicial del proyecto.</p>
-        </div>
+    <div class="solar-page solar-page-narrow">
+        <section class="solar-hero">
+            <p class="solar-kicker">Nuevo escenario</p>
+            <h1 class="solar-title">Crear proyecto solar</h1>
+            <p class="solar-subtitle">Registra el contexto tecnico inicial del sistema para convertir radiacion, clima y consumo en una lectura ejecutiva clara.</p>
+        </section>
 
         @include('solar-projects._form', [
             'action' => route('solar-projects.store'),

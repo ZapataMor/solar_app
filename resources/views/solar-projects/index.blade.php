@@ -1,71 +1,105 @@
 <x-layouts::app :title="__('Proyectos solares')">
-    <div class="space-y-6">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Proyectos solares</h1>
-                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Simulaciones fotovoltaicas para Riohacha, La Guajira.</p>
+    <div class="solar-page">
+        <section class="solar-hero">
+            <div class="solar-page-header">
+                <div>
+                    <p class="solar-kicker">Solar command center</p>
+                    <h1 class="solar-title">Proyectos solares listos para decision ejecutiva</h1>
+                    <p class="solar-subtitle">Gestiona simulaciones fotovoltaicas para Riohacha con una interfaz mas limpia, tecnica y orientada a ahorro, radiacion y operacion energetica.</p>
+                </div>
+
+                <a href="{{ route('solar-projects.create') }}" class="solar-button">
+                    Nuevo proyecto
+                </a>
             </div>
 
-            <a href="{{ route('solar-projects.create') }}" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
-                Nuevo proyecto
-            </a>
-        </div>
+            <div class="mt-6 grid gap-4 md:grid-cols-3">
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Portafolio activo</p>
+                    <p class="solar-metric-value">{{ number_format($solarProjects->total(), 0, ',', '.') }}</p>
+                    <p class="solar-metric-copy">Proyectos registrados para modelar consumo, cobertura y ahorro.</p>
+                </div>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Contexto geografico</p>
+                    <p class="solar-metric-value">Riohacha</p>
+                    <p class="solar-metric-copy">Entorno costero-desertico con alta radiacion y gran potencial solar.</p>
+                </div>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Narrativa visual</p>
+                    <p class="solar-metric-value">Solar SaaS</p>
+                    <p class="solar-metric-copy">Base lista para demo premium de hackathon sin apariencia de panel generico.</p>
+                </div>
+            </div>
+        </section>
 
         @if (session('status'))
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <div class="solar-alert solar-alert-success">
                 {{ session('status') }}
             </div>
         @endif
 
-        <div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
-                    <thead class="bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-                        <tr>
-                            <th class="px-4 py-3">Nombre</th>
-                            <th class="px-4 py-3">Ubicación</th>
-                            <th class="px-4 py-3">Fecha inicial</th>
-                            <th class="px-4 py-3">Fecha final</th>
-                            <th class="px-4 py-3">Consumo anual</th>
-                            <th class="px-4 py-3">Tarifa</th>
-                            <th class="px-4 py-3 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-800">
-                        @forelse ($solarProjects as $solarProject)
-                            <tr>
-                                <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">{{ $solarProject->name }}</td>
-                                <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">{{ $solarProject->location_name }}</td>
-                                <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">{{ $solarProject->start_date->format('Y-m-d') }}</td>
-                                <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">{{ $solarProject->end_date->format('Y-m-d') }}</td>
-                                <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">{{ number_format((float) $solarProject->annual_consumption_kwh, 2) }} kWh</td>
-                                <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">$ {{ number_format((float) $solarProject->energy_rate_cop_kwh, 2) }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex justify-end gap-2">
-                                        <a href="{{ route('solar-projects.show', $solarProject) }}" class="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">Ver</a>
-                                        <a href="{{ route('solar-projects.edit', $solarProject) }}" class="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">Editar</a>
-                                        <form method="POST" action="{{ route('solar-projects.destroy', $solarProject) }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40">
-                                                Eliminar
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="px-4 py-8 text-center text-zinc-600 dark:text-zinc-400">
-                                    No hay proyectos solares registrados.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+        <section class="solar-card">
+            <div class="solar-page-header">
+                <div>
+                    <p class="solar-kicker">Portafolio</p>
+                    <h2 class="text-2xl text-[color:var(--solar-text)]">Vista general de proyectos</h2>
+                    <p class="solar-subtitle mt-2">La tabla funciona como centro de lectura: mejor contraste, menos ruido y acciones mas claras.</p>
+                </div>
+                <span class="solar-pill">{{ number_format($solarProjects->count(), 0, ',', '.') }} en esta pagina</span>
             </div>
-        </div>
 
-        {{ $solarProjects->links() }}
+            <div class="solar-table-shell mt-6">
+                <div class="overflow-x-auto">
+                    <table class="solar-table min-w-[820px]">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Ubicacion</th>
+                                <th>Fecha inicial</th>
+                                <th>Fecha final</th>
+                                <th>Consumo anual</th>
+                                <th>Tarifa</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($solarProjects as $solarProject)
+                                <tr>
+                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $solarProject->name }}</td>
+                                    <td>{{ $solarProject->location_name }}</td>
+                                    <td>{{ $solarProject->start_date->format('Y-m-d') }}</td>
+                                    <td>{{ $solarProject->end_date->format('Y-m-d') }}</td>
+                                    <td>{{ number_format((float) $solarProject->annual_consumption_kwh, 2) }} kWh</td>
+                                    <td>$ {{ number_format((float) $solarProject->energy_rate_cop_kwh, 2) }}</td>
+                                    <td>
+                                        <div class="flex justify-end gap-2">
+                                            <a href="{{ route('solar-projects.show', $solarProject) }}" class="solar-button-secondary px-3 py-2 text-xs">Ver</a>
+                                            <a href="{{ route('solar-projects.edit', $solarProject) }}" class="solar-button-ghost px-3 py-2 text-xs">Editar</a>
+                                            <form method="POST" action="{{ route('solar-projects.destroy', $solarProject) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="solar-button-danger px-3 py-2 text-xs">
+                                                    Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-10 text-center">
+                                        No hay proyectos solares registrados.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <div class="solar-pagination">
+            {{ $solarProjects->links() }}
+        </div>
     </div>
 </x-layouts::app>

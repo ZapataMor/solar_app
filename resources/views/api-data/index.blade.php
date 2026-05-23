@@ -5,92 +5,96 @@
 @endphp
 
 <x-layouts::app :title="__('Datos APIs')">
-    <div class="space-y-6">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Datos APIs</h1>
-                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Registros obtenidos desde NASA POWER y el centro meteorologico.</p>
+    <div class="solar-page">
+        <section class="solar-hero">
+            <div class="solar-page-header">
+                <div>
+                    <p class="solar-kicker">Data observatory</p>
+                    <h1 class="solar-title">Datos climaticos y meteorologicos</h1>
+                    <p class="solar-subtitle">Consolida la radiacion, temperatura y lecturas locales en una vista mas profesional, con mejor jerarquia para demo y analisis.</p>
+                </div>
+                <span class="solar-pill">{{ number_format($totalRows, 0, ',', '.') }} registros visibles</span>
             </div>
-        </div>
+
+            <div class="mt-6 grid gap-4 md:grid-cols-3">
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Total registros</p>
+                    <p class="solar-metric-value">{{ number_format($totalRows, 0, ',', '.') }}</p>
+                    <p class="solar-metric-copy">Base consolidada para decisiones de energia, radiacion y riesgo operativo.</p>
+                </div>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">NASA POWER</p>
+                    <p class="solar-metric-value">{{ number_format($nasaCount, 0, ',', '.') }}</p>
+                    <p class="solar-metric-copy">Fuente satelital para comparacion y cobertura historica.</p>
+                </div>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">Estacion local</p>
+                    <p class="solar-metric-value">{{ number_format($weatherStationCount, 0, ',', '.') }}</p>
+                    <p class="solar-metric-copy">Lecturas de contexto real para Riohacha y seguimiento ambiental.</p>
+                </div>
+            </div>
+        </section>
 
         @if (session('status'))
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <div class="solar-alert solar-alert-success">
                 {{ session('status') }}
             </div>
         @endif
 
         @if ($errors->has('nasa_data'))
-            <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+            <div class="solar-alert solar-alert-danger">
                 {{ $errors->first('nasa_data') }}
             </div>
         @endif
 
         @if ($errors->has('weather_station'))
-            <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+            <div class="solar-alert solar-alert-danger">
                 {{ $errors->first('weather_station') }}
             </div>
         @endif
 
-        <dl class="grid gap-4 text-sm sm:grid-cols-3">
-            <div class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-                <dt class="text-zinc-500 dark:text-zinc-400">Total registros</dt>
-                <dd class="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ number_format($totalRows, 0, ',', '.') }}</dd>
-            </div>
-            <div class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-                <dt class="text-zinc-500 dark:text-zinc-400">NASA POWER</dt>
-                <dd class="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ number_format($nasaCount, 0, ',', '.') }}</dd>
-            </div>
-            <div class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-                <dt class="text-zinc-500 dark:text-zinc-400">Centro meteorologico</dt>
-                <dd class="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ number_format($weatherStationCount, 0, ',', '.') }}</dd>
-            </div>
-        </dl>
-
-        <section class="space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-3">
+        <section class="solar-card">
+            <div class="solar-page-header">
                 <div>
-                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">NASA POWER</h2>
-                    <p class="text-sm text-zinc-600 dark:text-zinc-400">Datos climaticos sincronizados desde NASA POWER.</p>
+                    <p class="solar-kicker">NASA power</p>
+                    <h2 class="text-2xl text-[color:var(--solar-text)]">Fuente satelital</h2>
+                    <p class="solar-subtitle mt-2">Datos climaticos sincronizados desde NASA POWER con una lectura tabular mas clara.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-200">
-                        {{ number_format($nasaCount, 0, ',', '.') }} registros
-                    </span>
+                    <span class="solar-pill">{{ number_format($nasaCount, 0, ',', '.') }} registros</span>
                     <form method="POST" action="{{ route('api-data.fetch-nasa-data') }}">
                         @csrf
-                        <button type="submit" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
-                            Obtener datos NASA POWER
-                        </button>
+                        <button type="submit" class="solar-button">Obtener datos NASA POWER</button>
                     </form>
                 </div>
             </div>
 
-            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="solar-table-shell mt-6">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
-                        <thead class="bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+                    <table class="solar-table min-w-[880px]">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-3">Fecha</th>
-                                <th class="px-4 py-3">Radiacion</th>
-                                <th class="px-4 py-3">Temp.</th>
-                                <th class="px-4 py-3">Humedad</th>
-                                <th class="px-4 py-3">Precipitacion</th>
-                                <th class="px-4 py-3">Viento</th>
+                                <th>Fecha</th>
+                                <th>Radiacion</th>
+                                <th>Temp.</th>
+                                <th>Humedad</th>
+                                <th>Precipitacion</th>
+                                <th>Viento</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        <tbody>
                             @forelse ($nasaRows as $row)
-                                <tr class="text-zinc-700 dark:text-zinc-200">
-                                    <td class="px-4 py-3">{{ $formatDate($row->recorded_at) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->radiation, 3) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->temperature, 2) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->humidity, 2) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->precipitation, 4) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->wind_speed, 2) }}</td>
+                                <tr>
+                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
+                                    <td>{{ $formatNumber($row->radiation, 3) }}</td>
+                                    <td>{{ $formatNumber($row->temperature, 2) }}</td>
+                                    <td>{{ $formatNumber($row->humidity, 2) }}</td>
+                                    <td>{{ $formatNumber($row->precipitation, 4) }}</td>
+                                    <td>{{ $formatNumber($row->wind_speed, 2) }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="px-4 py-8 text-center text-zinc-600 dark:text-zinc-400">
+                                    <td colspan="6" class="py-10 text-center">
                                         Aun no hay datos registrados desde NASA POWER.
                                     </td>
                                 </tr>
@@ -100,68 +104,67 @@
                 </div>
             </div>
 
-            {{ $nasaRows->links() }}
+            <div class="solar-pagination mt-5">
+                {{ $nasaRows->links() }}
+            </div>
         </section>
 
-        <section class="space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-3">
+        <section class="solar-card">
+            <div class="solar-page-header">
                 <div>
-                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Centro meteorologico</h2>
-                    <p class="text-sm text-zinc-600 dark:text-zinc-400">Lecturas recibidas desde la estacion local.</p>
+                    <p class="solar-kicker">Estacion local</p>
+                    <h2 class="text-2xl text-[color:var(--solar-text)]">Centro meteorologico</h2>
+                    <p class="solar-subtitle mt-2">Lecturas locales con mas personalidad visual y mejor lectura de variables ambientales.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-200">
-                        {{ number_format($weatherStationCount, 0, ',', '.') }} registros
-                    </span>
+                    <span class="solar-pill solar-pill-warn">{{ number_format($weatherStationCount, 0, ',', '.') }} registros</span>
                     <form method="POST" action="{{ route('api-data.fetch-weather-station-data') }}">
                         @csrf
-                        <button type="submit" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 dark:bg-amber-400 dark:text-zinc-950 dark:hover:bg-amber-300">
-                            Obtener datos de estacion
-                        </button>
+                        <button type="submit" class="solar-button-secondary">Obtener datos de estacion</button>
                     </form>
                 </div>
             </div>
 
-            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="solar-table-shell mt-6">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
-                        <thead class="bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+                    <table class="solar-table min-w-[1320px]">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-3">Proyecto</th>
-                                <th class="px-4 py-3">Fecha</th>
-                                <th class="px-4 py-3">Dispositivo</th>
-                                <th class="px-4 py-3">Radiacion</th>
-                                <th class="px-4 py-3">Temp.</th>
-                                <th class="px-4 py-3">Humedad</th>
-                                <th class="px-4 py-3">Sensacion termica</th>
-                                <th class="px-4 py-3">CO2</th>
-                                <th class="px-4 py-3">PM2.5</th>
-                                <th class="px-4 py-3">PM10</th>
-                                <th class="px-4 py-3">UVA</th>
-                                <th class="px-4 py-3">UVB</th>
-                                <th class="px-4 py-3">IUV</th>
+                                <th>Proyecto</th>
+                                <th>Fecha</th>
+                                <th>Dispositivo</th>
+                                <th>Radiacion</th>
+                                <th>Temp.</th>
+                                <th>Humedad</th>
+                                <th>Sensacion termica</th>
+                                <th>CO2</th>
+                                <th>PM2.5</th>
+                                <th>PM10</th>
+                                <th>UVA</th>
+                                <th>UVB</th>
+                                <th>IUV</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        <tbody>
                             @forelse ($weatherStationRows as $row)
-                                <tr class="text-zinc-700 dark:text-zinc-200">
-                                    <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">{{ $row->project_name ?? 'Sin asociar' }}</td>
-                                    <td class="px-4 py-3">{{ $formatDate($row->recorded_at) }}</td>
-                                    <td class="px-4 py-3">{{ $row->device_code ?? 'N/A' }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->radiation, 3) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->temperature, 2) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->humidity, 2) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->thermal_sensation, 2) }}</td>
-                                    <td class="px-4 py-3">{{ $row->co2 ?? 'N/A' }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->pm25, 2) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->pm10, 2) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->uva, 3) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->uvb, 3) }}</td>
-                                    <td class="px-4 py-3">{{ $formatNumber($row->uv_index, 3) }}</td>
+                                <tr>
+                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $row->project_name ?? 'Sin asociar' }}</td>
+                                    <td>{{ $formatDate($row->recorded_at) }}</td>
+                                    <td>{{ $row->device_code ?? 'N/A' }}</td>
+                                    <td>{{ $formatNumber($row->radiation, 3) }}</td>
+                                    <td>{{ $formatNumber($row->temperature, 2) }}</td>
+                                    <td>{{ $formatNumber($row->humidity, 2) }}</td>
+                                    <td>{{ $formatNumber($row->thermal_sensation, 2) }}</td>
+                                    <td>{{ $row->co2 ?? 'N/A' }}</td>
+                                    <td>{{ $formatNumber($row->pm25, 2) }}</td>
+                                    <td>{{ $formatNumber($row->pm10, 2) }}</td>
+                                    <td>{{ $formatNumber($row->uva, 3) }}</td>
+                                    <td>{{ $formatNumber($row->uvb, 3) }}</td>
+                                    <td>{{ $formatNumber($row->uv_index, 3) }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="13" class="px-4 py-8 text-center text-zinc-600 dark:text-zinc-400">
+                                    <td colspan="13" class="py-10 text-center">
                                         Aun no hay lecturas registradas desde el centro meteorologico.
                                     </td>
                                 </tr>
@@ -171,7 +174,9 @@
                 </div>
             </div>
 
-            {{ $weatherStationRows->links() }}
+            <div class="solar-pagination mt-5">
+                {{ $weatherStationRows->links() }}
+            </div>
         </section>
     </div>
 </x-layouts::app>

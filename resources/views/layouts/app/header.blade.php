@@ -1,19 +1,19 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:header container class="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+    <body class="solar-shell-body min-h-screen">
+        <flux:header container class="solar-shell-header">
             <flux:sidebar.toggle class="lg:hidden mr-2" icon="bars-2" inset="left" />
 
             <x-app-logo href="{{ route('solar-projects.index') }}" wire:navigate />
 
             <flux:navbar class="-mb-px max-lg:hidden">
-                <flux:navbar.item icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" wire:navigate>
+                <flux:navbar.item class="solar-header-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" wire:navigate>
                     {{ __('Proyectos solares') }}
                 </flux:navbar.item>
-                <flux:navbar.item icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" wire:navigate>
+                <flux:navbar.item class="solar-header-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" wire:navigate>
                     {{ __('Datos APIs') }}
                 </flux:navbar.item>
             </flux:navbar>
@@ -21,46 +21,30 @@
             <flux:spacer />
 
             <flux:navbar class="me-1.5 space-x-0.5 rtl:space-x-reverse py-0!">
-                <flux:tooltip :content="__('Search')" position="bottom">
-                    <flux:navbar.item class="!h-10 [&>div>svg]:size-5" icon="magnifying-glass" href="#" :label="__('Search')" />
-                </flux:tooltip>
-                <flux:tooltip :content="__('Repository')" position="bottom">
-                    <flux:navbar.item
-                        class="h-10 max-lg:hidden [&>div>svg]:size-5"
-                        icon="folder-git-2"
-                        href="https://github.com/laravel/livewire-starter-kit"
-                        target="_blank"
-                        :label="__('Repository')"
-                    />
-                </flux:tooltip>
-                <flux:tooltip :content="__('Documentation')" position="bottom">
-                    <flux:navbar.item
-                        class="h-10 max-lg:hidden [&>div>svg]:size-5"
-                        icon="book-open-text"
-                        href="https://laravel.com/docs/starter-kits#livewire"
-                        target="_blank"
-                        :label="__('Documentation')"
-                    />
-                </flux:tooltip>
+                <flux:navbar.item class="solar-header-item" icon="sparkles" :href="route('solar-projects.create')" :label="__('Nuevo proyecto')" wire:navigate />
             </flux:navbar>
 
             <x-desktop-user-menu />
         </flux:header>
 
-            <!-- Mobile Menu -->
-        <flux:sidebar collapsible="mobile" sticky class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar collapsible="mobile" sticky class="solar-shell-sidebar lg:hidden">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('solar-projects.index') }}" wire:navigate />
                 <flux:sidebar.collapse class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
             </flux:sidebar.header>
 
+            <div class="solar-sidebar-intro">
+                <p>Riohacha Solar Intelligence</p>
+                <p>Analitica, radiacion, ahorro y operaciones en una capa visual coherente con el territorio.</p>
+            </div>
+
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')">
-                    <flux:sidebar.item icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" wire:navigate>
-                        {{ __('Proyectos solares')  }}
+                <flux:sidebar.group :heading="__('Centro solar')" class="grid solar-nav-heading">
+                    <flux:sidebar.item class="solar-nav-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" wire:navigate>
+                        {{ __('Proyectos solares') }}
                     </flux:sidebar.item>
-                    <flux:sidebar.item icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" wire:navigate>
-                        {{ __('Datos APIs')  }}
+                    <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" wire:navigate>
+                        {{ __('Datos APIs') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
@@ -68,16 +52,17 @@
             <flux:spacer />
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
+                <flux:sidebar.item class="solar-nav-item" icon="sparkles" :href="route('solar-projects.create')" wire:navigate>
+                    {{ __('Nuevo proyecto') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
         </flux:sidebar>
 
-        {{ $slot }}
+        <main class="solar-shell-main">
+            <div class="solar-main-shell">
+                {{ $slot }}
+            </div>
+        </main>
 
         @persist('toast')
             <flux:toast.group>

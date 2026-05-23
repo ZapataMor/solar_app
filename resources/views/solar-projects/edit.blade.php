@@ -1,9 +1,10 @@
 <x-layouts::app :title="__('Editar proyecto solar')">
-    <div class="mx-auto max-w-4xl space-y-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Editar proyecto solar</h1>
-            <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{{ $solarProject->name }}</p>
-        </div>
+    <div class="solar-page solar-page-narrow">
+        <section class="solar-hero">
+            <p class="solar-kicker">Ajuste tecnico</p>
+            <h1 class="solar-title">Editar proyecto solar</h1>
+            <p class="solar-subtitle">Refina el escenario energetico de <strong>{{ $solarProject->name }}</strong> sin perder continuidad en la simulacion ni en las vistas del dashboard.</p>
+        </section>
 
         @include('solar-projects._form', [
             'action' => route('solar-projects.update', $solarProject),
