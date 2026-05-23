@@ -127,6 +127,65 @@ class SolarDashboardTest extends TestCase
             ->assertSee('La generacion estimada tendria una cobertura media del consumo anual.');
     }
 
+    public function test_show_displays_weather_analysis_when_station_readings_exist(): void
+    {
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'start_date' => '2026-05-23',
+            'end_date' => '2026-05-23',
+        ]);
+
+        $solarProject->weatherStationReadings()->create([
+            'temperature' => 31.0,
+            'humidity' => 54.0,
+            'co2' => 700,
+            'uv_index' => 2.1,
+            'measured_at' => '2026-05-23 09:00:00',
+        ]);
+        $solarProject->weatherStationReadings()->create([
+            'temperature' => 31.5,
+            'humidity' => 55.0,
+            'co2' => 720,
+            'uv_index' => 2.2,
+            'measured_at' => '2026-05-23 10:00:00',
+        ]);
+        $solarProject->weatherStationReadings()->create([
+            'temperature' => 32.0,
+            'humidity' => 56.0,
+            'co2' => 740,
+            'uv_index' => 2.4,
+            'measured_at' => '2026-05-23 11:00:00',
+        ]);
+        $solarProject->weatherStationReadings()->create([
+            'temperature' => 32.2,
+            'humidity' => 57.0,
+            'co2' => 760,
+            'uv_index' => 2.6,
+            'measured_at' => '2026-05-23 12:00:00',
+        ]);
+        $solarProject->weatherStationReadings()->create([
+            'temperature' => 35.1,
+            'humidity' => 78.0,
+            'thermal_sensation' => 44.0,
+            'co2' => 1618,
+            'uv_index' => 6.4,
+            'solar_radiation' => 740.0,
+            'measured_at' => '2026-05-23 13:00:00',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Analisis automatico')
+            ->assertSee('Estado actual')
+            ->assertSee('Comportamiento historico')
+            ->assertSee('Calor extremo detectado: la temperatura actual supera los 35 C.')
+            ->assertSee('Contaminacion elevada por CO2: la ventilacion del entorno deberia revisarse.')
+            ->assertSee('Alta radiacion detectada: el potencial solar y la exposicion UV estan elevados.')
+            ->assertSee('Historico reciente con temperatura promedio elevada: el periodo analizado ha sido caluroso.');
+    }
+
     public function test_user_cannot_view_foreign_project_summary(): void
     {
         $owner = User::factory()->create();
