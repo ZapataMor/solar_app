@@ -76,10 +76,9 @@
 
             <div class="solar-table-shell mt-6">
                 <div class="overflow-x-auto">
-                    <table class="solar-table min-w-[1320px]">
+                    <table class="solar-table min-w-[1240px]">
                         <thead>
                             <tr>
-                                <th>Proyecto</th>
                                 <th>Fecha</th>
                                 <th>Dispositivo</th>
                                 <th>Radiacion</th>
@@ -97,8 +96,7 @@
                         <tbody data-weather-station-rows>
                             @forelse ($weatherStationRows as $row)
                                 <tr>
-                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $row->project_name ?? 'Sin asociar' }}</td>
-                                    <td>{{ $formatDate($row->recorded_at) }}</td>
+                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
                                     <td>{{ $row->device_code ?? 'N/A' }}</td>
                                     <td>{{ $formatNumber($row->radiation, 3) }}</td>
                                     <td>{{ $formatNumber($row->temperature, 2) }}</td>
@@ -113,7 +111,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="13" class="py-10 text-center">
+                                    <td colspan="12" class="py-10 text-center">
                                         Aun no hay lecturas registradas desde el centro meteorologico.
                                     </td>
                                 </tr>
@@ -145,8 +143,8 @@
             </div>
 
             <div class="solar-table-shell mt-6">
-                <div class="overflow-x-auto">
-                    <table class="solar-table min-w-[880px]">
+                <div class="solar-table-scroll">
+                    <table class="solar-table">
                         <thead>
                             <tr>
                                 <th>Fecha</th>

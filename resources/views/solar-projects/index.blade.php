@@ -49,8 +49,8 @@
             </div>
 
             <div class="solar-table-shell mt-6">
-                <div class="overflow-x-auto">
-                    <table class="solar-table min-w-[820px]">
+                <div class="solar-table-scroll">
+                    <table class="solar-table solar-table-wide" style="--solar-table-min: 820px;">
                         <thead>
                             <tr>
                                 <th>Nombre</th>

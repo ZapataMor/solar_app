@@ -5,6 +5,7 @@ let solarThemeObserver = null;
 
 const getSolarChartColors = () => {
     const styles = getComputedStyle(document.documentElement);
+    const isDark = document.documentElement.classList.contains('dark');
 
     return {
         text: styles.getPropertyValue('--solar-text-muted').trim() || '#715841',
@@ -16,9 +17,11 @@ const getSolarChartColors = () => {
         successDark: styles.getPropertyValue('--solar-success').trim() || '#456f47',
         danger: styles.getPropertyValue('--solar-danger').trim() || '#c96a58',
         clay: styles.getPropertyValue('--solar-text').trim() || '#9c6540',
-        tooltipBg: document.documentElement.classList.contains('dark') ? 'rgba(16, 12, 8, 0.94)' : 'rgba(53, 37, 21, 0.92)',
-        tooltipTitle: styles.getPropertyValue('--solar-text').trim() || '#fff7ee',
-        tooltipBody: styles.getPropertyValue('--solar-text-muted').trim() || '#f8e7cf',
+        tooltipBg: isDark ? 'rgba(16, 12, 8, 0.96)' : 'rgba(43, 28, 16, 0.96)',
+        tooltipTitle: isDark ? '#fff6ea' : '#fff6ea',
+        tooltipBody: isDark ? '#f3dcc0' : '#f0dcc4',
+        tooltipBorder: isDark ? 'rgba(255, 209, 141, 0.4)' : 'rgba(239, 179, 95, 0.42)',
+        pointSurface: isDark ? '#1d1711' : '#fff7ee',
     };
 };
 
@@ -53,8 +56,10 @@ const baseOptions = (yAxisTitle, tooltipFormatter = null) => ({
             backgroundColor: getSolarChartColors().tooltipBg,
             titleColor: getSolarChartColors().tooltipTitle,
             bodyColor: getSolarChartColors().tooltipBody,
-            borderColor: getSolarChartColors().sand,
+            borderColor: getSolarChartColors().tooltipBorder,
             borderWidth: 1,
+            displayColors: true,
+            padding: 12,
             callbacks: tooltipFormatter ? {
                 label: tooltipFormatter,
             } : {},
@@ -119,6 +124,9 @@ const initSolarCharts = () => {
                         borderColor: solarColors.goldDark,
                         borderWidth: 1,
                         borderRadius: 10,
+                        hoverBackgroundColor: solarColors.goldDark,
+                        hoverBorderColor: solarColors.goldDark,
+                        hoverBorderWidth: 2,
                     }],
                 },
                 options: baseOptions('kWh', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)} kWh`),
@@ -136,6 +144,9 @@ const initSolarCharts = () => {
                             borderColor: solarColors.successDark,
                             borderWidth: 1,
                             borderRadius: 10,
+                            hoverBackgroundColor: solarColors.successDark,
+                            hoverBorderColor: solarColors.successDark,
+                            hoverBorderWidth: 2,
                         },
                         {
                             label: 'Consumo mensual kWh',
@@ -144,6 +155,9 @@ const initSolarCharts = () => {
                             borderColor: solarColors.clay,
                             borderWidth: 1,
                             borderRadius: 10,
+                            hoverBackgroundColor: solarColors.goldDark,
+                            hoverBorderColor: solarColors.goldDark,
+                            hoverBorderWidth: 2,
                         },
                     ],
                 },
@@ -161,6 +175,9 @@ const initSolarCharts = () => {
                         borderColor: solarColors.successDark,
                         borderWidth: 1,
                         borderRadius: 10,
+                        hoverBackgroundColor: solarColors.successDark,
+                        hoverBorderColor: solarColors.successDark,
+                        hoverBorderWidth: 2,
                     }],
                 },
                 options: baseOptions('COP', (context) => `${context.dataset.label}: ${moneyFormatter.format(context.parsed.y)}`),
@@ -178,10 +195,14 @@ const initSolarCharts = () => {
                         borderWidth: 3,
                         fill: true,
                         tension: 0.35,
-                        pointBackgroundColor: document.documentElement.classList.contains('dark') ? '#1d1711' : '#fff7ee',
+                        pointBackgroundColor: solarColors.pointSurface,
                         pointBorderColor: solarColors.goldDark,
                         pointBorderWidth: 2,
                         pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: solarColors.goldDark,
+                        pointHoverBorderColor: solarColors.pointSurface,
+                        pointHoverBorderWidth: 2,
                     }],
                 },
                 options: baseOptions('%', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)}%`),
@@ -207,10 +228,14 @@ const initSolarCharts = () => {
                         borderWidth: 3,
                         fill: true,
                         tension: 0.35,
-                        pointBackgroundColor: document.documentElement.classList.contains('dark') ? '#1d1711' : '#fff7ee',
+                        pointBackgroundColor: solarColors.pointSurface,
                         pointBorderColor: solarColors.goldDark,
                         pointBorderWidth: 2,
                         pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: solarColors.goldDark,
+                        pointHoverBorderColor: solarColors.pointSurface,
+                        pointHoverBorderWidth: 2,
                     }],
                 },
                 options: baseOptions('Radiacion', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)}`),
@@ -258,7 +283,7 @@ const renderWeatherStationRows = (rows) => {
     if (!rows.length) {
         return `
             <tr>
-                <td colspan="13" class="py-10 text-center">
+                <td colspan="12" class="py-10 text-center">
                     Aun no hay lecturas registradas desde el centro meteorologico.
                 </td>
             </tr>
@@ -267,8 +292,7 @@ const renderWeatherStationRows = (rows) => {
 
     return rows.map((row) => `
         <tr>
-            <td class="font-semibold text-[color:var(--solar-text)]">${escapeHtml(row.project_name)}</td>
-            <td>${escapeHtml(row.recorded_at)}</td>
+            <td class="font-semibold text-[color:var(--solar-text)]">${escapeHtml(row.recorded_at)}</td>
             <td>${escapeHtml(row.device_code)}</td>
             <td>${escapeHtml(row.radiation)}</td>
             <td>${escapeHtml(row.temperature)}</td>

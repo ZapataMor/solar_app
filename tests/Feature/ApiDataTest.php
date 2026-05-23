@@ -57,7 +57,6 @@ class ApiDataTest extends TestCase
             ->assertSeeInOrder(['Centro meteorologico', 'NASA POWER'])
             ->assertSee('Obtener datos NASA POWER')
             ->assertSee('Obtener datos de estacion')
-            ->assertSee($solarProject->name)
             ->assertSee('ST-001')
             ->assertSee('2026-05-21 12:30');
     }
