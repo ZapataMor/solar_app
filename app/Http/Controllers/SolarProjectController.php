@@ -6,6 +6,7 @@ use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use App\Services\EnergyAnalysisService;
 use App\Services\NasaPowerService;
+use App\Services\SolarRecommendationService;
 use App\Services\SolarCalculationService;
 use App\Services\WeatherAnalysisService;
 use App\Services\WeatherStationImportService;
@@ -59,6 +60,7 @@ class SolarProjectController extends Controller
         Request $request,
         SolarProject $solarProject,
         EnergyAnalysisService $energyAnalysisService,
+        SolarRecommendationService $solarRecommendationService,
         WeatherAnalysisService $weatherAnalysisService,
     ): View
     {
@@ -73,7 +75,12 @@ class SolarProjectController extends Controller
 
         return view('solar-projects.show', [
             'solarProject' => $solarProject,
-            ...$this->projectSummaryData($solarProject, $energyAnalysisService, $weatherAnalysisService),
+            ...$this->projectSummaryData(
+                $solarProject,
+                $energyAnalysisService,
+                $solarRecommendationService,
+                $weatherAnalysisService,
+            ),
         ]);
     }
 
@@ -454,6 +461,7 @@ class SolarProjectController extends Controller
     private function projectSummaryData(
         SolarProject $solarProject,
         EnergyAnalysisService $energyAnalysisService,
+        SolarRecommendationService $solarRecommendationService,
         WeatherAnalysisService $weatherAnalysisService,
     ): array
     {
@@ -479,6 +487,21 @@ class SolarProjectController extends Controller
                 ->average())
             ->filter(fn (?float $value) => $value !== null);
         $weatherAnalysis = $weatherAnalysisService->analyzeReadings($weatherStationReadings);
+        $weatherStationStats = [
+            'total' => $weatherStationReadings->count(),
+            'averageRadiation' => $stationRadiationValues->average(),
+            'maxRadiation' => $stationRadiationValues->max(),
+            'averageUva' => $weatherStationReadings->avg('uva'),
+            'averageUvb' => $weatherStationReadings->avg('uvb'),
+            'maxUvIndex' => $weatherStationReadings->max('uv_index'),
+            'latest' => $weatherStationReadings->sortByDesc('measured_at')->first(),
+        ];
+        $solarRecommendations = $solarRecommendationService->recommend(
+            $weatherAnalysis,
+            $energyAnalysis,
+            $calculationResult,
+            $weatherStationStats,
+        );
 
         return [
             'chartData' => [
@@ -496,20 +519,13 @@ class SolarProjectController extends Controller
                 'consumption' => $monthlyResults->sum('estimated_consumption_kwh'),
                 'savings' => $monthlyResults->sum('estimated_savings_cop'),
             ],
-            'weatherStationStats' => [
-                'total' => $weatherStationReadings->count(),
-                'averageRadiation' => $stationRadiationValues->average(),
-                'maxRadiation' => $stationRadiationValues->max(),
-                'averageUva' => $weatherStationReadings->avg('uva'),
-                'averageUvb' => $weatherStationReadings->avg('uvb'),
-                'maxUvIndex' => $weatherStationReadings->max('uv_index'),
-                'latest' => $weatherStationReadings->sortByDesc('measured_at')->first(),
-            ],
+            'weatherStationStats' => $weatherStationStats,
             'recentWeatherStationReadings' => $weatherStationReadings
                 ->sortByDesc('measured_at')
                 ->take(8)
                 ->values(),
             'weatherAnalysis' => $weatherAnalysis,
+            'solarRecommendations' => $solarRecommendations,
             'weatherStationChartData' => [
                 'labels' => $stationDailyRadiation->keys()->values()->all(),
                 'radiation' => $stationDailyRadiation->map(fn ($value) => (float) $value)->values()->all(),
