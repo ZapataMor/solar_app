@@ -6,6 +6,7 @@ use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use App\Services\NasaPowerService;
 use App\Services\SolarCalculationService;
+use App\Services\WeatherStationImportService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -138,17 +139,26 @@ class SolarProjectController extends Controller
         );
     }
 
-    public function fetchWeatherStationData(Request $request, SolarProject $solarProject): RedirectResponse
+    public function fetchWeatherStationData(
+        Request $request,
+        SolarProject $solarProject,
+        WeatherStationImportService $weatherStationImportService,
+    ): RedirectResponse
     {
         $this->authorizeOwner($request, $solarProject);
 
         $start = $solarProject->start_date->copy()->startOfDay();
         $end = $solarProject->end_date->copy()->endOfDay();
 
-        $associated = WeatherStationReading::query()
-            ->whereNull('solar_project_id')
-            ->whereBetween('measured_at', [$start, $end])
-            ->update(['solar_project_id' => $solarProject->id]);
+        try {
+            $imported = $weatherStationImportService->importAll($solarProject);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'weather_station' => 'No fue posible consultar el endpoint del centro meteorologico. Intente nuevamente.',
+            ]);
+        }
 
         $readings = $solarProject->weatherStationReadings()
             ->whereBetween('measured_at', [$start, $end])
@@ -211,7 +221,7 @@ class SolarProjectController extends Controller
 
         return back()->with(
             'status',
-            "Datos del centro meteorologico obtenidos. Lecturas asociadas: {$associated}. Dias nuevos: {$created}. Dias actualizados: {$updated}.",
+            "Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: {$imported['created']}. Lecturas existentes omitidas: {$imported['skipped']}. Dias nuevos: {$created}. Dias actualizados: {$updated}.",
         );
     }
 

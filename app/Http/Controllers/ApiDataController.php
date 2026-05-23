@@ -2,38 +2,129 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SolarProject;
+use App\Models\WeatherStationReading;
+use App\Services\NasaPowerService;
+use App\Services\WeatherStationImportService;
+use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Throwable;
 
 class ApiDataController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        $source = $request->string('source')->toString();
-        $source = in_array($source, ['nasa', 'weather_station'], true) ? $source : 'all';
         $userId = $request->user()->id;
 
-        $rowsQuery = match ($source) {
-            'nasa' => $this->nasaRowsQuery($userId),
-            'weather_station' => $this->weatherStationRowsQuery($userId),
-            default => $this->nasaRowsQuery($userId)->unionAll($this->weatherStationRowsQuery($userId)),
-        };
+        $nasaRows = $this->nasaRowsQuery($userId)
+            ->orderByDesc('api_weather_data.date_time')
+            ->orderByDesc('api_weather_data.id')
+            ->paginate(15, ['*'], 'nasa_page')
+            ->withQueryString();
 
-        $apiRows = DB::query()
-            ->fromSub($rowsQuery, 'api_rows')
-            ->orderByDesc('recorded_at')
-            ->orderByDesc('record_id')
-            ->paginate(15)
+        $weatherStationRows = $this->weatherStationRowsQuery($userId)
+            ->orderByDesc('weather_station_readings.measured_at')
+            ->orderByDesc('weather_station_readings.id')
+            ->paginate(15, ['*'], 'station_page')
             ->withQueryString();
 
         return view('api-data.index', [
-            'apiRows' => $apiRows,
-            'source' => $source,
+            'nasaRows' => $nasaRows,
+            'weatherStationRows' => $weatherStationRows,
             'nasaCount' => $this->nasaRowsCount($userId),
             'weatherStationCount' => $this->weatherStationRowsCount($userId),
         ]);
+    }
+
+    public function fetchNasaData(Request $request, NasaPowerService $nasaPowerService): RedirectResponse
+    {
+        $projects = $request->user()->solarProjects()->get();
+
+        if ($projects->isEmpty()) {
+            return back()->withErrors([
+                'nasa_data' => 'No hay proyectos solares registrados para consultar NASA POWER.',
+            ]);
+        }
+
+        $created = 0;
+        $updated = 0;
+        $failed = 0;
+
+        foreach ($projects as $solarProject) {
+            try {
+                $payload = $nasaPowerService->fetchDailyData(
+                    $solarProject->start_date,
+                    $solarProject->end_date,
+                );
+
+                [$projectCreated, $projectUpdated] = $this->storeWeatherData($solarProject, $payload);
+                $created += $projectCreated;
+                $updated += $projectUpdated;
+            } catch (Throwable $exception) {
+                report($exception);
+                $failed++;
+            }
+        }
+
+        if ($failed === $projects->count()) {
+            return back()->withErrors([
+                'nasa_data' => 'No fue posible consultar NASA POWER para los proyectos registrados.',
+            ]);
+        }
+
+        $message = "NASA POWER sincronizado. Nuevos: {$created}. Existentes actualizados: {$updated}.";
+
+        if ($failed > 0) {
+            $message .= " Proyectos con error: {$failed}.";
+        }
+
+        return back()->with('status', $message);
+    }
+
+    public function fetchWeatherStationData(
+        Request $request,
+        WeatherStationImportService $weatherStationImportService,
+    ): RedirectResponse {
+        $projects = $request->user()->solarProjects()->get();
+
+        if ($projects->isEmpty()) {
+            return back()->withErrors([
+                'weather_station' => 'No hay proyectos solares registrados para asociar lecturas del centro meteorologico.',
+            ]);
+        }
+
+        $targetProject = $projects->sortByDesc('created_at')->first();
+
+        try {
+            $imported = $weatherStationImportService->importAll($targetProject);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'weather_station' => 'No fue posible consultar el endpoint del centro meteorologico.',
+            ]);
+        }
+
+        $associated = WeatherStationReading::query()
+            ->whereNull('solar_project_id')
+            ->update(['solar_project_id' => $targetProject->id]);
+
+        $total = $this->weatherStationRowsCount($request->user()->id);
+
+        if ($total === 0) {
+            return back()->withErrors([
+                'weather_station' => 'No hay lecturas del centro meteorologico registradas.',
+            ]);
+        }
+
+        return back()->with(
+            'status',
+            "Datos del centro meteorologico obtenidos desde el endpoint. Nuevos: {$imported['created']}. Actualizados: {$imported['updated']}. Existentes omitidos: {$imported['skipped']}. Lecturas asociadas: {$associated}. Total visible: {$total}.",
+        );
     }
 
     private function nasaRowsQuery(int $userId): Builder
@@ -112,5 +203,60 @@ class ApiDataController extends Controller
                     ->orWhereNull('weather_station_readings.solar_project_id');
             })
             ->count();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{0: int, 1: int}
+     */
+    private function storeWeatherData(SolarProject $solarProject, array $payload): array
+    {
+        $parameters = data_get($payload, 'properties.parameter', []);
+
+        $timestamps = collect($parameters)
+            ->flatMap(fn (array $values) => array_keys($values))
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($timestamps->isEmpty()) {
+            throw new \RuntimeException('NASA POWER response does not contain daily values.');
+        }
+
+        $created = 0;
+        $updated = 0;
+
+        DB::transaction(function () use ($solarProject, $parameters, $timestamps, &$created, &$updated): void {
+            $solarProject->weatherData()
+                ->get()
+                ->filter(fn ($weatherData) => ! $weatherData->date_time->isStartOfDay())
+                ->each->delete();
+
+            foreach ($timestamps as $timestamp) {
+                $weatherData = $solarProject->weatherData()->updateOrCreate(
+                    ['date_time' => Carbon::createFromFormat('Ymd', (string) $timestamp)->startOfDay()],
+                    [
+                        'allsky_sfc_sw_dwn' => $this->cleanWeatherValue($parameters['ALLSKY_SFC_SW_DWN'][$timestamp] ?? null),
+                        't2m' => $this->cleanWeatherValue($parameters['T2M'][$timestamp] ?? null),
+                        'rh2m' => $this->cleanWeatherValue($parameters['RH2M'][$timestamp] ?? null),
+                        'prectotcorr' => $this->cleanWeatherValue($parameters['PRECTOTCORR'][$timestamp] ?? null),
+                        'ws10m' => $this->cleanWeatherValue($parameters['WS10M'][$timestamp] ?? null),
+                    ],
+                );
+
+                $weatherData->wasRecentlyCreated ? $created++ : $updated++;
+            }
+        });
+
+        return [$created, $updated];
+    }
+
+    private function cleanWeatherValue(mixed $value): ?float
+    {
+        if ($value === null || (float) $value <= -900) {
+            return null;
+        }
+
+        return (float) $value;
     }
 }

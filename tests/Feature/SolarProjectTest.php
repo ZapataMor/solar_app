@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
 use App\Models\User;
+use App\Models\WeatherStationReading;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -165,6 +166,82 @@ class SolarProjectTest extends TestCase
             && $request['end'] === '20260521');
 
         Carbon::setTestNow();
+    }
+
+    public function test_fetch_weather_station_data_uses_endpoint_and_only_imports_new_readings(): void
+    {
+        config([
+            'services.weather_station.endpoint' => 'https://meteoestacion.desarrollougmaicao.com/api_publica.php',
+            'services.weather_station.device_code' => 'METEOESTACION',
+        ]);
+
+        Http::fake([
+            'meteoestacion.desarrollougmaicao.com/api_publica.php*' => Http::sequence()
+                ->push([
+                    'status' => 'success',
+                    'datos' => [
+                        [
+                            'fecha' => '2025-08-20 10:28:47',
+                            'temperatura' => '35.9',
+                            'humedad' => '58.2',
+                            'uva' => '25.3',
+                            'uvb' => '24.0',
+                            'indice_uv' => '0.1',
+                        ],
+                    ],
+                ])
+                ->push([
+                    'status' => 'success',
+                    'datos' => [
+                        [
+                            'fecha' => '2025-08-20 10:28:47',
+                            'temperatura' => '99.9',
+                            'humedad' => '99.9',
+                            'uva' => '99.9',
+                        ],
+                        [
+                            'fecha' => '2025-08-20 10:35:00',
+                            'temperatura' => '36.4',
+                            'humedad' => '57.5',
+                            'uva' => '26.0',
+                            'uvb' => '24.5',
+                            'indice_uv' => '0.2',
+                        ],
+                    ],
+                ]),
+        ]);
+
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'start_date' => '2025-08-20',
+            'end_date' => '2025-08-20',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.fetch-weather-station-data', $solarProject))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: 1. Lecturas existentes omitidas: 0. Dias nuevos: 1. Dias actualizados: 0.')
+            ->assertRedirect();
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.fetch-weather-station-data', $solarProject))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: 1. Lecturas existentes omitidas: 1. Dias nuevos: 0. Dias actualizados: 1.')
+            ->assertRedirect();
+
+        $this->assertSame(2, WeatherStationReading::query()->whereBelongsTo($solarProject)->count());
+        $this->assertDatabaseHas('weather_station_readings', [
+            'solar_project_id' => $solarProject->id,
+            'measured_at' => '2025-08-20 10:28:47',
+            'temperature' => 35.9,
+        ]);
+        $this->assertDatabaseHas('weather_station_readings', [
+            'solar_project_id' => $solarProject->id,
+            'measured_at' => '2025-08-20 10:35:00',
+            'temperature' => 36.4,
+        ]);
+        $this->assertDatabaseCount('api_weather_data', 1);
     }
 
     /**

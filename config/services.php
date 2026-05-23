@@ -39,4 +39,12 @@ return [
         'verify_ssl' => env('NASA_POWER_VERIFY_SSL', false),
     ],
 
+    'weather_station' => [
+        'endpoint' => env('WEATHER_STATION_API_URL', env('METEO_API_ENDPOINT', 'https://meteoestacion.desarrollougmaicao.com/api_publica.php')),
+        'device_code' => env('METEO_DEVICE_CODE', 'METEOESTACION'),
+        'since_parameter' => env('METEO_API_SINCE_PARAMETER', 'fecha_desde'),
+        'verify_ssl' => env('METEO_API_VERIFY_SSL', false),
+        'schedule_timezone' => env('WEATHER_STATION_SCHEDULE_TIMEZONE', 'America/Bogota'),
+    ],
+
 ];
