@@ -184,7 +184,9 @@ select:focus[data-flux-control] {
         position: fixed;
         inset: 0;
         z-index: 0;
-        background: url('/images/login/guajira-desert.png') center 35% / cover no-repeat;
+        background-position: center 35%;
+        background-size: cover;
+        background-repeat: no-repeat;
         filter: saturate(1.05) contrast(1.02);
         transform: scale(1.04);
     }
@@ -194,9 +196,9 @@ select:focus[data-flux-control] {
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(120% 80% at 25% 60%, rgba(74, 43, 28, 0.55) 0%, rgba(74, 43, 28, 0) 55%),
-            linear-gradient(135deg, rgba(15, 8, 4, 0.55) 0%, rgba(74, 43, 28, 0.28) 45%, rgba(152, 82, 31, 0.18) 100%),
-            linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.35) 100%);
+            radial-gradient(120% 80% at 25% 60%, rgba(74, 43, 28, 0.34) 0%, rgba(74, 43, 28, 0) 55%),
+            linear-gradient(135deg, rgba(15, 8, 4, 0.34) 0%, rgba(74, 43, 28, 0.18) 45%, rgba(152, 82, 31, 0.12) 100%),
+            linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.24) 100%);
     }
 
     .login-sunglow {
@@ -253,12 +255,15 @@ select:focus[data-flux-control] {
 
     .login-brand-mark {
         display: grid;
-        width: 34px;
-        height: 34px;
+        width: 48px;
+        height: 48px;
         place-items: center;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #98521F, #E59B48);
-        box-shadow: 0 6px 18px rgba(229, 155, 72, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    }
+
+    .login-brand-mark img {
+        width: 70px;
+        height: 70px;
+        object-fit: contain;
     }
 
     .login-brand-name {

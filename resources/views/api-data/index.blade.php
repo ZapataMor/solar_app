@@ -2,6 +2,17 @@
     $formatNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'N/A';
     $formatDate = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->format('Y-m-d H:i') : 'N/A';
     $totalRows = $nasaCount + $weatherStationCount;
+    $latestWeatherStationChartPoint = collect($weatherStationChartRows)->last();
+    $latestUvIndex = $latestWeatherStationChartPoint['uv_index'] ?? null;
+    $uvIndexPercent = $latestUvIndex !== null ? min(100, ((float) $latestUvIndex / 11) * 100) : 0;
+    $uvRisk = match (true) {
+        $latestUvIndex === null => 'Sin dato',
+        $latestUvIndex < 3 => 'Bajo',
+        $latestUvIndex < 6 => 'Moderado',
+        $latestUvIndex < 8 => 'Alto',
+        $latestUvIndex < 11 => 'Muy alto',
+        default => 'Extremo',
+    };
 @endphp
 
 <x-layouts::app :title="__('Datos APIs')">
@@ -13,23 +24,23 @@
                     <h1 class="solar-title">Datos climaticos y meteorologicos</h1>
                     <p class="solar-subtitle">Consolida la radiacion, temperatura y lecturas locales en una vista mas profesional, con mejor jerarquia para demo y analisis.</p>
                 </div>
-                <span class="solar-pill">{{ number_format($totalRows, 0, ',', '.') }} registros visibles</span>
+                <span class="solar-pill"><span data-api-data-total-count>{{ number_format($totalRows, 0, ',', '.') }}</span> registros visibles</span>
             </div>
 
             <div class="mt-6 grid gap-4 md:grid-cols-3">
                 <div class="solar-metric-card">
                     <p class="solar-metric-label">Total registros</p>
-                    <p class="solar-metric-value">{{ number_format($totalRows, 0, ',', '.') }}</p>
+                    <p class="solar-metric-value" data-api-data-total-count>{{ number_format($totalRows, 0, ',', '.') }}</p>
                     <p class="solar-metric-copy">Base consolidada para decisiones de energia, radiacion y riesgo operativo.</p>
                 </div>
                 <div class="solar-metric-card">
                     <p class="solar-metric-label">NASA POWER</p>
-                    <p class="solar-metric-value">{{ number_format($nasaCount, 0, ',', '.') }}</p>
+                    <p class="solar-metric-value" data-api-data-nasa-count data-count="{{ $nasaCount }}">{{ number_format($nasaCount, 0, ',', '.') }}</p>
                     <p class="solar-metric-copy">Fuente satelital para comparacion y cobertura historica.</p>
                 </div>
                 <div class="solar-metric-card">
                     <p class="solar-metric-label">Estacion local</p>
-                    <p class="solar-metric-value">{{ number_format($weatherStationCount, 0, ',', '.') }}</p>
+                    <p class="solar-metric-value" data-weather-station-count data-count="{{ $weatherStationCount }}">{{ number_format($weatherStationCount, 0, ',', '.') }}</p>
                     <p class="solar-metric-copy">Lecturas de contexto real para Riohacha y seguimiento ambiental.</p>
                 </div>
             </div>
@@ -52,29 +63,73 @@
                 {{ $errors->first('weather_station') }}
             </div>
         @endif
+<<<<<<< HEAD
         
         <section class="solar-card">
+=======
+
+        <section class="solar-card" data-weather-station-sync data-sync-interval="15000">
+>>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
             <div class="solar-page-header">
                 <div>
                     <p class="solar-kicker">Estacion local</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Centro meteorologico</h2>
                     <p class="solar-subtitle mt-2">Lecturas locales con mas personalidad visual y mejor lectura de variables ambientales.</p>
+<<<<<<< HEAD
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="solar-pill solar-pill-warn">{{ number_format($weatherStationCount, 0, ',', '.') }} registros</span>
                     <form method="POST" action="{{ route('api-data.fetch-weather-station-data') }}">
+=======
+                    <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-weather-station-status>
+                        Actualizacion automatica activa.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="solar-pill solar-pill-warn" data-weather-station-count-pill>
+                        {{ number_format($weatherStationCount, 0, ',', '.') }} registros
+                    </span>
+                    <form method="POST" action="{{ route('api-data.fetch-weather-station-data') }}" data-weather-station-fetch-form>
+>>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
                         @csrf
                         <button type="submit" class="solar-button-secondary">Obtener datos de estacion</button>
                     </form>
                 </div>
             </div>
 
+<<<<<<< HEAD
             <div class="solar-table-shell mt-6">
                 <div class="solar-table-scroll">
                     <table class="solar-table solar-table-wide" style="--solar-table-min: 1320px;">
                         <thead>
                             <tr>
                                 <th>Proyecto</th>
+=======
+            <script id="weather-station-realtime-chart-data" type="application/json">@json($weatherStationChartRows)</script>
+
+            <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+                <div class="solar-table-shell p-4">
+                    <div class="h-[320px]">
+                        <canvas id="weather-station-realtime-chart" aria-label="Radiacion, UVA, UVB e IUV en tiempo real" role="img"></canvas>
+                    </div>
+                </div>
+
+                <div class="solar-metric-card" data-weather-station-iuv-card>
+                    <p class="solar-metric-label">IUV actual</p>
+                    <p class="solar-metric-value" data-weather-station-iuv-value>{{ $latestUvIndex !== null ? $formatNumber($latestUvIndex, 2) : 'N/A' }}</p>
+                    <p class="solar-metric-copy" data-weather-station-iuv-risk>{{ $uvRisk }}</p>
+                    <div class="mt-4 h-3 overflow-hidden rounded-full bg-[color:var(--solar-border)]">
+                        <div class="h-full rounded-full bg-[color:var(--solar-sun)] transition-all" data-weather-station-iuv-bar style="width: {{ $uvIndexPercent }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="solar-table-shell mt-6">
+                <div class="overflow-x-auto">
+                    <table class="solar-table min-w-[1240px]">
+                        <thead>
+                            <tr>
+>>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
                                 <th>Fecha</th>
                                 <th>Dispositivo</th>
                                 <th>Radiacion</th>
@@ -89,11 +144,18 @@
                                 <th>IUV</th>
                             </tr>
                         </thead>
+<<<<<<< HEAD
                         <tbody>
                             @forelse ($weatherStationRows as $row)
                                 <tr>
                                     <td class="font-semibold text-[color:var(--solar-text)]">{{ $row->project_name ?? 'Sin asociar' }}</td>
                                     <td>{{ $formatDate($row->recorded_at) }}</td>
+=======
+                        <tbody data-weather-station-rows>
+                            @forelse ($weatherStationRows as $row)
+                                <tr>
+                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
+>>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
                                     <td>{{ $row->device_code ?? 'N/A' }}</td>
                                     <td>{{ $formatNumber($row->radiation, 3) }}</td>
                                     <td>{{ $formatNumber($row->temperature, 2) }}</td>
@@ -108,7 +170,11 @@
                                 </tr>
                             @empty
                                 <tr>
+<<<<<<< HEAD
                                     <td colspan="13" class="py-10 text-center">
+=======
+                                    <td colspan="12" class="py-10 text-center">
+>>>>>>> dcb49b62b01aa5ac425ba63364b92616f95f4afe
                                         Aun no hay lecturas registradas desde el centro meteorologico.
                                     </td>
                                 </tr>
@@ -178,7 +244,5 @@
                 {{ $nasaRows->links() }}
             </div>
         </section>
-
-        
     </div>
 </x-layouts::app>
