@@ -354,42 +354,42 @@
                         </div>
 
                         <div class="solar-table-shell mt-4 min-w-0 max-w-full">
-                            <div class="min-w-0 max-w-full overflow-x-auto">
-                            <table class="solar-table min-w-[760px]">
-                                <thead>
-                                    <tr>
-                                        <th class="px-3 py-2">Mes</th>
-                                        <th class="px-3 py-2">Dias</th>
-                                        <th class="px-3 py-2">Radiacion diaria</th>
-                                        <th class="px-3 py-2">Generacion</th>
-                                        <th class="px-3 py-2">Consumo</th>
-                                        <th class="px-3 py-2">Cobertura</th>
-                                        <th class="px-3 py-2">Ahorro</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($monthlyResults as $monthlyResult)
+                            <div class="solar-table-scroll">
+                                <table class="solar-table solar-table-wide" style="--solar-table-min: 760px;">
+                                    <thead>
                                         <tr>
-                                            <td class="px-3 py-2 font-medium">{{ ucfirst($monthlyResult->month_name) }}</td>
-                                            <td class="px-3 py-2">{{ $monthlyResult->days_in_month }}</td>
-                                            <td class="px-3 py-2">{{ $formatNumber($monthlyResult->average_daily_solar_radiation) }} kWh/m2/dia</td>
-                                            <td class="px-3 py-2">{{ $formatKwh($monthlyResult->estimated_generation_kwh) }}</td>
-                                            <td class="px-3 py-2">{{ $formatKwh($monthlyResult->estimated_consumption_kwh) }}</td>
-                                            <td class="px-3 py-2">{{ $formatPercent($monthlyResult->coverage_percentage) }}</td>
-                                            <td class="px-3 py-2">{{ $formatMoney($monthlyResult->estimated_savings_cop) }}</td>
+                                            <th class="px-3 py-2">Mes</th>
+                                            <th class="px-3 py-2">Dias</th>
+                                            <th class="px-3 py-2">Radiacion diaria</th>
+                                            <th class="px-3 py-2">Generacion</th>
+                                            <th class="px-3 py-2">Consumo</th>
+                                            <th class="px-3 py-2">Cobertura</th>
+                                            <th class="px-3 py-2">Ahorro</th>
                                         </tr>
-                                    @endforeach
-                                </tbody>
-                                <tfoot class="border-t border-[rgba(129,88,44,0.12)] text-sm font-semibold text-[color:var(--solar-text)]">
-                                    <tr>
-                                        <td class="px-3 py-3" colspan="3">Totales anuales</td>
-                                        <td class="px-3 py-3">{{ $formatKwh($monthlyTotals['generation']) }}</td>
-                                        <td class="px-3 py-3">{{ $formatKwh($monthlyTotals['consumption']) }}</td>
-                                        <td class="px-3 py-3"></td>
-                                        <td class="px-3 py-3">{{ $formatMoney($monthlyTotals['savings']) }}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($monthlyResults as $monthlyResult)
+                                            <tr>
+                                                <td class="px-3 py-2 font-medium">{{ ucfirst($monthlyResult->month_name) }}</td>
+                                                <td class="px-3 py-2">{{ $monthlyResult->days_in_month }}</td>
+                                                <td class="px-3 py-2">{{ $formatNumber($monthlyResult->average_daily_solar_radiation) }} kWh/m2/dia</td>
+                                                <td class="px-3 py-2">{{ $formatKwh($monthlyResult->estimated_generation_kwh) }}</td>
+                                                <td class="px-3 py-2">{{ $formatKwh($monthlyResult->estimated_consumption_kwh) }}</td>
+                                                <td class="px-3 py-2">{{ $formatPercent($monthlyResult->coverage_percentage) }}</td>
+                                                <td class="px-3 py-2">{{ $formatMoney($monthlyResult->estimated_savings_cop) }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                    <tfoot class="border-t border-[rgba(129,88,44,0.12)] text-sm font-semibold text-[color:var(--solar-text)]">
+                                        <tr>
+                                            <td class="px-3 py-3" colspan="3">Totales anuales</td>
+                                            <td class="px-3 py-3">{{ $formatKwh($monthlyTotals['generation']) }}</td>
+                                            <td class="px-3 py-3">{{ $formatKwh($monthlyTotals['consumption']) }}</td>
+                                            <td class="px-3 py-3"></td>
+                                            <td class="px-3 py-3">{{ $formatMoney($monthlyTotals['savings']) }}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
                         </div>
                     </section>
@@ -448,8 +448,8 @@
                             <details class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                                 <summary class="cursor-pointer text-sm font-semibold text-zinc-950 dark:text-zinc-50">Ver ultimas lecturas meteorologicas</summary>
                                 <div class="mt-4 min-w-0 max-w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-                                    <div class="min-w-0 max-w-full overflow-x-auto">
-                                        <table class="min-w-[640px] divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
+                                    <div class="solar-table-scroll">
+                                        <table class="solar-table solar-table-wide divide-y divide-zinc-200 text-sm dark:divide-zinc-700" style="--solar-table-min: 640px;">
                                             <thead class="bg-zinc-50 dark:bg-zinc-950/60">
                                                 <tr class="text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                                                     <th class="px-3 py-2">Fecha</th>

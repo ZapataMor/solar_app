@@ -70,8 +70,8 @@
             </div>
 
             <div class="solar-table-shell mt-6">
-                <div class="overflow-x-auto">
-                    <table class="solar-table min-w-[880px]">
+                <div class="solar-table-scroll">
+                    <table class="solar-table">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -126,8 +126,8 @@
             </div>
 
             <div class="solar-table-shell mt-6">
-                <div class="overflow-x-auto">
-                    <table class="solar-table min-w-[1320px]">
+                <div class="solar-table-scroll">
+                    <table class="solar-table solar-table-wide" style="--solar-table-min: 1320px;">
                         <thead>
                             <tr>
                                 <th>Proyecto</th>
