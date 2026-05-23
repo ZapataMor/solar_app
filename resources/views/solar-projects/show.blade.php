@@ -14,15 +14,11 @@
         'widgets' => ['executive_summary' => 'Sin resumen ejecutivo disponible.', 'widgets' => []],
     ];
     $energyAnalysis = $energyAnalysis ?? ['insights' => [], 'monthlyInterpretations' => [], 'monthlyHighlights' => []];
-    $openAIRecommendation = $openAIRecommendation ?? ['enabled' => false, 'source' => 'disabled', 'executive_summary' => null, 'daily_recommendation' => null, 'energy_alerts' => [], 'error' => null];
-    $solarRecommendations = $solarRecommendations ?? ['items' => [], 'recommendations' => [], 'alerts' => [], 'risks' => [], 'opportunities' => []];
-    $aiWidgets = $dashboard['widgets'] ?? ($aiWidgets ?? ['executive_summary' => 'Sin resumen ejecutivo disponible.', 'widgets' => []]);
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
     $weatherAnalysis = $weatherAnalysis ?? ['current' => [], 'historical' => []];
     $hasWeatherStationData = ($weatherStationStats['total'] ?? 0) > 0;
     $latestWeatherStationReading = $weatherStationStats['latest'] ?? null;
-    $latestEnergyInsight = $dashboard['insights']['energy']['summary'] ?? 'Sin conclusiones energeticas automaticas.';
     $latestRecommendation = $dashboard['recommendations']['summary'] ?? 'Sin recomendaciones automaticas disponibles.';
     $latestCurrentAnalysis = $dashboard['insights']['weather']['currentSummary'] ?? 'Sin alertas actuales relevantes.';
     $latestHistoricalAnalysis = $dashboard['insights']['weather']['historicalSummary'] ?? 'Sin tendencias historicas destacadas.';
@@ -33,6 +29,71 @@
     $monthlyEnergyInsights = $dashboard['insights']['energy']['monthly'] ?? ($energyAnalysis['monthlyInterpretations'] ?? []);
     $weatherCurrentInsights = $dashboard['insights']['weather']['current'] ?? ($weatherAnalysis['current'] ?? []);
     $weatherHistoricalInsights = $dashboard['insights']['weather']['historical'] ?? ($weatherAnalysis['historical'] ?? []);
+    $normalizeText = function ($value) {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = preg_replace('/\s+/', ' ', trim($value));
+
+        return filled($value) ? $value : null;
+    };
+    $canonicalExecutiveSummary = $normalizeText($executiveSummary['text'] ?? null)
+        ?? $normalizeText($dashboard['widgets']['executive_summary'] ?? null)
+        ?? 'Sin resumen ejecutivo disponible.';
+    $canonicalStateSummary = $normalizeText($coverageInterpretation)
+        ?? 'Ejecuta el calculo para conocer el estado energetico general.';
+    $canonicalRecommendation = $normalizeText($executiveSummary['dailyRecommendation'] ?? null)
+        ?? $normalizeText($latestRecommendation)
+        ?? 'Sin recomendacion principal disponible.';
+    $riskCandidates = collect($recommendationGroups['risks'] ?? [])
+        ->merge($recommendationGroups['alerts'] ?? [])
+        ->merge(
+            collect($energyInsights)
+                ->filter(fn (array $item) => in_array($item['level'] ?? 'info', ['warning', 'error'], true))
+                ->map(fn (array $item) => [
+                    'message' => $item['message'] ?? null,
+                    'priority' => ($item['level'] ?? 'warning') === 'error' ? 'alta' : 'media',
+                ])
+                ->all()
+        )
+        ->merge(
+            collect($weatherCurrentInsights)
+                ->merge($weatherHistoricalInsights)
+                ->filter(fn (array $item) => in_array($item['type'] ?? 'info', ['warning', 'error'], true))
+                ->map(fn (array $item) => [
+                    'message' => $item['message'] ?? null,
+                    'priority' => ($item['type'] ?? 'warning') === 'error' ? 'alta' : 'media',
+                ])
+                ->all()
+        )
+        ->filter(fn ($item) => is_array($item) && filled($normalizeText($item['message'] ?? null)))
+        ->map(fn (array $item) => [
+            'message' => $normalizeText($item['message'] ?? null),
+            'priority' => $item['priority'] ?? 'media',
+        ])
+        ->unique('message')
+        ->sortByDesc(fn (array $item) => $item['priority'] === 'alta' ? 2 : ($item['priority'] === 'media' ? 1 : 0))
+        ->values();
+    $canonicalRisk = $riskCandidates->first(function (array $item) use ($canonicalStateSummary, $canonicalRecommendation) {
+        return $item['message'] !== $canonicalStateSummary && $item['message'] !== $canonicalRecommendation;
+    })['message']
+        ?? $normalizeText($latestCurrentAnalysis)
+        ?? 'No se identifican riesgos criticos en este momento.';
+    $supportingSignals = collect($energyInsights)
+        ->merge($monthlyEnergyInsights)
+        ->merge($recommendationGroups['opportunities'] ?? [])
+        ->map(fn (array $item) => $normalizeText($item['message'] ?? null))
+        ->filter()
+        ->reject(fn (string $message) => in_array($message, [$canonicalExecutiveSummary, $canonicalStateSummary, $canonicalRecommendation, $canonicalRisk], true))
+        ->unique()
+        ->take(3)
+        ->values();
+    $weatherSupportsValue = $hasWeatherStationData && (
+        $riskCandidates->contains(fn (array $item) => str_contains(strtolower($item['message']), 'radiacion'))
+        || collect($weatherCurrentInsights)->isNotEmpty()
+        || collect($weatherHistoricalInsights)->isNotEmpty()
+    );
 
     $formatNumber = fn ($value, int $decimals = 2) => number_format((float) $value, $decimals, ',', '.');
     $formatKwh = fn ($value) => $formatNumber($value) . ' kWh';
@@ -77,63 +138,25 @@
                 </div>
             </div>
 
-            <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cobertura estimada</p>
-                    <p class="mt-2 text-2xl font-semibold {{ $coverageTone }}">
-                        {{ $calculationResult ? $formatPercent($calculationResult->coverage_percentage) : 'Pendiente' }}
-                    </p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        {{ $coverageInterpretation ?? 'Ejecuta el calculo para conocer la cobertura energetica.' }}
-                    </p>
+                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Periodo</p>
+                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $solarProject->start_date->format('Y-m-d') }} al {{ $solarProject->end_date->format('Y-m-d') }}</p>
                 </div>
 
                 <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Ahorro anual</p>
-                    <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
-                        {{ $calculationResult ? $formatMoney($calculationResult->estimated_annual_savings_cop) : 'Pendiente' }}
-                    </p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        {{ $latestEnergyInsight }}
-                    </p>
+                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Consumo base</p>
+                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatKwh($solarProject->annual_consumption_kwh) }}</p>
                 </div>
 
                 <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Estado actual del clima</p>
-                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-                        {{ $latestCurrentAnalysis }}
-                    </p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        Ultima lectura: {{ $latestWeatherStationReading?->measured_at?->format('Y-m-d H:i') ?? 'Sin datos' }}
-                    </p>
+                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Datos NASA</p>
+                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($solarProject->weather_data_count, 0, ',', '.') }} registros</p>
                 </div>
 
                 <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Tendencia historica</p>
-                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-                        {{ $latestHistoricalAnalysis }}
-                    </p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        Lecturas meteorologicas: {{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }}
-                    </p>
-                </div>
-
-                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60 sm:col-span-2 xl:col-span-4">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Recomendacion operativa</p>
-                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestRecommendation }}</p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        Recomendaciones generadas automaticamente combinando clima, radiacion y metricas energeticas.
-                    </p>
-                </div>
-
-                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60 sm:col-span-2 xl:col-span-4">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Resumen natural con IA</p>
-                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-                        {{ $executiveSummary['text'] ?? 'La capa OpenAI esta deshabilitada o aun no genero contenido.' }}
-                    </p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        {{ $executiveSummary['enabled'] ? 'Generado a partir de analisis estructurados y reglas internas.' : ($executiveSummary['error'] ?? 'Activa OPENAI_RECOMMENDATIONS_ENABLED y configura OPENAI_API_KEY para habilitar esta capa.') }}
-                    </p>
+                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Centro meteorologico</p>
+                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</p>
                 </div>
             </div>
         </div>
@@ -162,458 +185,117 @@
             </div>
         @endif
 
-        <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="min-w-0 max-w-3xl">
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">Capa IA energetica</p>
-                    <h2 class="mt-2 text-xl font-semibold text-zinc-950 dark:text-zinc-50 sm:text-2xl">Widgets inteligentes del dashboard</h2>
-                    <p class="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-                        {{ $dashboard['widgets']['executive_summary'] ?? $aiWidgets['executive_summary'] }}
-                    </p>
-                </div>
-
-                <div class="flex flex-wrap gap-2">
-                    <x-dashboard.ai-state-badge state="success" />
-                    <x-dashboard.ai-state-badge state="warning" />
-                    <x-dashboard.ai-state-badge state="danger" />
-                </div>
-            </div>
-
-            <div class="mt-6 grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
-                <x-dashboard.ai-widget-card
-                    :title="$aiWidgets['widgets']['recommendation_of_day']['title'] ?? 'Recomendacion del dia'"
-                    :icon="$aiWidgets['widgets']['recommendation_of_day']['icon'] ?? 'lightbulb'"
-                    :state="$aiWidgets['widgets']['recommendation_of_day']['state'] ?? 'warning'"
-                    :priority="$aiWidgets['widgets']['recommendation_of_day']['priority'] ?? 'media'"
-                    :summary="$aiWidgets['widgets']['recommendation_of_day']['summary'] ?? null"
-                    :helper="$aiWidgets['widgets']['recommendation_of_day']['helper'] ?? null"
-                    :items="$aiWidgets['widgets']['recommendation_of_day']['items'] ?? []"
-                    :empty="$aiWidgets['widgets']['recommendation_of_day']['empty'] ?? 'Sin recomendaciones disponibles.'"
-                />
-
-                <x-dashboard.ai-widget-card
-                    :title="$aiWidgets['widgets']['intelligent_alerts']['title'] ?? 'Alertas inteligentes'"
-                    :icon="$aiWidgets['widgets']['intelligent_alerts']['icon'] ?? 'bell'"
-                    :state="$aiWidgets['widgets']['intelligent_alerts']['state'] ?? 'warning'"
-                    :priority="$aiWidgets['widgets']['intelligent_alerts']['priority'] ?? 'media'"
-                    :summary="$aiWidgets['widgets']['intelligent_alerts']['summary'] ?? null"
-                    :helper="$aiWidgets['widgets']['intelligent_alerts']['helper'] ?? null"
-                    :items="$aiWidgets['widgets']['intelligent_alerts']['items'] ?? []"
-                    :empty="$aiWidgets['widgets']['intelligent_alerts']['empty'] ?? 'Sin alertas disponibles.'"
-                />
-
-                <x-dashboard.ai-widget-card
-                    :title="$aiWidgets['widgets']['energy_status']['title'] ?? 'Estado energetico'"
-                    :icon="$aiWidgets['widgets']['energy_status']['icon'] ?? 'bolt'"
-                    :state="$aiWidgets['widgets']['energy_status']['state'] ?? 'warning'"
-                    :priority="$aiWidgets['widgets']['energy_status']['priority'] ?? 'media'"
-                    :summary="$aiWidgets['widgets']['energy_status']['summary'] ?? null"
-                    :helper="$aiWidgets['widgets']['energy_status']['helper'] ?? null"
-                    :metrics="$aiWidgets['widgets']['energy_status']['metrics'] ?? []"
-                />
-
-                <x-dashboard.ai-widget-card
-                    :title="$aiWidgets['widgets']['detected_risks']['title'] ?? 'Riesgos detectados'"
-                    :icon="$aiWidgets['widgets']['detected_risks']['icon'] ?? 'shield-alert'"
-                    :state="$aiWidgets['widgets']['detected_risks']['state'] ?? 'warning'"
-                    :priority="$aiWidgets['widgets']['detected_risks']['priority'] ?? 'media'"
-                    :summary="$aiWidgets['widgets']['detected_risks']['summary'] ?? null"
-                    :helper="$aiWidgets['widgets']['detected_risks']['helper'] ?? null"
-                    :items="$aiWidgets['widgets']['detected_risks']['items'] ?? []"
-                    :empty="$aiWidgets['widgets']['detected_risks']['empty'] ?? 'Sin riesgos disponibles.'"
-                />
-
-                <x-dashboard.ai-widget-card
-                    :title="$aiWidgets['widgets']['savings_opportunities']['title'] ?? 'Oportunidades de ahorro'"
-                    :icon="$aiWidgets['widgets']['savings_opportunities']['icon'] ?? 'piggy-bank'"
-                    :state="$aiWidgets['widgets']['savings_opportunities']['state'] ?? 'success'"
-                    :priority="$aiWidgets['widgets']['savings_opportunities']['priority'] ?? 'media'"
-                    :summary="$aiWidgets['widgets']['savings_opportunities']['summary'] ?? null"
-                    :helper="$aiWidgets['widgets']['savings_opportunities']['helper'] ?? null"
-                    :items="$aiWidgets['widgets']['savings_opportunities']['items'] ?? []"
-                    :empty="$aiWidgets['widgets']['savings_opportunities']['empty'] ?? 'Sin oportunidades disponibles.'"
-                    class="xl:col-span-2 2xl:col-span-1"
-                />
-            </div>
-        </section>
-
         <div class="grid min-w-0 max-w-full gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,0.95fr)]">
             <section class="min-w-0 space-y-6">
+                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="min-w-0 max-w-3xl">
+                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">Resumen ejecutivo principal</p>
+                            <h2 class="mt-2 text-xl font-semibold text-zinc-950 dark:text-zinc-50 sm:text-2xl">Lectura general del proyecto</h2>
+                            <p class="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
+                                {{ $canonicalExecutiveSummary }}
+                            </p>
+                        </div>
+
+                        <div class="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+                            {{ $executiveSummary['enabled'] ? 'Resumen IA opcional' : 'Resumen consolidado por reglas' }}
+                        </div>
+                    </div>
+
+                    <div class="mt-6 grid gap-4 lg:grid-cols-3">
+                        <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
+                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Estado energetico general</p>
+                            <p class="mt-2 text-lg font-semibold {{ $coverageTone }}">
+                                {{ $dashboard['state']['title'] ?? 'Estado pendiente' }}
+                            </p>
+                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ $canonicalStateSummary }}</p>
+                        </div>
+
+                        <div class="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/30">
+                            <p class="text-xs font-medium uppercase tracking-wide text-red-600 dark:text-red-300">Riesgo principal</p>
+                            <p class="mt-2 text-sm font-semibold text-red-950 dark:text-red-100">{{ $canonicalRisk }}</p>
+                            <p class="mt-2 text-sm text-red-800 dark:text-red-200">Es el punto que mas puede limitar cobertura, ahorro o continuidad operativa.</p>
+                        </div>
+
+                        <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/60 dark:bg-sky-950/30">
+                            <p class="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">Recomendacion principal</p>
+                            <p class="mt-2 text-sm font-semibold text-sky-950 dark:text-sky-100">{{ $canonicalRecommendation }}</p>
+                            <p class="mt-2 text-sm text-sky-800 dark:text-sky-200">Accion prioritaria para mejorar el resultado operativo del sistema.</p>
+                        </div>
+                    </div>
+
+                    @if ($supportingSignals->isNotEmpty())
+                        <div class="mt-5 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Senales de soporte</p>
+                            <ul class="mt-3 space-y-2 text-sm text-zinc-600 dark:text-zinc-300">
+                                @foreach ($supportingSignals as $signal)
+                                    <li>{{ $signal }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                </div>
+
                 <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Resumen del proyecto</h2>
-                            <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Datos clave del caso, ubicacion y contexto tarifario.</p>
+                            <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Indicadores clave</h2>
+                            <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Metrica ejecutiva del proyecto y del dimensionamiento.</p>
                         </div>
                     </div>
 
-                    <dl class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
+                    <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Ubicacion y coordenadas</dt>
-                            <dd class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $solarProject->location_name }}</dd>
-                            <dd class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{{ $formatCoordinate($solarProject->latitude) }}, {{ $formatCoordinate($solarProject->longitude) }}</dd>
+                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cobertura estimada</p>
+                            <p class="mt-2 text-2xl font-semibold {{ $coverageTone }}">
+                                {{ $calculationResult ? $formatPercent($calculationResult->coverage_percentage) : 'Pendiente' }}
+                            </p>
+                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Porcentaje del consumo anual cubierto por la generacion estimada.</p>
                         </div>
                         <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Consumo y tarifa</dt>
-                            <dd class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatKwh($solarProject->annual_consumption_kwh) }}</dd>
-                            <dd class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{{ $formatMoney($solarProject->energy_rate_cop_kwh) }}/kWh</dd>
+                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Ahorro anual</p>
+                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                                {{ $calculationResult ? $formatMoney($calculationResult->estimated_annual_savings_cop) : 'Pendiente' }}
+                            </p>
+                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Impacto economico anual estimado.</p>
                         </div>
                         <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Datos climaticos NASA</dt>
-                            <dd class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($solarProject->weather_data_count, 0, ',', '.') }} registros</dd>
-                            <dd class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                                {{ $hasWeatherData ? 'Listos para ejecutar simulacion.' : 'Aun no hay datos cargados para este proyecto.' }}
-                            </dd>
+                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Generacion anual</p>
+                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                                {{ $calculationResult ? $formatKwh($calculationResult->estimated_annual_generation_kwh) : 'Pendiente' }}
+                            </p>
+                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Energia solar proyectada para el ano.</p>
                         </div>
                         <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Centro meteorologico</dt>
-                            <dd class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</dd>
-                            <dd class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                                {{ $latestWeatherStationReading?->measured_at?->format('Y-m-d H:i') ?? 'Sin ultima lectura registrada' }}
-                            </dd>
+                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Balance anual</p>
+                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                                {{ $calculationResult ? $formatKwh($energyDifference) : 'Pendiente' }}
+                            </p>
+                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Generacion estimada menos consumo anual.</p>
                         </div>
-                    </dl>
+                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Capacidad instalada</p>
+                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                                {{ $calculationResult ? $formatKwp($calculationResult->installed_capacity_kwp) : 'Pendiente' }}
+                            </p>
+                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                                {{ $calculationResult ? number_format($calculationResult->number_of_panels, 0, ',', '.') . ' paneles' : 'Sin calculo disponible' }}
+                            </p>
+                        </div>
+                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                            <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Consumo anual</p>
+                            <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
+                                {{ $calculationResult ? $formatKwh($calculationResult->annual_consumption_kwh) : $formatKwh($solarProject->annual_consumption_kwh) }}
+                            </p>
+                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Base de demanda usada para el analisis.</p>
+                        </div>
+                    </div>
 
                     @unless ($hasWeatherData)
                         <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                            Este proyecto aun no tiene datos NASA POWER almacenados. Carga los datos desde el modulo Datos APIs antes de ejecutar con NASA.
+                            Aun no hay datos NASA POWER almacenados. Cargalos desde Datos APIs antes de ejecutar la simulacion con NASA.
                         </div>
                     @endunless
-                </div>
-
-                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                    <div>
-                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Resultados ejecutivos</h2>
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Lo mas importante del dimensionamiento y del impacto energetico.</p>
-                    </div>
-
-                    @if ($calculationResult)
-                        <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Capacidad instalada</p>
-                                <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatKwp($calculationResult->installed_capacity_kwp) }}</p>
-                                <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{{ number_format($calculationResult->number_of_panels, 0, ',', '.') }} paneles</p>
-                            </div>
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Generacion anual</p>
-                                <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatKwh($calculationResult->estimated_annual_generation_kwh) }}</p>
-                                <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Promedio mensual: {{ $formatKwh($calculationResult->estimated_monthly_generation_kwh) }}</p>
-                            </div>
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Cobertura y ahorro</p>
-                                <p class="mt-2 text-2xl font-semibold {{ $coverageTone }}">{{ $formatPercent($calculationResult->coverage_percentage) }}</p>
-                                <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{{ $formatMoney($calculationResult->estimated_annual_savings_cop) }} al ano</p>
-                            </div>
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Generacion diaria</p>
-                                <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatKwh($calculationResult->estimated_daily_generation_kwh) }}</p>
-                                <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Area util: {{ $formatNumber($calculationResult->usable_area_m2) }} m2</p>
-                            </div>
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Balance anual</p>
-                                <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatKwh($energyDifference) }}</p>
-                                <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Generacion menos consumo anual</p>
-                            </div>
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Consumo anual</p>
-                                <p class="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatKwh($calculationResult->annual_consumption_kwh) }}</p>
-                                <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{{ $coverageInterpretation }}</p>
-                            </div>
-                        </div>
-                    @else
-                        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                            Ejecuta los calculos solares para visualizar los resultados ejecutivos del proyecto.
-                        </div>
-                    @endif
-                </div>
-
-                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                    <div>
-                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Analisis energetico</h2>
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Interpretacion automatica de cobertura, ahorro, excedentes y dependencia de red.</p>
-                    </div>
-
-                    @if ($calculationResult)
-                        <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Insights generales</h3>
-                                <div class="mt-4 space-y-3">
-                                    @forelse ($energyInsights as $energyInsight)
-                                        @php
-                                            $toneClasses = match ($energyInsight['level'] ?? 'info') {
-                                                'success' => 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100',
-                                                'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
-                                                'error' => 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100',
-                                                default => 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100',
-                                            };
-                                        @endphp
-
-                                        <div class="rounded-lg border p-3 {{ $toneClasses }}">
-                                            <p class="text-sm font-semibold">{{ $energyInsight['title'] }}</p>
-                                            <p class="mt-1 text-sm">{{ $energyInsight['message'] }}</p>
-                                        </div>
-                                    @empty
-                                        <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
-                                            Aun no hay insights energeticos disponibles.
-                                        </div>
-                                    @endforelse
-                                </div>
-                            </div>
-
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Interpretacion mensual</h3>
-                                <div class="mt-4 space-y-3">
-                                    @forelse ($monthlyEnergyInsights as $energyInsight)
-                                        @php
-                                            $toneClasses = match ($energyInsight['level'] ?? 'info') {
-                                                'success' => 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100',
-                                                'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
-                                                'error' => 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100',
-                                                default => 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100',
-                                            };
-                                        @endphp
-
-                                        <div class="rounded-lg border p-3 {{ $toneClasses }}">
-                                            <p class="text-sm font-semibold">{{ $energyInsight['title'] }}</p>
-                                            <p class="mt-1 text-sm">{{ $energyInsight['message'] }}</p>
-                                        </div>
-                                    @empty
-                                        <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
-                                            Aun no hay suficiente informacion mensual para interpretar patrones energeticos.
-                                        </div>
-                                    @endforelse
-                                </div>
-                            </div>
-                        </div>
-                    @else
-                        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                            Ejecuta los calculos solares para habilitar el analisis energetico automatico.
-                        </div>
-                    @endif
-                </div>
-
-                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                    <div>
-                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Recomendaciones inteligentes</h2>
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Sugerencias internas generadas por reglas sobre clima, radiacion, cobertura y generacion.</p>
-                    </div>
-
-                    <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
-                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Recomendaciones</h3>
-                            <div class="mt-4 space-y-3">
-                                @forelse ($recommendationGroups['actions'] as $item)
-                                    <div class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100">
-                                        <p class="font-semibold uppercase tracking-wide">{{ $item['priority'] }}</p>
-                                        <p class="mt-1">{{ $item['message'] }}</p>
-                                    </div>
-                                @empty
-                                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
-                                        Aun no hay recomendaciones operativas especificas.
-                                    </div>
-                                @endforelse
-                            </div>
-                        </div>
-
-                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Alertas y riesgos</h3>
-                            <div class="mt-4 space-y-3">
-                                @forelse (collect($recommendationGroups['alerts'])->merge($recommendationGroups['risks']) as $item)
-                                    @php
-                                        $toneClasses = $item['type'] === 'risk'
-                                            ? 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100'
-                                            : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100';
-                                    @endphp
-
-                                    <div class="rounded-lg border p-3 text-sm {{ $toneClasses }}">
-                                        <p class="font-semibold uppercase tracking-wide">{{ $item['priority'] }}</p>
-                                        <p class="mt-1">{{ $item['message'] }}</p>
-                                    </div>
-                                @empty
-                                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
-                                        No se detectan alertas ni riesgos operativos destacados.
-                                    </div>
-                                @endforelse
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                        <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Oportunidades</h3>
-                        <div class="mt-4 space-y-3">
-                            @forelse ($recommendationGroups['opportunities'] as $item)
-                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100">
-                                    <p class="font-semibold uppercase tracking-wide">{{ $item['priority'] }}</p>
-                                    <p class="mt-1">{{ $item['message'] }}</p>
-                                </div>
-                            @empty
-                                <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
-                                    Aun no se identifican oportunidades operativas adicionales.
-                                </div>
-                            @endforelse
-                        </div>
-                    </div>
-                </div>
-
-                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                    <div>
-                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Redaccion natural con OpenAI</h2>
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Capa opcional para convertir analisis estructurados en recomendaciones ejecutivas y legibles.</p>
-                    </div>
-
-                    @if ($executiveSummary['enabled'])
-                        <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Resumen ejecutivo</h3>
-                                <p class="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
-                                    {{ $executiveSummary['text'] }}
-                                </p>
-                            </div>
-
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Recomendacion diaria</h3>
-                                <p class="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
-                                    {{ $executiveSummary['dailyRecommendation'] }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                            <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Alertas energeticas</h3>
-                            <div class="mt-4 space-y-3">
-                                @forelse ($executiveSummary['alerts'] as $alert)
-                                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
-                                        {{ $alert }}
-                                    </div>
-                                @empty
-                                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
-                                        No se generaron alertas energeticas adicionales.
-                                    </div>
-                                @endforelse
-                            </div>
-                        </div>
-                    @else
-                        <div class="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-200">
-                            {{ $executiveSummary['error'] ?? 'La capa OpenAI esta deshabilitada para este entorno.' }}
-                        </div>
-                    @endif
-                </div>
-
-                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                    <div>
-                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Meteorologia y alertas</h2>
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Lecturas de estacion, analisis automatico y comportamiento reciente.</p>
-                    </div>
-
-                    @if ($hasWeatherStationData)
-                        <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Estado actual</h3>
-                                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Lectura mas reciente y alertas inmediatas.</p>
-
-                                <dl class="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
-                                    <div class="min-w-0 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                        <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Ultima medicion</dt>
-                                        <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestWeatherStationReading?->measured_at?->format('Y-m-d H:i') ?? 'Sin fecha' }}</dd>
-                                    </div>
-                                    <div class="min-w-0 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                        <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Indice UV maximo</dt>
-                                        <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($weatherStationStats['maxUvIndex'] ?? 0, 2) }}</dd>
-                                    </div>
-                                    <div class="min-w-0 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                        <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Radiacion promedio</dt>
-                                        <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($weatherStationStats['averageRadiation'] ?? 0, 3) }}</dd>
-                                    </div>
-                                    <div class="min-w-0 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                        <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Lecturas</dt>
-                                        <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($weatherStationStats['total'], 0, ',', '.') }}</dd>
-                                    </div>
-                                </dl>
-
-                                <div class="mt-4 space-y-3">
-                                    @forelse ($weatherCurrentInsights as $analysisItem)
-                                        @php
-                                            $toneClasses = match ($analysisItem['type'] ?? 'info') {
-                                                'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
-                                                'error' => 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100',
-                                                default => 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100',
-                                            };
-                                        @endphp
-
-                                        <div class="rounded-lg border p-3 text-sm {{ $toneClasses }}">
-                                            {{ $analysisItem['message'] }}
-                                        </div>
-                                    @empty
-                                        <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
-                                            No hay alertas actuales relevantes en la ultima lectura.
-                                        </div>
-                                    @endforelse
-                                </div>
-                            </div>
-
-                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Comportamiento historico</h3>
-                                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Resumen de tendencia sobre las lecturas almacenadas.</p>
-
-                                <div class="mt-4 space-y-3">
-                                    @forelse ($weatherHistoricalInsights as $analysisItem)
-                                        @php
-                                            $toneClasses = match ($analysisItem['type'] ?? 'info') {
-                                                'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
-                                                'error' => 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100',
-                                                default => 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100',
-                                            };
-                                        @endphp
-
-                                        <div class="rounded-lg border p-3 text-sm {{ $toneClasses }}">
-                                            {{ $analysisItem['message'] }}
-                                        </div>
-                                    @empty
-                                        <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
-                                            Aun no hay suficientes datos para construir tendencias historicas relevantes.
-                                        </div>
-                                    @endforelse
-                                </div>
-
-                                <div class="mt-4 h-56 min-w-0 max-w-full sm:h-64 lg:h-72 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-950/60">
-                                    <canvas id="weather-station-radiation-chart" aria-label="Radiacion diaria del centro meteorologico" role="img"></canvas>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 min-w-0 max-w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-                            <div class="min-w-0 max-w-full overflow-x-auto">
-                            <table class="min-w-[640px] divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
-                                <thead class="bg-zinc-50 dark:bg-zinc-950/60">
-                                    <tr class="text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                                        <th class="px-3 py-2">Fecha</th>
-                                        <th class="px-3 py-2">Radiacion</th>
-                                        <th class="px-3 py-2">UVA</th>
-                                        <th class="px-3 py-2">UVB</th>
-                                        <th class="px-3 py-2">IUV</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                    @foreach ($recentWeatherStationReadings as $reading)
-                                        <tr class="text-zinc-700 dark:text-zinc-200">
-                                            <td class="px-3 py-2 font-medium">{{ $reading->measured_at->format('Y-m-d H:i') }}</td>
-                                            <td class="px-3 py-2">{{ $reading->radiationValue() !== null ? $formatNumber($reading->radiationValue(), 3) : 'N/A' }}</td>
-                                            <td class="px-3 py-2">{{ $reading->uva !== null ? $formatNumber($reading->uva, 3) : 'N/A' }}</td>
-                                            <td class="px-3 py-2">{{ $reading->uvb !== null ? $formatNumber($reading->uvb, 3) : 'N/A' }}</td>
-                                            <td class="px-3 py-2">{{ $reading->uv_index !== null ? $formatNumber($reading->uv_index, 3) : 'N/A' }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                            </div>
-                        </div>
-
-                        <script type="application/json" id="weather-station-chart-data">@json($weatherStationChartData)</script>
-                    @else
-                        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                            Aun no hay lecturas del centro meteorologico asociadas a este proyecto. Cuando la estacion envie datos al endpoint o existan lecturas sin asociar en el rango, usa el boton para obtenerlas.
-                        </div>
-                    @endif
                 </div>
 
                 @if ($monthlyResults->isNotEmpty())
@@ -704,6 +386,90 @@
                             </div>
                         </div>
                     </section>
+
+                    @if ($weatherSupportsValue)
+                        <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                            <div class="flex flex-wrap items-start justify-between gap-4">
+                                <div>
+                                    <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Detalle meteorologico</h2>
+                                    <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Se muestra solo porque aporta contexto a riesgo, radiacion o seguimiento operativo.</p>
+                                </div>
+                                <div class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                    {{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas
+                                </div>
+                            </div>
+
+                            <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
+                                <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Lectura actual</p>
+                                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestCurrentAnalysis }}</p>
+                                    <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+                                        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
+                                            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Ultima medicion</dt>
+                                            <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestWeatherStationReading?->measured_at?->format('Y-m-d H:i') ?? 'Sin fecha' }}</dd>
+                                        </div>
+                                        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
+                                            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Radiacion promedio</dt>
+                                            <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($weatherStationStats['averageRadiation'] ?? 0, 3) }}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+
+                                <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Tendencia historica</p>
+                                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestHistoricalAnalysis }}</p>
+                                    <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+                                        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
+                                            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Indice UV maximo</dt>
+                                            <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($weatherStationStats['maxUvIndex'] ?? 0, 2) }}</dd>
+                                        </div>
+                                        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
+                                            <dt class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Centro meteorologico</dt>
+                                            <dd class="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                                <div class="h-56 min-w-0 max-w-full sm:h-64 lg:h-72 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-950/60">
+                                    <canvas id="weather-station-radiation-chart" aria-label="Radiacion diaria del centro meteorologico" role="img"></canvas>
+                                </div>
+                            </div>
+
+                            <details class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                                <summary class="cursor-pointer text-sm font-semibold text-zinc-950 dark:text-zinc-50">Ver ultimas lecturas meteorologicas</summary>
+                                <div class="mt-4 min-w-0 max-w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+                                    <div class="min-w-0 max-w-full overflow-x-auto">
+                                        <table class="min-w-[640px] divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
+                                            <thead class="bg-zinc-50 dark:bg-zinc-950/60">
+                                                <tr class="text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                                    <th class="px-3 py-2">Fecha</th>
+                                                    <th class="px-3 py-2">Radiacion</th>
+                                                    <th class="px-3 py-2">UVA</th>
+                                                    <th class="px-3 py-2">UVB</th>
+                                                    <th class="px-3 py-2">IUV</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                                @foreach ($recentWeatherStationReadings as $reading)
+                                                    <tr class="text-zinc-700 dark:text-zinc-200">
+                                                        <td class="px-3 py-2 font-medium">{{ $reading->measured_at->format('Y-m-d H:i') }}</td>
+                                                        <td class="px-3 py-2">{{ $reading->radiationValue() !== null ? $formatNumber($reading->radiationValue(), 3) : 'N/A' }}</td>
+                                                        <td class="px-3 py-2">{{ $reading->uva !== null ? $formatNumber($reading->uva, 3) : 'N/A' }}</td>
+                                                        <td class="px-3 py-2">{{ $reading->uvb !== null ? $formatNumber($reading->uvb, 3) : 'N/A' }}</td>
+                                                        <td class="px-3 py-2">{{ $reading->uv_index !== null ? $formatNumber($reading->uv_index, 3) : 'N/A' }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <script type="application/json" id="weather-station-chart-data">@json($weatherStationChartData)</script>
+                        </section>
+                    @endif
                 @else
                     <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
                         {{ $calculationResult ? 'Los calculos generales existen, pero aun no hay resultados mensuales registrados.' : 'Ejecuta los calculos solares para visualizar los resultados y graficos del proyecto.' }}
@@ -741,12 +507,35 @@
 
                 <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
                     <div>
-                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Parametros tecnicos</h2>
-                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Configuracion base usada en el dimensionamiento.</p>
+                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Contexto del proyecto</h2>
+                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Base tecnica y operativa usada para interpretar los resultados.</p>
                     </div>
 
+                    <dl class="mt-4 space-y-3">
+                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
+                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Ubicacion</dt>
+                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $solarProject->location_name }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
+                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Coordenadas</dt>
+                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatCoordinate($solarProject->latitude) }}, {{ $formatCoordinate($solarProject->longitude) }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
+                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Tarifa energetica</dt>
+                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatMoney($solarProject->energy_rate_cop_kwh) }}/kWh</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
+                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Datos NASA</dt>
+                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($solarProject->weather_data_count, 0, ',', '.') }} registros</dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
+                            <dt class="text-sm text-zinc-600 dark:text-zinc-400">Centro meteorologico</dt>
+                            <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas</dd>
+                        </div>
+                    </dl>
+
                     @if ($technicalParameter)
-                        <dl class="mt-4 space-y-3">
+                        <dl class="mt-4 space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
                             <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60">
                                 <dt class="text-sm text-zinc-600 dark:text-zinc-400">Area disponible</dt>
                                 <dd class="text-right text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $formatNumber($technicalParameter->available_area_m2) }} m2</dd>
