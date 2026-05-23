@@ -5,6 +5,7 @@
     $hasWeatherData = $solarProject->weather_data_count > 0;
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
+    $weatherAnalysis = $weatherAnalysis ?? ['current' => [], 'historical' => []];
     $hasWeatherStationData = ($weatherStationStats['total'] ?? 0) > 0;
     $latestWeatherStationReading = $weatherStationStats['latest'] ?? null;
 
@@ -214,6 +215,70 @@
                 </dl>
 
                 <div class="grid gap-4 xl:grid-cols-2">
+                    <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+                        <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Analisis automatico</h3>
+
+                        @if (! empty($weatherAnalysis['current']) || ! empty($weatherAnalysis['historical']))
+                            <div class="mt-4 space-y-5">
+                                <div>
+                                    <h4 class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Estado actual</h4>
+
+                                    @if (! empty($weatherAnalysis['current']))
+                                        <div class="mt-3 space-y-3">
+                                            @foreach ($weatherAnalysis['current'] as $analysisItem)
+                                                @php
+                                                    $toneClasses = match ($analysisItem['type'] ?? 'info') {
+                                                        'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
+                                                        'error' => 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100',
+                                                        default => 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100',
+                                                    };
+                                                @endphp
+
+                                                <div class="rounded-lg border p-3 text-sm {{ $toneClasses }}">
+                                                    {{ $analysisItem['message'] }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <p class="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                            No hay alertas actuales relevantes en la ultima lectura.
+                                        </p>
+                                    @endif
+                                </div>
+
+                                <div>
+                                    <h4 class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Comportamiento historico</h4>
+
+                                    @if (! empty($weatherAnalysis['historical']))
+                                        <div class="mt-3 space-y-3">
+                                            @foreach ($weatherAnalysis['historical'] as $analysisItem)
+                                                @php
+                                                    $toneClasses = match ($analysisItem['type'] ?? 'info') {
+                                                        'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
+                                                        'error' => 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100',
+                                                        default => 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100',
+                                                    };
+                                                @endphp
+
+                                                <div class="rounded-lg border p-3 text-sm {{ $toneClasses }}">
+                                                    {{ $analysisItem['message'] }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <p class="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                            Aun no hay suficientes datos para construir tendencias historicas relevantes.
+                                        </p>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <p class="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+                                Aun no hay conclusiones automaticas disponibles para las lecturas registradas.
+                            </p>
+                        @endif
+                    </div>
+
                     <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
                         <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Radiacion diaria del centro meteorologico</h3>
                         <div class="mt-4 h-72">

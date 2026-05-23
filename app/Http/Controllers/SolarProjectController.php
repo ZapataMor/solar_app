@@ -6,6 +6,7 @@ use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use App\Services\NasaPowerService;
 use App\Services\SolarCalculationService;
+use App\Services\WeatherAnalysisService;
 use App\Services\WeatherStationImportService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -53,7 +54,11 @@ class SolarProjectController extends Controller
             ->with('status', 'Proyecto solar creado correctamente.');
     }
 
-    public function show(Request $request, SolarProject $solarProject): View
+    public function show(
+        Request $request,
+        SolarProject $solarProject,
+        WeatherAnalysisService $weatherAnalysisService,
+    ): View
     {
         $this->authorizeOwner($request, $solarProject);
 
@@ -66,7 +71,7 @@ class SolarProjectController extends Controller
 
         return view('solar-projects.show', [
             'solarProject' => $solarProject,
-            ...$this->projectSummaryData($solarProject),
+            ...$this->projectSummaryData($solarProject, $weatherAnalysisService),
         ]);
     }
 
@@ -444,7 +449,10 @@ class SolarProjectController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function projectSummaryData(SolarProject $solarProject): array
+    private function projectSummaryData(
+        SolarProject $solarProject,
+        WeatherAnalysisService $weatherAnalysisService,
+    ): array
     {
         $monthlyResults = $solarProject->monthlyResults;
         $calculationResult = $solarProject->calculationResult;
@@ -466,6 +474,7 @@ class SolarProjectController extends Controller
                 ->filter(fn (?float $value) => $value !== null)
                 ->average())
             ->filter(fn (?float $value) => $value !== null);
+        $weatherAnalysis = $weatherAnalysisService->analyzeReadings($weatherStationReadings);
 
         return [
             'chartData' => [
@@ -502,6 +511,7 @@ class SolarProjectController extends Controller
                 ->sortByDesc('measured_at')
                 ->take(8)
                 ->values(),
+            'weatherAnalysis' => $weatherAnalysis,
             'weatherStationChartData' => [
                 'labels' => $stationDailyRadiation->keys()->values()->all(),
                 'radiation' => $stationDailyRadiation->map(fn ($value) => (float) $value)->values()->all(),
