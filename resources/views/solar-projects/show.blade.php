@@ -3,11 +3,13 @@
     $calculationResult = $solarProject->calculationResult;
     $monthlyResults = $solarProject->monthlyResults;
     $hasWeatherData = $solarProject->weather_data_count > 0;
+    $energyAnalysis = $energyAnalysis ?? ['insights' => [], 'monthlyInterpretations' => [], 'monthlyHighlights' => []];
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
     $weatherAnalysis = $weatherAnalysis ?? ['current' => [], 'historical' => []];
     $hasWeatherStationData = ($weatherStationStats['total'] ?? 0) > 0;
     $latestWeatherStationReading = $weatherStationStats['latest'] ?? null;
+    $latestEnergyInsight = $energyAnalysis['insights'][0]['message'] ?? 'Sin conclusiones energeticas automaticas.';
     $latestCurrentAnalysis = $weatherAnalysis['current'][0]['message'] ?? 'Sin alertas actuales relevantes.';
     $latestHistoricalAnalysis = $weatherAnalysis['historical'][0]['message'] ?? 'Sin tendencias historicas destacadas.';
 
@@ -71,7 +73,7 @@
                         {{ $calculationResult ? $formatMoney($calculationResult->estimated_annual_savings_cop) : 'Pendiente' }}
                     </p>
                     <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        Consumo anual registrado: {{ $formatKwh($solarProject->annual_consumption_kwh) }}
+                        {{ $latestEnergyInsight }}
                     </p>
                 </div>
 
@@ -207,6 +209,71 @@
                     @else
                         <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
                             Ejecuta los calculos solares para visualizar los resultados ejecutivos del proyecto.
+                        </div>
+                    @endif
+                </div>
+
+                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                    <div>
+                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Analisis energetico</h2>
+                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Interpretacion automatica de cobertura, ahorro, excedentes y dependencia de red.</p>
+                    </div>
+
+                    @if ($calculationResult)
+                        <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
+                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Insights generales</h3>
+                                <div class="mt-4 space-y-3">
+                                    @forelse ($energyAnalysis['insights'] as $energyInsight)
+                                        @php
+                                            $toneClasses = match ($energyInsight['level'] ?? 'info') {
+                                                'success' => 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100',
+                                                'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
+                                                'error' => 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100',
+                                                default => 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100',
+                                            };
+                                        @endphp
+
+                                        <div class="rounded-lg border p-3 {{ $toneClasses }}">
+                                            <p class="text-sm font-semibold">{{ $energyInsight['title'] }}</p>
+                                            <p class="mt-1 text-sm">{{ $energyInsight['message'] }}</p>
+                                        </div>
+                                    @empty
+                                        <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
+                                            Aun no hay insights energeticos disponibles.
+                                        </div>
+                                    @endforelse
+                                </div>
+                            </div>
+
+                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Interpretacion mensual</h3>
+                                <div class="mt-4 space-y-3">
+                                    @forelse ($energyAnalysis['monthlyInterpretations'] as $energyInsight)
+                                        @php
+                                            $toneClasses = match ($energyInsight['level'] ?? 'info') {
+                                                'success' => 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100',
+                                                'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
+                                                'error' => 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100',
+                                                default => 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100',
+                                            };
+                                        @endphp
+
+                                        <div class="rounded-lg border p-3 {{ $toneClasses }}">
+                                            <p class="text-sm font-semibold">{{ $energyInsight['title'] }}</p>
+                                            <p class="mt-1 text-sm">{{ $energyInsight['message'] }}</p>
+                                        </div>
+                                    @empty
+                                        <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
+                                            Aun no hay suficiente informacion mensual para interpretar patrones energeticos.
+                                        </div>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                            Ejecuta los calculos solares para habilitar el analisis energetico automatico.
                         </div>
                     @endif
                 </div>

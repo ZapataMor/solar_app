@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
+use App\Services\EnergyAnalysisService;
 use App\Services\NasaPowerService;
 use App\Services\SolarCalculationService;
 use App\Services\WeatherAnalysisService;
@@ -57,6 +58,7 @@ class SolarProjectController extends Controller
     public function show(
         Request $request,
         SolarProject $solarProject,
+        EnergyAnalysisService $energyAnalysisService,
         WeatherAnalysisService $weatherAnalysisService,
     ): View
     {
@@ -71,7 +73,7 @@ class SolarProjectController extends Controller
 
         return view('solar-projects.show', [
             'solarProject' => $solarProject,
-            ...$this->projectSummaryData($solarProject, $weatherAnalysisService),
+            ...$this->projectSummaryData($solarProject, $energyAnalysisService, $weatherAnalysisService),
         ]);
     }
 
@@ -451,11 +453,13 @@ class SolarProjectController extends Controller
      */
     private function projectSummaryData(
         SolarProject $solarProject,
+        EnergyAnalysisService $energyAnalysisService,
         WeatherAnalysisService $weatherAnalysisService,
     ): array
     {
         $monthlyResults = $solarProject->monthlyResults;
         $calculationResult = $solarProject->calculationResult;
+        $energyAnalysis = $energyAnalysisService->analyze($calculationResult, $monthlyResults);
         $weatherStationReadings = $solarProject->weatherStationReadings()
             ->whereBetween('measured_at', [
                 $solarProject->start_date->copy()->startOfDay(),
@@ -484,15 +488,9 @@ class SolarProjectController extends Controller
                 'savings' => $monthlyResults->pluck('estimated_savings_cop')->map(fn ($value) => (float) $value)->values()->all(),
                 'coverage' => $monthlyResults->pluck('coverage_percentage')->map(fn ($value) => (float) $value)->values()->all(),
             ],
-            'coverageInterpretation' => $calculationResult
-                ? $this->coverageInterpretation((float) $calculationResult->coverage_percentage)
-                : null,
-            'monthlyHighlights' => [
-                'highestGeneration' => $monthlyResults->sortByDesc(fn ($result) => (float) $result->estimated_generation_kwh)->first(),
-                'lowestGeneration' => $monthlyResults->sortBy(fn ($result) => (float) $result->estimated_generation_kwh)->first(),
-                'highestSavings' => $monthlyResults->sortByDesc(fn ($result) => (float) $result->estimated_savings_cop)->first(),
-                'lowestCoverage' => $monthlyResults->sortBy(fn ($result) => (float) $result->coverage_percentage)->first(),
-            ],
+            'coverageInterpretation' => $energyAnalysis['coverageInterpretation'],
+            'energyAnalysis' => $energyAnalysis,
+            'monthlyHighlights' => $energyAnalysis['monthlyHighlights'],
             'monthlyTotals' => [
                 'generation' => $monthlyResults->sum('estimated_generation_kwh'),
                 'consumption' => $monthlyResults->sum('estimated_consumption_kwh'),
@@ -517,22 +515,5 @@ class SolarProjectController extends Controller
                 'radiation' => $stationDailyRadiation->map(fn ($value) => (float) $value)->values()->all(),
             ],
         ];
-    }
-
-    private function coverageInterpretation(float $coveragePercentage): string
-    {
-        if ($coveragePercentage >= 100) {
-            return 'La generacion estimada podria cubrir la totalidad del consumo anual registrado.';
-        }
-
-        if ($coveragePercentage >= 70) {
-            return 'La generacion estimada tendria una cobertura alta del consumo anual.';
-        }
-
-        if ($coveragePercentage >= 40) {
-            return 'La generacion estimada tendria una cobertura media del consumo anual.';
-        }
-
-        return 'La generacion estimada tendria una cobertura baja frente al consumo anual registrado.';
     }
 }

@@ -45,7 +45,8 @@ class SolarDashboardTest extends TestCase
             ->assertSee('Capacidad instalada')
             ->assertSee('Generacion anual estimada')
             ->assertSee('Cobertura energetica')
-            ->assertSee('Ahorro anual estimado');
+            ->assertSee('Ahorro anual estimado')
+            ->assertSee('Analisis energetico');
     }
 
     public function test_show_displays_monthly_results_and_totals_when_they_exist(): void
@@ -184,6 +185,50 @@ class SolarDashboardTest extends TestCase
             ->assertSee('Contaminacion elevada por CO2: la ventilacion del entorno deberia revisarse.')
             ->assertSee('Alta radiacion detectada: el potencial solar y la exposicion UV estan elevados.')
             ->assertSee('Historico reciente con temperatura promedio elevada: el periodo analizado ha sido caluroso.');
+    }
+
+    public function test_show_displays_energy_analysis_when_calculation_results_exist(): void
+    {
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create($this->projectAttributes());
+        $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+        $solarProject->calculationResult()->create([
+            ...$this->calculationResultAttributes(115),
+            'estimated_annual_generation_kwh' => 13800,
+            'annual_consumption_kwh' => 12000,
+            'estimated_annual_savings_cop' => 6200000,
+        ]);
+        $solarProject->monthlyResults()->create([
+            'month_number' => 1,
+            'month_name' => 'enero',
+            'days_in_month' => 31,
+            'average_daily_solar_radiation' => 5.2,
+            'estimated_generation_kwh' => 1500,
+            'estimated_consumption_kwh' => 1000,
+            'coverage_percentage' => 150,
+            'estimated_savings_cop' => 1200000,
+        ]);
+        $solarProject->monthlyResults()->create([
+            'month_number' => 2,
+            'month_name' => 'febrero',
+            'days_in_month' => 28,
+            'average_daily_solar_radiation' => 3.9,
+            'estimated_generation_kwh' => 620,
+            'estimated_consumption_kwh' => 1000,
+            'coverage_percentage' => 62,
+            'estimated_savings_cop' => 520000,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Analisis energetico')
+            ->assertSee('Cobertura alta')
+            ->assertSee('Sobreproduccion solar')
+            ->assertSee('Excedentes energeticos')
+            ->assertSee('Interpretacion mensual')
+            ->assertSee('Meses con excedente')
+            ->assertSee('Meses con baja cobertura');
     }
 
     public function test_user_cannot_view_foreign_project_summary(): void
