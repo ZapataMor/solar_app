@@ -6,6 +6,7 @@ use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use App\Services\EnergyAnalysisService;
 use App\Services\NasaPowerService;
+use App\Services\OpenAIRecommendationService;
 use App\Services\SolarRecommendationService;
 use App\Services\SolarCalculationService;
 use App\Services\WeatherAnalysisService;
@@ -60,6 +61,7 @@ class SolarProjectController extends Controller
         Request $request,
         SolarProject $solarProject,
         EnergyAnalysisService $energyAnalysisService,
+        OpenAIRecommendationService $openAIRecommendationService,
         SolarRecommendationService $solarRecommendationService,
         WeatherAnalysisService $weatherAnalysisService,
     ): View
@@ -78,6 +80,7 @@ class SolarProjectController extends Controller
             ...$this->projectSummaryData(
                 $solarProject,
                 $energyAnalysisService,
+                $openAIRecommendationService,
                 $solarRecommendationService,
                 $weatherAnalysisService,
             ),
@@ -461,6 +464,7 @@ class SolarProjectController extends Controller
     private function projectSummaryData(
         SolarProject $solarProject,
         EnergyAnalysisService $energyAnalysisService,
+        OpenAIRecommendationService $openAIRecommendationService,
         SolarRecommendationService $solarRecommendationService,
         WeatherAnalysisService $weatherAnalysisService,
     ): array
@@ -502,6 +506,13 @@ class SolarProjectController extends Controller
             $calculationResult,
             $weatherStationStats,
         );
+        $openAIRecommendation = $openAIRecommendationService->generate(
+            $weatherAnalysis,
+            $energyAnalysis,
+            $solarRecommendations,
+            $calculationResult,
+            $weatherStationStats,
+        );
 
         return [
             'chartData' => [
@@ -524,6 +535,7 @@ class SolarProjectController extends Controller
                 ->sortByDesc('measured_at')
                 ->take(8)
                 ->values(),
+            'openAIRecommendation' => $openAIRecommendation,
             'weatherAnalysis' => $weatherAnalysis,
             'solarRecommendations' => $solarRecommendations,
             'weatherStationChartData' => [

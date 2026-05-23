@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\SolarProject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Responses\CreateResponse;
 use Tests\TestCase;
 
 class SolarDashboardTest extends TestCase
@@ -272,6 +274,77 @@ class SolarDashboardTest extends TestCase
             ->assertSee('Se recomienda operar equipos de alto consumo entre las 11 AM y 2 PM para aprovechar la mayor disponibilidad solar.')
             ->assertSee('Existe riesgo de dependencia de red: la cobertura solar proyectada es insuficiente para sostener la mayor parte del consumo.')
             ->assertSee('El calor extremo puede elevar la demanda de climatizacion; conviene preenfriar espacios durante la franja de mayor generacion solar.');
+    }
+
+    public function test_show_displays_openai_recommendations_when_ai_layer_is_enabled(): void
+    {
+        config([
+            'services.openai_recommendations.enabled' => true,
+            'openai.api_key' => 'test-key',
+        ]);
+
+        $json = json_encode([
+            'executive_summary' => 'Hoy se espera una produccion solar alta. Se recomienda desplazar cargas de alto consumo al mediodia.',
+            'daily_recommendation' => 'Opera equipos de alto consumo entre las 11 AM y 2 PM para maximizar el ahorro energetico.',
+            'energy_alerts' => [
+                'La cobertura disminuye fuera de la franja solar.',
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'output' => [
+                    [
+                        'type' => 'message',
+                        'id' => 'msg_ai',
+                        'status' => 'completed',
+                        'role' => 'assistant',
+                        'content' => [
+                            [
+                                'type' => 'output_text',
+                                'text' => $json,
+                                'annotations' => [],
+                            ],
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'start_date' => '2026-05-23',
+            'end_date' => '2026-05-23',
+        ]);
+        $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+        $solarProject->calculationResult()->create($this->calculationResultAttributes(85));
+        $solarProject->monthlyResults()->create([
+            'month_number' => 1,
+            'month_name' => 'enero',
+            'days_in_month' => 31,
+            'average_daily_solar_radiation' => 5.2,
+            'estimated_generation_kwh' => 1100,
+            'estimated_consumption_kwh' => 1000,
+            'coverage_percentage' => 110,
+            'estimated_savings_cop' => 902000,
+        ]);
+        $solarProject->weatherStationReadings()->create([
+            'temperature' => 35.1,
+            'humidity' => 78.0,
+            'thermal_sensation' => 44.0,
+            'uv_index' => 6.4,
+            'solar_radiation' => 740.0,
+            'measured_at' => '2026-05-23 13:00:00',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Redaccion natural con OpenAI')
+            ->assertSee('Hoy se espera una produccion solar alta. Se recomienda desplazar cargas de alto consumo al mediodia.')
+            ->assertSee('Opera equipos de alto consumo entre las 11 AM y 2 PM para maximizar el ahorro energetico.')
+            ->assertSee('La cobertura disminuye fuera de la franja solar.');
     }
 
     public function test_user_cannot_view_foreign_project_summary(): void

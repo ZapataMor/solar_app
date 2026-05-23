@@ -47,4 +47,11 @@ return [
         'schedule_timezone' => env('WEATHER_STATION_SCHEDULE_TIMEZONE', 'America/Bogota'),
     ],
 
+    'openai_recommendations' => [
+        'enabled' => env('OPENAI_RECOMMENDATIONS_ENABLED', false),
+        'model' => env('OPENAI_RECOMMENDATIONS_MODEL', 'gpt-5-mini'),
+        'max_output_tokens' => (int) env('OPENAI_RECOMMENDATIONS_MAX_OUTPUT_TOKENS', 400),
+        'cache_ttl_minutes' => (int) env('OPENAI_RECOMMENDATIONS_CACHE_TTL_MINUTES', 30),
+    ],
+
 ];

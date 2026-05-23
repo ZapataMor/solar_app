@@ -4,6 +4,7 @@
     $monthlyResults = $solarProject->monthlyResults;
     $hasWeatherData = $solarProject->weather_data_count > 0;
     $energyAnalysis = $energyAnalysis ?? ['insights' => [], 'monthlyInterpretations' => [], 'monthlyHighlights' => []];
+    $openAIRecommendation = $openAIRecommendation ?? ['enabled' => false, 'source' => 'disabled', 'executive_summary' => null, 'daily_recommendation' => null, 'energy_alerts' => [], 'error' => null];
     $solarRecommendations = $solarRecommendations ?? ['items' => [], 'recommendations' => [], 'alerts' => [], 'risks' => [], 'opportunities' => []];
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
@@ -104,6 +105,16 @@
                     <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestRecommendation }}</p>
                     <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                         Recomendaciones generadas automaticamente combinando clima, radiacion y metricas energeticas.
+                    </p>
+                </div>
+
+                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60 sm:col-span-2 xl:col-span-4">
+                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Resumen natural con IA</p>
+                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+                        {{ $openAIRecommendation['executive_summary'] ?? 'La capa OpenAI esta deshabilitada o aun no genero contenido.' }}
+                    </p>
+                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                        {{ $openAIRecommendation['enabled'] ? 'Generado a partir de analisis estructurados y reglas internas.' : ($openAIRecommendation['error'] ?? 'Activa OPENAI_RECOMMENDATIONS_ENABLED y configura OPENAI_API_KEY para habilitar esta capa.') }}
                     </p>
                 </div>
             </div>
@@ -349,6 +360,50 @@
                             @endforelse
                         </div>
                     </div>
+                </div>
+
+                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                    <div>
+                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Redaccion natural con OpenAI</h2>
+                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Capa opcional para convertir analisis estructurados en recomendaciones ejecutivas y legibles.</p>
+                    </div>
+
+                    @if ($openAIRecommendation['enabled'])
+                        <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
+                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Resumen ejecutivo</h3>
+                                <p class="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
+                                    {{ $openAIRecommendation['executive_summary'] }}
+                                </p>
+                            </div>
+
+                            <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                                <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Recomendacion diaria</h3>
+                                <p class="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
+                                    {{ $openAIRecommendation['daily_recommendation'] }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                            <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Alertas energeticas</h3>
+                            <div class="mt-4 space-y-3">
+                                @forelse ($openAIRecommendation['energy_alerts'] as $alert)
+                                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                                        {{ $alert }}
+                                    </div>
+                                @empty
+                                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
+                                        No se generaron alertas energeticas adicionales.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
+                    @else
+                        <div class="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-200">
+                            {{ $openAIRecommendation['error'] ?? 'La capa OpenAI esta deshabilitada para este entorno.' }}
+                        </div>
+                    @endif
                 </div>
 
                 <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
