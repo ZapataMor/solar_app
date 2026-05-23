@@ -16,7 +16,6 @@ class WeatherStationReadingController extends Controller
         $normalized = $this->normalizePayload($rawPayload);
 
         $validator = Validator::make($normalized, [
-            'solar_project_id' => ['nullable', 'exists:solar_projects,id'],
             'device_code' => ['nullable', 'string', 'max:100'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
@@ -86,7 +85,7 @@ class WeatherStationReadingController extends Controller
         $thermalSensation = $this->value($payload, ['thermal_sensation', 'sensacion_termica', 'st']);
 
         return [
-            'solar_project_id' => $this->value($payload, ['solar_project_id', 'project_id']),
+            'solar_project_id' => null,
             'device_code' => $this->value($payload, ['device_code', 'codigo_dispositivo']),
             'latitude' => $this->value($payload, ['latitude', 'latitud', 'lat']),
             'longitude' => $this->value($payload, ['longitude', 'longitud', 'lng', 'lon']),

@@ -230,14 +230,14 @@ class SolarProjectTest extends TestCase
             ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: 1. Lecturas existentes omitidas: 1. Dias nuevos: 0. Dias actualizados: 1.')
             ->assertRedirect();
 
-        $this->assertSame(2, WeatherStationReading::query()->whereBelongsTo($solarProject)->count());
+        $this->assertSame(2, WeatherStationReading::query()->count());
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => $solarProject->id,
+            'solar_project_id' => null,
             'measured_at' => '2025-08-20 10:28:47',
             'temperature' => 35.9,
         ]);
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => $solarProject->id,
+            'solar_project_id' => null,
             'measured_at' => '2025-08-20 10:35:00',
             'temperature' => 36.4,
         ]);

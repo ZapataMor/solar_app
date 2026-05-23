@@ -14,7 +14,7 @@ class WeatherStationAggregationService
      */
     public function readingsForProject(SolarProject $solarProject): Collection
     {
-        return $solarProject->weatherStationReadings()
+        return WeatherStationReading::query()
             ->whereBetween('measured_at', [
                 $solarProject->start_date->copy()->startOfDay(),
                 $solarProject->end_date->copy()->endOfDay(),

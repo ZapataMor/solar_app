@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SolarProject;
 use App\Models\User;
+use App\Models\WeatherStationReading;
 use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
 use App\Services\ProjectDashboardService;
@@ -37,6 +38,13 @@ class SolarProjectController extends Controller
         }
 
         $solarProjects = $solarProjectsQuery->paginate(12)->withQueryString();
+        $globalWeatherStationCount = WeatherStationReading::query()->count();
+
+        $solarProjects->getCollection()->transform(function (SolarProject $solarProject) use ($globalWeatherStationCount) {
+            $solarProject->setAttribute('weather_station_readings_count', $globalWeatherStationCount);
+
+            return $solarProject;
+        });
 
         return view('solar-projects.index', [
             'solarProjects' => $solarProjects,
@@ -171,7 +179,7 @@ class SolarProjectController extends Controller
         $this->authorizeOwner($request, $solarProject);
 
         try {
-            $imported = $weatherStationImportService->importAll($solarProject);
+            $imported = $weatherStationImportService->importAll();
         } catch (Throwable $exception) {
             report($exception);
 

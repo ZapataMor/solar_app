@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\SolarProject;
 use App\Services\WeatherStationImportService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -16,65 +15,35 @@ class FetchWeatherStationData extends Command
 
     public function handle(WeatherStationImportService $weatherStationImportService): int
     {
-        $projects = SolarProject::query()
-            ->orderBy('id')
-            ->get();
-
-        if ($projects->isEmpty()) {
-            Log::info('Automatic weather station fetch skipped: no solar projects found.');
-            $this->info('No hay proyectos solares registrados para asociar lecturas.');
-
-            return self::SUCCESS;
-        }
-
         Log::info('Automatic weather station fetch started.', [
-            'projects' => $projects->count(),
+            'scope' => 'global',
         ]);
 
-        $received = 0;
-        $created = 0;
-        $updated = 0;
-        $skipped = 0;
-        $failed = 0;
+        try {
+            $summary = $weatherStationImportService->importAll();
+        } catch (Throwable $exception) {
+            report($exception);
 
-        foreach ($projects as $project) {
-            try {
-                $summary = $weatherStationImportService->importAll($project);
+            Log::error('Automatic weather station fetch failed.', [
+                'error' => $exception->getMessage(),
+            ]);
 
-                $received += $summary['received'];
-                $created += $summary['created'];
-                $updated += $summary['updated'];
-                $skipped += $summary['skipped'];
+            $this->info('Consulta finalizada. Recibidos: 0. Guardados: 0. Existentes omitidos: 0. Proyectos con error: 1.');
 
-                Log::info('Automatic weather station fetch completed for project.', [
-                    'project_id' => $project->id,
-                    'received' => $summary['received'],
-                    'created' => $summary['created'],
-                    'updated' => $summary['updated'],
-                    'skipped' => $summary['skipped'],
-                ]);
-            } catch (Throwable $exception) {
-                report($exception);
-                $failed++;
-
-                Log::error('Automatic weather station fetch failed for project.', [
-                    'project_id' => $project->id,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
+            return self::FAILURE;
         }
 
         Log::info('Automatic weather station fetch finished.', [
-            'projects' => $projects->count(),
-            'failed' => $failed,
-            'received' => $received,
-            'created' => $created,
-            'updated' => $updated,
-            'skipped' => $skipped,
+            'scope' => 'global',
+            'failed' => 0,
+            'received' => $summary['received'],
+            'created' => $summary['created'],
+            'updated' => $summary['updated'],
+            'skipped' => $summary['skipped'],
         ]);
 
-        $this->info("Consulta finalizada. Recibidos: {$received}. Guardados: {$created}. Existentes omitidos: {$skipped}. Proyectos con error: {$failed}.");
+        $this->info("Consulta finalizada. Recibidos: {$summary['received']}. Guardados: {$summary['created']}. Existentes omitidos: {$summary['skipped']}. Proyectos con error: 0.");
 
-        return $failed === $projects->count() ? self::FAILURE : self::SUCCESS;
+        return self::SUCCESS;
     }
 }

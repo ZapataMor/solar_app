@@ -144,17 +144,17 @@ class ApiDataTest extends TestCase
 
         $this->app->instance(WeatherStationImportService::class, new class extends WeatherStationImportService
         {
-            public function importAll(?SolarProject $solarProject = null): array
+            public function importAll(): array
             {
                 WeatherStationReading::query()->create([
-                    'solar_project_id' => $solarProject?->id,
+                    'solar_project_id' => null,
                     'device_code' => 'ST-API',
                     'temperature' => 29.1,
                     'measured_at' => '2026-05-21 12:30:00',
                 ]);
 
                 WeatherStationReading::query()->create([
-                    'solar_project_id' => $solarProject?->id,
+                    'solar_project_id' => null,
                     'device_code' => 'ST-OUT-OF-RANGE',
                     'temperature' => 27.4,
                     'measured_at' => '2026-01-01 08:00:00',
@@ -172,16 +172,16 @@ class ApiDataTest extends TestCase
         $this->actingAs($user)
             ->post(route('api-data.fetch-weather-station-data'))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Nuevos: 2. Actualizados: 0. Existentes omitidos: 0. Lecturas asociadas: 0. Total visible: 2.')
+            ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Nuevos: 2. Actualizados: 0. Existentes omitidos: 0. Total global: 2.')
             ->assertRedirect();
 
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => $solarProject->id,
+            'solar_project_id' => null,
             'device_code' => 'ST-API',
         ]);
 
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => $solarProject->id,
+            'solar_project_id' => null,
             'device_code' => 'ST-OUT-OF-RANGE',
         ]);
     }
@@ -193,10 +193,10 @@ class ApiDataTest extends TestCase
 
         $this->app->instance(WeatherStationImportService::class, new class extends WeatherStationImportService
         {
-            public function importAll(?SolarProject $solarProject = null): array
+            public function importAll(): array
             {
                 WeatherStationReading::query()->create([
-                    'solar_project_id' => $solarProject?->id,
+                    'solar_project_id' => null,
                     'device_code' => 'ST-AJAX',
                     'temperature' => 31.45,
                     'humidity' => 68.9,
@@ -218,7 +218,7 @@ class ApiDataTest extends TestCase
             ->postJson(route('api-data.fetch-weather-station-data'))
             ->assertOk()
             ->assertJsonPath('weatherStationCount', 1)
-            ->assertJsonPath('rows.0.project_name', $solarProject->name)
+            ->assertJsonPath('rows.0.project_name', 'Global')
             ->assertJsonPath('rows.0.device_code', 'ST-AJAX')
             ->assertJsonPath('rows.0.recorded_at', '2026-05-21 12:30')
             ->assertJsonPath('rows.0.temperature', '31,45')
@@ -341,9 +341,6 @@ class ApiDataTest extends TestCase
             ]),
         ]);
 
-        $user = User::factory()->create();
-        $solarProject = $user->solarProjects()->create($this->projectAttributes());
-
         $this->artisan('weather-station:fetch')
             ->expectsOutput('Consulta finalizada. Recibidos: 2. Guardados: 1. Existentes omitidos: 1. Proyectos con error: 0.')
             ->assertSuccessful();
@@ -352,9 +349,9 @@ class ApiDataTest extends TestCase
             ->expectsOutput('Consulta finalizada. Recibidos: 2. Guardados: 0. Existentes omitidos: 2. Proyectos con error: 0.')
             ->assertSuccessful();
 
-        $this->assertSame(1, WeatherStationReading::query()->whereBelongsTo($solarProject)->count());
+        $this->assertSame(1, WeatherStationReading::query()->count());
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => $solarProject->id,
+            'solar_project_id' => null,
             'device_code' => 'METEOESTACION',
             'measured_at' => '2025-08-20 10:28:47',
             'temperature' => 35.9,
@@ -372,15 +369,12 @@ class ApiDataTest extends TestCase
             'meteoestacion.desarrollougmaicao.com/api_publica.php*' => Http::response([], 500),
         ]);
 
-        $user = User::factory()->create();
-        $user->solarProjects()->create($this->projectAttributes());
-
         $this->artisan('weather-station:fetch')
             ->expectsOutput('Consulta finalizada. Recibidos: 0. Guardados: 0. Existentes omitidos: 0. Proyectos con error: 1.')
             ->assertFailed();
     }
 
-    public function test_user_does_not_view_other_users_associated_api_data(): void
+    public function test_user_can_view_global_weather_station_data_even_if_it_was_created_from_another_project(): void
     {
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
@@ -404,7 +398,7 @@ class ApiDataTest extends TestCase
             ->get(route('api-data.index'))
             ->assertOk()
             ->assertDontSee('Proyecto externo')
-            ->assertDontSee('ST-PRIVATE');
+            ->assertSee('ST-PRIVATE');
     }
 
     /**

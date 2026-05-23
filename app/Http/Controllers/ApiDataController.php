@@ -27,7 +27,7 @@ class ApiDataController extends Controller
             ->paginate(15, ['*'], 'nasa_page')
             ->withQueryString();
 
-        $weatherStationRows = $this->weatherStationRowsQuery($userId)
+        $weatherStationRows = $this->weatherStationRowsQuery()
             ->orderByDesc('weather_station_readings.measured_at')
             ->orderByDesc('weather_station_readings.id')
             ->paginate(15, ['*'], 'station_page')
@@ -36,9 +36,9 @@ class ApiDataController extends Controller
         return view('api-data.index', [
             'nasaRows' => $nasaRows,
             'weatherStationRows' => $weatherStationRows,
-            'weatherStationChartRows' => $this->latestWeatherStationChartRows($userId),
+            'weatherStationChartRows' => $this->latestWeatherStationChartRows(),
             'nasaCount' => $this->nasaRowsCount($userId),
-            'weatherStationCount' => $this->weatherStationRowsCount($userId),
+            'weatherStationCount' => $this->weatherStationRowsCount(),
         ]);
     }
 
@@ -95,24 +95,8 @@ class ApiDataController extends Controller
         Request $request,
         WeatherStationImportService $weatherStationImportService,
     ): RedirectResponse|JsonResponse {
-        $projects = $request->user()->solarProjects()->get();
-
-        if ($projects->isEmpty()) {
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'message' => 'No hay proyectos solares registrados para asociar lecturas del centro meteorologico.',
-                ], 422);
-            }
-
-            return back()->withErrors([
-                'weather_station' => 'No hay proyectos solares registrados para asociar lecturas del centro meteorologico.',
-            ]);
-        }
-
-        $targetProject = $projects->sortByDesc('created_at')->first();
-
         try {
-            $imported = $weatherStationImportService->importAll($targetProject);
+            $imported = $weatherStationImportService->importAll();
         } catch (Throwable $exception) {
             report($exception);
 
@@ -127,11 +111,7 @@ class ApiDataController extends Controller
             ]);
         }
 
-        $associated = WeatherStationReading::query()
-            ->whereNull('solar_project_id')
-            ->update(['solar_project_id' => $targetProject->id]);
-
-        $total = $this->weatherStationRowsCount($request->user()->id);
+        $total = $this->weatherStationRowsCount();
 
         if ($total === 0) {
             if ($request->wantsJson()) {
@@ -145,14 +125,14 @@ class ApiDataController extends Controller
             ]);
         }
 
-        $message = "Datos del centro meteorologico obtenidos desde el endpoint. Nuevos: {$imported['created']}. Actualizados: {$imported['updated']}. Existentes omitidos: {$imported['skipped']}. Lecturas asociadas: {$associated}. Total visible: {$total}.";
+        $message = "Datos del centro meteorologico obtenidos desde el endpoint. Nuevos: {$imported['created']}. Actualizados: {$imported['updated']}. Existentes omitidos: {$imported['skipped']}. Total global: {$total}.";
 
         if ($request->wantsJson()) {
             return response()->json([
                 'message' => $message,
                 'weatherStationCount' => $total,
-                'rows' => $this->latestWeatherStationRows($request->user()->id),
-                'chartRows' => $this->latestWeatherStationChartRows($request->user()->id),
+                'rows' => $this->latestWeatherStationRows(),
+                'chartRows' => $this->latestWeatherStationChartRows(),
             ]);
         }
 
@@ -196,20 +176,14 @@ class ApiDataController extends Controller
             ]);
     }
 
-    private function weatherStationRowsQuery(int $userId): Builder
+    private function weatherStationRowsQuery(): Builder
     {
         return DB::table('weather_station_readings')
-            ->leftJoin('solar_projects', 'weather_station_readings.solar_project_id', '=', 'solar_projects.id')
-            ->where(function (Builder $query) use ($userId): void {
-                $query
-                    ->where('solar_projects.user_id', $userId)
-                    ->orWhereNull('weather_station_readings.solar_project_id');
-            })
             ->select([
                 DB::raw("'weather_station' as source_key"),
                 DB::raw("'Centro meteorologico' as source_name"),
                 'weather_station_readings.id as record_id',
-                'solar_projects.name as project_name',
+                DB::raw("'Global' as project_name"),
                 'weather_station_readings.device_code as device_code',
                 'weather_station_readings.measured_at as recorded_at',
                 DB::raw('COALESCE(weather_station_readings.solar_radiation, CASE WHEN weather_station_readings.uva IS NULL AND weather_station_readings.uvb IS NULL AND weather_station_readings.uv_index IS NULL THEN NULL ELSE (COALESCE(weather_station_readings.uva, 0) + COALESCE(weather_station_readings.uvb, 0) + COALESCE(weather_station_readings.uv_index, 0)) / 3 END) as radiation'),
@@ -234,24 +208,17 @@ class ApiDataController extends Controller
             ->count();
     }
 
-    private function weatherStationRowsCount(int $userId): int
+    private function weatherStationRowsCount(): int
     {
-        return DB::table('weather_station_readings')
-            ->leftJoin('solar_projects', 'weather_station_readings.solar_project_id', '=', 'solar_projects.id')
-            ->where(function (Builder $query) use ($userId): void {
-                $query
-                    ->where('solar_projects.user_id', $userId)
-                    ->orWhereNull('weather_station_readings.solar_project_id');
-            })
-            ->count();
+        return WeatherStationReading::query()->count();
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function latestWeatherStationRows(int $userId): array
+    private function latestWeatherStationRows(): array
     {
-        return $this->weatherStationRowsQuery($userId)
+        return $this->weatherStationRowsQuery()
             ->orderByDesc('weather_station_readings.measured_at')
             ->orderByDesc('weather_station_readings.id')
             ->limit(15)
@@ -277,9 +244,9 @@ class ApiDataController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function latestWeatherStationChartRows(int $userId): array
+    private function latestWeatherStationChartRows(): array
     {
-        return $this->weatherStationRowsQuery($userId)
+        return $this->weatherStationRowsQuery()
             ->orderByDesc('weather_station_readings.measured_at')
             ->orderByDesc('weather_station_readings.id')
             ->limit(30)

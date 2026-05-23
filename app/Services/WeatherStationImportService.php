@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -14,11 +13,11 @@ class WeatherStationImportService
     /**
      * @return array{received: int, created: int, updated: int, skipped: int}
      */
-    public function importAll(?SolarProject $solarProject = null): array
+    public function importAll(): array
     {
         $endpoint = config('services.weather_station.endpoint');
         $deviceCode = config('services.weather_station.device_code', 'METEOESTACION');
-        $since = $this->latestImportedAt($deviceCode, $solarProject);
+        $since = $this->latestImportedAt($deviceCode);
         $received = 0;
         $created = 0;
         $updated = 0;
@@ -60,7 +59,6 @@ class WeatherStationImportService
             }
 
             $exists = WeatherStationReading::query()
-                ->where('solar_project_id', $solarProject?->id)
                 ->where('device_code', $deviceCode)
                 ->where('measured_at', $measuredAt)
                 ->exists();
@@ -72,7 +70,7 @@ class WeatherStationImportService
             }
 
             WeatherStationReading::query()->create([
-                'solar_project_id' => $solarProject?->id,
+                'solar_project_id' => null,
                 'device_code' => $deviceCode,
                 'temperature' => $this->numericValue($row['temperatura'] ?? null),
                 'humidity' => $this->numericValue($row['humedad'] ?? null),
@@ -99,14 +97,10 @@ class WeatherStationImportService
         ];
     }
 
-    private function latestImportedAt(string $deviceCode, ?SolarProject $solarProject): ?CarbonInterface
+    private function latestImportedAt(string $deviceCode): ?CarbonInterface
     {
         $query = WeatherStationReading::query()
             ->where('device_code', $deviceCode);
-
-        if ($solarProject) {
-            $query->where('solar_project_id', $solarProject->id);
-        }
 
         $latest = $query->max('measured_at');
 
