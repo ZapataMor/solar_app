@@ -9,6 +9,7 @@ class ProjectDashboardService
 {
     public function __construct(
         private readonly DashboardAiWidgetService $dashboardAiWidgetService,
+        private readonly DashboardTimeScaleService $dashboardTimeScaleService,
         private readonly EnergyAnalysisService $energyAnalysisService,
         private readonly OpenAIRecommendationService $openAIRecommendationService,
         private readonly SolarRecommendationService $solarRecommendationService,
@@ -27,6 +28,12 @@ class ProjectDashboardService
         $weatherStationReadings = $this->weatherStationAggregationService->readingsForProject($solarProject);
         $weatherAnalysis = $this->weatherAnalysisService->analyzeReadings($weatherStationReadings);
         $weatherStationStats = $this->weatherStationAggregationService->stats($weatherStationReadings);
+        $projectWeatherData = collect($solarProject->getRelationValue('weatherData') ?? []);
+        $dailyClimateRows = $projectWeatherData->isNotEmpty()
+            ? $projectWeatherData
+            : ($weatherStationReadings->isNotEmpty()
+                ? $this->weatherStationAggregationService->dailyRows($weatherStationReadings)
+                : collect());
         $solarRecommendations = $this->solarRecommendationService->recommend(
             $weatherAnalysis,
             $energyAnalysis,
@@ -50,16 +57,25 @@ class ProjectDashboardService
             $weatherStationStats,
         );
         $dashboard['widgets'] = $this->dashboardAiWidgetService->build($dashboard);
+        $timeScales = $this->dashboardTimeScaleService->build(
+            $solarProject,
+            $calculationResult,
+            $monthlyResults,
+            $dailyClimateRows,
+            $weatherAnalysis,
+            $energyAnalysis,
+            $solarRecommendations,
+        );
 
         return [
             'dashboard' => $dashboard,
             'aiWidgets' => $dashboard['widgets'],
-            'chartData' => [
-                'labels' => $monthlyResults->pluck('month_name')->values()->all(),
-                'generation' => $monthlyResults->pluck('estimated_generation_kwh')->map(fn ($value) => (float) $value)->values()->all(),
-                'consumption' => $monthlyResults->pluck('estimated_consumption_kwh')->map(fn ($value) => (float) $value)->values()->all(),
-                'savings' => $monthlyResults->pluck('estimated_savings_cop')->map(fn ($value) => (float) $value)->values()->all(),
-                'coverage' => $monthlyResults->pluck('coverage_percentage')->map(fn ($value) => (float) $value)->values()->all(),
+            'chartData' => $timeScales['chartPayloads']['monthly'] ?? [
+                'labels' => [],
+                'generation' => [],
+                'consumption' => [],
+                'savings' => [],
+                'coverage' => [],
             ],
             'coverageInterpretation' => $dashboard['state']['summary'],
             'energyAnalysis' => [
@@ -92,6 +108,7 @@ class ProjectDashboardService
                 'opportunities' => $dashboard['recommendations']['groups']['opportunities'],
             ],
             'weatherStationChartData' => $this->weatherStationAggregationService->chartData($weatherStationReadings),
+            'timeScales' => $timeScales,
         ];
     }
 

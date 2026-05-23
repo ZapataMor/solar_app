@@ -6,6 +6,7 @@ use App\Models\CalculationResult;
 use App\Models\MonthlyResult;
 use App\Models\SolarProject;
 use App\Services\DashboardAiWidgetService;
+use App\Services\DashboardTimeScaleService;
 use App\Services\EnergyAnalysisService;
 use App\Services\OpenAIRecommendationService;
 use App\Services\ProjectDashboardService;
@@ -119,6 +120,7 @@ class ProjectDashboardServiceTest extends TestCase
 
         $service = new ProjectDashboardService(
             $dashboardAiWidgetService,
+            new DashboardTimeScaleService(),
             $energyAnalysisService,
             $openAIRecommendationService,
             $solarRecommendationService,

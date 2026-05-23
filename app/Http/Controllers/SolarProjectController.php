@@ -91,6 +91,7 @@ class SolarProjectController extends Controller
             'technicalParameter',
             'calculationResult',
             'monthlyResults' => fn ($query) => $query->orderBy('month_number'),
+            'weatherData' => fn ($query) => $query->orderBy('date_time'),
         ])
             ->loadCount(['weatherData', 'weatherStationReadings']);
 
@@ -314,7 +315,7 @@ class SolarProjectController extends Controller
             'description' => ['nullable', 'string'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'annual_consumption_kwh' => ['required', 'numeric', 'gt:0'],
+            'monthly_consumption_kwh' => ['required', 'numeric', 'gt:0'],
             'energy_rate_cop_kwh' => ['required', 'numeric', 'gte:0'],
             'available_area_m2' => ['required', 'numeric', 'gt:0'],
             'usable_area_percentage' => ['required', 'numeric', 'between:1,100'],
@@ -336,7 +337,7 @@ class SolarProjectController extends Controller
             'description' => $validated['description'] ?? null,
             'start_date' => $validated['start_date'],
             'end_date' => $validated['end_date'],
-            'annual_consumption_kwh' => $validated['annual_consumption_kwh'],
+            'monthly_consumption_kwh' => $validated['monthly_consumption_kwh'],
             'energy_rate_cop_kwh' => $validated['energy_rate_cop_kwh'],
         ];
     }

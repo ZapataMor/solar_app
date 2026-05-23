@@ -21,15 +21,14 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Informacion general del proyecto')
+            ->assertSee('Contexto del proyecto')
             ->assertSee('Este proyecto aun no tiene parametros tecnicos registrados.')
-            ->assertSee('Este proyecto aun no tiene datos NASA POWER almacenados.')
+            ->assertSee('Aun no hay datos climaticos disponibles.')
             ->assertSee('Ejecutar datos con estacion')
             ->assertSee('Ejecutar datos con NASA')
-            ->assertSee('Ejecuta los calculos solares para visualizar los resultados.')
-            ->assertSee('Ejecuta los calculos solares para visualizar los graficos del proyecto.')
-            ->assertDontSee('Graficos de resultados')
-            ->assertDontSee('solar-monthly-chart-data', false)
+            ->assertSee('Ejecuta los calculos solares para visualizar el dashboard dinamico del proyecto.')
+            ->assertDontSee('Graficas del periodo')
+            ->assertDontSee('solar-timescale-chart-data', false)
             ->assertDontSee('solar-generation-chart', false);
     }
 
@@ -43,12 +42,12 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Resultados generales')
+            ->assertSee('Indicadores clave')
             ->assertSee('Capacidad instalada')
-            ->assertSee('Generacion anual estimada')
-            ->assertSee('Cobertura energetica')
-            ->assertSee('Ahorro anual estimado')
-            ->assertSee('Analisis energetico');
+            ->assertSee('Generacion mensual')
+            ->assertSee('Cobertura mensual')
+            ->assertSee('Ahorro mensual')
+            ->assertSee('Analisis operativo');
     }
 
     public function test_show_displays_monthly_results_and_totals_when_they_exist(): void
@@ -62,12 +61,9 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Resultados mensuales')
-            ->assertSee('Totales anuales')
-            ->assertSee('Mejores y peores meses')
-            ->assertSee('Mayor generacion estimada')
-            ->assertSee('Enero')
-            ->assertSee('Febrero');
+            ->assertSee('Desglose temporal')
+            ->assertSee('Total del mes')
+            ->assertSee('Resumen del periodo');
     }
 
     public function test_show_displays_chart_section_and_chart_data_when_monthly_results_exist(): void
@@ -81,21 +77,20 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Graficos de resultados')
-            ->assertSee('Generacion mensual estimada')
-            ->assertSee('Consumo vs generacion')
-            ->assertSee('Ahorro mensual estimado')
-            ->assertSee('Cobertura energetica mensual')
+            ->assertSee('Graficas del periodo')
+            ->assertSee('Generacion del mes por dia')
+            ->assertSee('Consumo vs generacion del mes')
+            ->assertSee('Ahorro diario acumulado del mes')
+            ->assertSee('Cobertura diaria del mes')
             ->assertSee('solar-generation-chart', false)
             ->assertSee('solar-consumption-generation-chart', false)
             ->assertSee('solar-savings-chart', false)
             ->assertSee('solar-coverage-chart', false)
-            ->assertSee('solar-monthly-chart-data', false)
-            ->assertSee('"labels":["enero","febrero"]', false)
-            ->assertSee('"generation":[1100,900]', false)
-            ->assertSee('"consumption":[1000,1000]', false)
-            ->assertSee('"savings":[902000,738000]', false)
-            ->assertSee('"coverage":[110,90]', false);
+            ->assertSee('solar-timescale-chart-data', false)
+            ->assertSee('"defaultScale":"monthly"', false)
+            ->assertSee('"monthly"', false)
+            ->assertSee('"annual"', false)
+            ->assertSee('"daily"', false);
     }
 
     public function test_show_does_not_render_chart_containers_when_monthly_results_do_not_exist(): void
@@ -108,9 +103,9 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Ejecuta los calculos solares para visualizar los graficos del proyecto.')
-            ->assertDontSee('Graficos de resultados')
-            ->assertDontSee('solar-monthly-chart-data', false)
+            ->assertSee('Ejecuta los calculos solares para visualizar el dashboard dinamico del proyecto.')
+            ->assertDontSee('Graficas del periodo')
+            ->assertDontSee('solar-timescale-chart-data', false)
             ->assertDontSee('solar-generation-chart', false)
             ->assertDontSee('solar-consumption-generation-chart', false)
             ->assertDontSee('solar-savings-chart', false)
@@ -126,7 +121,7 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Interpretacion de resultados')
+            ->assertSee('Lectura dinamica del dashboard')
             ->assertSee('La generacion estimada tendria una cobertura media del consumo anual.');
     }
 
@@ -180,9 +175,7 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Analisis automatico')
-            ->assertSee('Estado actual')
-            ->assertSee('Comportamiento historico')
+            ->assertSee('Detalle meteorologico')
             ->assertSee('Calor extremo detectado: la temperatura actual supera los 35 C.')
             ->assertSee('Contaminacion elevada por CO2: la ventilacion del entorno deberia revisarse.')
             ->assertSee('Alta radiacion detectada: el potencial solar y la exposicion UV estan elevados.')
@@ -224,11 +217,10 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Analisis energetico')
+            ->assertSee('Analisis operativo')
             ->assertSee('Cobertura alta')
             ->assertSee('Sobreproduccion solar')
             ->assertSee('Excedentes energeticos')
-            ->assertSee('Interpretacion mensual')
             ->assertSee('Meses con excedente')
             ->assertSee('Meses con baja cobertura');
     }
@@ -271,9 +263,8 @@ class SolarDashboardTest extends TestCase
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
             ->assertSee('Recomendaciones inteligentes')
-            ->assertSee('Se recomienda operar equipos de alto consumo entre las 11 AM y 2 PM para aprovechar la mayor disponibilidad solar.')
-            ->assertSee('Existe riesgo de dependencia de red: la cobertura solar proyectada es insuficiente para sostener la mayor parte del consumo.')
-            ->assertSee('El calor extremo puede elevar la demanda de climatizacion; conviene preenfriar espacios durante la franja de mayor generacion solar.');
+            ->assertSee('Este mes conviene desplazar cargas flexibles a horas solares y revisar picos de consumo fuera del mediodia.')
+            ->assertSee('Este mes aumento la dependencia de red y puede reducir el ahorro operativo esperado.');
     }
 
     public function test_show_displays_openai_recommendations_when_ai_layer_is_enabled(): void
@@ -341,7 +332,6 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Redaccion natural con OpenAI')
             ->assertSee('Hoy se espera una produccion solar alta. Se recomienda desplazar cargas de alto consumo al mediodia.')
             ->assertSee('Opera equipos de alto consumo entre las 11 AM y 2 PM para maximizar el ahorro energetico.')
             ->assertSee('La cobertura disminuye fuera de la franja solar.');
@@ -357,8 +347,8 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($otherUser)
             ->get(route('solar-projects.show', $solarProject))
             ->assertForbidden()
-            ->assertDontSee('Graficos de resultados')
-            ->assertDontSee('solar-monthly-chart-data', false);
+            ->assertDontSee('Graficas del periodo')
+            ->assertDontSee('solar-timescale-chart-data', false);
     }
 
     private function createMonthlyResults(SolarProject $solarProject): void

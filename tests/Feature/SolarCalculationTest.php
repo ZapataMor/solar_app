@@ -64,10 +64,10 @@ class SolarCalculationTest extends TestCase
         $this->assertSame(40, $calculationResult->number_of_panels);
         $this->assertEqualsWithDelta(102, (float) $calculationResult->usable_area_m2, 0.0001);
         $this->assertEqualsWithDelta(22, (float) $calculationResult->installed_capacity_kwp, 0.0001);
-        $this->assertEqualsWithDelta(68.2634, (float) $calculationResult->estimated_annual_generation_kwh, 0.001);
+        $this->assertEqualsWithDelta(12458.06, (float) $calculationResult->estimated_annual_generation_kwh, 0.1);
         $this->assertEqualsWithDelta(34.1317, (float) $calculationResult->estimated_daily_generation_kwh, 0.001);
         $this->assertEqualsWithDelta(24500, (float) $calculationResult->annual_consumption_kwh, 0.0001);
-        $this->assertEqualsWithDelta(55975.9552, (float) $calculationResult->estimated_annual_savings_cop, 0.02);
+        $this->assertEqualsWithDelta(10215611.81, (float) $calculationResult->estimated_annual_savings_cop, 1);
 
         $this->assertSame(1, $monthlyResult->month_number);
         $this->assertSame(2, $monthlyResult->days_in_month);

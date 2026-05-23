@@ -23,6 +23,8 @@ class SolarProject extends Model
         'description',
         'start_date',
         'end_date',
+        'monthly_consumption_kwh',
+        'daily_consumption_kwh',
         'annual_consumption_kwh',
         'energy_rate_cop_kwh',
     ];
@@ -34,9 +36,18 @@ class SolarProject extends Model
             'end_date' => 'date',
             'latitude' => 'decimal:4',
             'longitude' => 'decimal:4',
+            'monthly_consumption_kwh' => 'decimal:2',
+            'daily_consumption_kwh' => 'decimal:2',
             'annual_consumption_kwh' => 'decimal:2',
             'energy_rate_cop_kwh' => 'decimal:2',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $solarProject): void {
+            $solarProject->syncConsumptionScales();
+        });
     }
 
     public function user(): BelongsTo
@@ -72,5 +83,53 @@ class SolarProject extends Model
     public function monthlyResults(): HasMany
     {
         return $this->hasMany(MonthlyResult::class);
+    }
+
+    public function syncConsumptionScales(): void
+    {
+        $monthlyConsumption = $this->numericConsumption($this->monthly_consumption_kwh);
+        $dailyConsumption = $this->numericConsumption($this->daily_consumption_kwh);
+        $annualConsumption = $this->numericConsumption($this->annual_consumption_kwh);
+
+        if ($monthlyConsumption !== null) {
+            $annualConsumption = $monthlyConsumption * 12;
+            $dailyConsumption = $monthlyConsumption / 30;
+        } elseif ($annualConsumption !== null) {
+            $monthlyConsumption = $annualConsumption / 12;
+            $dailyConsumption = $monthlyConsumption / 30;
+        } elseif ($dailyConsumption !== null) {
+            $monthlyConsumption = $dailyConsumption * 30;
+            $annualConsumption = $monthlyConsumption * 12;
+        }
+
+        $this->monthly_consumption_kwh = $monthlyConsumption;
+        $this->daily_consumption_kwh = $dailyConsumption;
+        $this->annual_consumption_kwh = $annualConsumption;
+    }
+
+    public function monthlyConsumption(): float
+    {
+        return (float) ($this->monthly_consumption_kwh ?? 0);
+    }
+
+    public function dailyConsumption(): float
+    {
+        return (float) ($this->daily_consumption_kwh ?? 0);
+    }
+
+    public function annualConsumption(): float
+    {
+        return (float) ($this->annual_consumption_kwh ?? 0);
+    }
+
+    private function numericConsumption(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $number = (float) $value;
+
+        return $number > 0 ? $number : null;
     }
 }

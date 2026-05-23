@@ -37,12 +37,13 @@ class SolarCalculationService
         $installedCapacityKwp = $this->calculateInstalledCapacityKwp($numberOfPanels, (float) $technicalParameter->panel_power_w);
         $monthlyResults = $this->calculateMonthlyResults($solarProject, $installedCapacityKwp, $weatherData);
 
-        $estimatedAnnualGeneration = $monthlyResults->sum('estimated_generation_kwh');
+        $measuredGeneration = $monthlyResults->sum('estimated_generation_kwh');
         $weatherDays = max(1, $monthlyResults->sum('days_in_month'));
-        $monthCount = max(1, $monthlyResults->count());
-        $estimatedDailyGeneration = $estimatedAnnualGeneration / $weatherDays;
-        $estimatedMonthlyGeneration = $estimatedAnnualGeneration / $monthCount;
-        $annualConsumption = (float) $solarProject->annual_consumption_kwh;
+        $targetAnnualDays = $this->annualProjectionDays($solarProject);
+        $estimatedDailyGeneration = $measuredGeneration / $weatherDays;
+        $estimatedAnnualGeneration = $estimatedDailyGeneration * $targetAnnualDays;
+        $estimatedMonthlyGeneration = $estimatedAnnualGeneration / 12;
+        $annualConsumption = $solarProject->annualConsumption();
 
         DB::transaction(function () use (
             $solarProject,
@@ -125,7 +126,7 @@ class SolarCalculationService
         $technicalParameter = $solarProject->technicalParameter;
         $performanceRatio = (float) $technicalParameter->performance_ratio;
         $lossFactor = 1 - ((float) $technicalParameter->system_losses_percentage / 100);
-        $monthlyConsumption = $this->calculateConsumptionMonthly((float) $solarProject->annual_consumption_kwh);
+        $monthlyConsumption = $solarProject->monthlyConsumption();
         $energyRate = (float) $solarProject->energy_rate_cop_kwh;
 
         return $weatherData
@@ -188,5 +189,16 @@ class SolarCalculationService
             ->month($monthNumber)
             ->locale('es')
             ->translatedFormat('F');
+    }
+
+    private function annualProjectionDays(SolarProject $solarProject): int
+    {
+        $startDate = $solarProject->start_date;
+
+        if ($startDate instanceof Carbon) {
+            return $startDate->daysInYear;
+        }
+
+        return now()->daysInYear;
     }
 }

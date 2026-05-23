@@ -36,6 +36,9 @@ class SolarProjectTest extends TestCase
             'location_name' => SolarProject::LOCATION_NAME,
             'latitude' => 11.5444,
             'longitude' => -72.9072,
+            'monthly_consumption_kwh' => 2000,
+            'daily_consumption_kwh' => 66.67,
+            'annual_consumption_kwh' => 24000,
         ]);
 
         $this->assertDatabaseHas('technical_parameters', [
@@ -301,7 +304,7 @@ class SolarProjectTest extends TestCase
             'description' => 'Proyecto base para simulación en Riohacha.',
             'start_date' => '2017-01-01',
             'end_date' => '2017-01-02',
-            'annual_consumption_kwh' => 24500,
+            'monthly_consumption_kwh' => 2000,
             'energy_rate_cop_kwh' => 820,
         ];
     }

@@ -80,16 +80,19 @@
             </label>
 
             <label class="solar-field">
-                <span class="solar-field-label">Consumo anual en kWh</span>
+                <span class="solar-field-label">Consumo mensual en kWh</span>
                 <input
                     type="number"
                     step="0.01"
                     min="0.01"
-                    name="annual_consumption_kwh"
-                    value="{{ old('annual_consumption_kwh', $solarProject?->annual_consumption_kwh) }}"
+                    name="monthly_consumption_kwh"
+                    value="{{ old('monthly_consumption_kwh', $solarProject?->monthly_consumption_kwh ?? ($solarProject?->annual_consumption_kwh ? $solarProject->annual_consumption_kwh / 12 : null)) }}"
                     required
                     class="solar-input"
                 >
+                <span class="text-xs text-[color:var(--solar-text-muted)]">
+                    El sistema derivara automaticamente consumo diario aproximado y consumo anual.
+                </span>
             </label>
 
             <label class="solar-field">
@@ -112,7 +115,7 @@
             <div>
                 <p class="solar-kicker">Dimensionamiento</p>
                 <h2 class="text-2xl text-[color:var(--solar-text)]">Parametros tecnicos</h2>
-                <p class="solar-subtitle mt-2">Estos valores alimentan la lectura de capacidad, cobertura y desempeno anual del sistema fotovoltaico.</p>
+                <p class="solar-subtitle mt-2">Estos valores alimentan la lectura diaria, mensual y anual del sistema fotovoltaico.</p>
             </div>
             <span class="solar-pill solar-pill-success">Optimizacion energetica</span>
         </div>
