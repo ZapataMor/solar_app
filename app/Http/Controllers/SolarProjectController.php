@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SolarProject;
+use App\Models\User;
 use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
 use App\Services\ProjectDashboardService;
@@ -19,12 +20,28 @@ class SolarProjectController extends Controller
 {
     public function index(Request $request): View
     {
-        $solarProjects = $request->user()
-            ->solarProjects()
-            ->latest()
-            ->paginate(10);
+        /** @var User $user */
+        $user = $request->user();
+        $isAdmin = $user->role === 'admin';
 
-        return view('solar-projects.index', compact('solarProjects'));
+        $solarProjectsQuery = SolarProject::query()
+            ->with([
+                'user:id,name',
+                'calculationResult',
+            ])
+            ->withCount(['weatherData', 'weatherStationReadings'])
+            ->latest();
+
+        if (! $isAdmin) {
+            $solarProjectsQuery->where('user_id', $user->id);
+        }
+
+        $solarProjects = $solarProjectsQuery->paginate(12)->withQueryString();
+
+        return view('solar-projects.index', [
+            'solarProjects' => $solarProjects,
+            'isAdmin' => $isAdmin,
+        ]);
     }
 
     public function create(): View
@@ -334,6 +351,9 @@ class SolarProjectController extends Controller
 
     private function authorizeOwner(Request $request, SolarProject $solarProject): void
     {
-        abort_unless($solarProject->user_id === $request->user()->id, 403);
+        abort_unless(
+            $request->user()->role === 'admin' || $solarProject->user_id === $request->user()->id,
+            403
+        );
     }
 }

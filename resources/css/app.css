@@ -1254,6 +1254,243 @@ select:focus[data-flux-control] {
         text-align: right;
     }
 
+    .solar-owner-section {
+        display: grid;
+        gap: 1.25rem;
+        border: 1px solid color-mix(in srgb, var(--solar-border) 82%, transparent);
+        border-radius: 1.5rem;
+        background:
+            radial-gradient(circle at top right, color-mix(in srgb, var(--solar-sun-soft) 16%, transparent) 0%, transparent 34%),
+            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 96%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 74%, transparent) 100%);
+        padding: 1.25rem;
+    }
+
+    .solar-owner-section__header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--solar-border) 70%, transparent);
+        padding-bottom: 1rem;
+    }
+
+    .solar-owner-section__title {
+        margin-top: 0.45rem;
+        color: var(--solar-text);
+        font-size: clamp(1.45rem, 2vw, 2rem);
+        line-height: 1;
+    }
+
+    .solar-project-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    .solar-project-card {
+        position: relative;
+        display: grid;
+        gap: 1rem;
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--solar-border) 82%, transparent);
+        border-radius: 1.45rem;
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-elevated) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 72%, transparent) 100%);
+        padding: 1.2rem;
+        box-shadow: 0 18px 40px -32px rgba(83, 49, 20, 0.55);
+        transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .solar-project-card:hover {
+        transform: translateY(-4px);
+        border-color: color-mix(in srgb, var(--solar-sun) 30%, transparent);
+        box-shadow: 0 28px 46px -30px rgba(83, 49, 20, 0.58);
+    }
+
+    .solar-project-card__glow {
+        position: absolute;
+        top: -4rem;
+        right: -4rem;
+        width: 10rem;
+        height: 10rem;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(239, 179, 95, 0.22) 0%, rgba(239, 179, 95, 0) 70%);
+        pointer-events: none;
+    }
+
+    .solar-project-card__top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.85rem;
+    }
+
+    .solar-project-card__title {
+        margin-top: 0.5rem;
+        color: var(--solar-text);
+        font-size: 1.55rem;
+        line-height: 1.08;
+    }
+
+    .solar-project-card__type {
+        margin-top: 0.4rem;
+        color: var(--solar-gold);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .solar-project-card__summary {
+        color: var(--solar-text-muted);
+        font-size: 0.92rem;
+        line-height: 1.6;
+    }
+
+    .solar-project-card__meta {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .solar-project-card__meta div {
+        border: 1px solid color-mix(in srgb, var(--solar-border) 72%, transparent);
+        border-radius: 1rem;
+        background: color-mix(in srgb, var(--solar-surface-strong) 74%, transparent);
+        padding: 0.8rem 0.9rem;
+    }
+
+    .solar-project-card__meta dt {
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .solar-project-card__meta dd {
+        margin-top: 0.38rem;
+        color: var(--solar-text);
+        font-size: 0.9rem;
+        font-weight: 700;
+        line-height: 1.45;
+    }
+
+    .solar-project-card__badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .solar-project-card__actions {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: auto;
+    }
+
+    .solar-project-card__actions form {
+        display: flex;
+        min-width: 0;
+    }
+
+    .solar-project-card__actions .solar-button,
+    .solar-project-card__actions .solar-button-secondary,
+    .solar-project-card__actions .solar-button-danger {
+        width: 100%;
+        min-height: 3rem;
+    }
+
+    .solar-project-card__action {
+        display: inline-flex;
+        width: 100%;
+        min-height: 3rem;
+        padding-inline: 0.9rem;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .solar-confirm-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+        padding: 1.25rem;
+    }
+
+    .solar-confirm-backdrop {
+        position: absolute;
+        inset: 0;
+        border: 0;
+        background: rgba(20, 14, 10, 0.58);
+        backdrop-filter: blur(6px);
+    }
+
+    .solar-confirm-card {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 28rem);
+        border: 1px solid color-mix(in srgb, var(--solar-danger) 24%, transparent);
+        border-radius: 1.5rem;
+        background:
+            radial-gradient(circle at top right, color-mix(in srgb, var(--solar-sun-soft) 16%, transparent) 0%, transparent 36%),
+            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 80%, transparent) 100%);
+        padding: 1.4rem;
+        box-shadow: 0 28px 70px -34px rgba(20, 14, 10, 0.72);
+    }
+
+    .solar-confirm-card__title {
+        margin-top: 0.55rem;
+        color: var(--solar-text);
+        font-size: clamp(1.5rem, 2vw, 1.9rem);
+        line-height: 1.05;
+    }
+
+    .solar-confirm-card__copy {
+        margin-top: 0.85rem;
+        color: var(--solar-text-muted);
+        font-size: 0.94rem;
+        line-height: 1.65;
+    }
+
+    .solar-confirm-card__actions {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 1.25rem;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    .solar-empty-state {
+        position: relative;
+        overflow: hidden;
+        border: 1px dashed color-mix(in srgb, var(--solar-sun) 30%, transparent);
+        border-radius: 1.6rem;
+        background:
+            radial-gradient(circle at top, color-mix(in srgb, var(--solar-sun-soft) 18%, transparent) 0%, transparent 38%),
+            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 78%, transparent) 100%);
+        padding: clamp(2rem, 5vw, 3.5rem) 1.5rem;
+        text-align: center;
+    }
+
+    .solar-empty-state__glow {
+        position: absolute;
+        inset: auto auto -3rem 50%;
+        width: 12rem;
+        height: 12rem;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(239, 179, 95, 0.2) 0%, rgba(239, 179, 95, 0) 72%);
+        transform: translateX(-50%);
+        pointer-events: none;
+    }
+
     .solar-pagination nav > div:first-child {
         display: none;
     }
@@ -1464,11 +1701,38 @@ select:focus[data-flux-control] {
             align-items: flex-start;
             flex-direction: column;
         }
+
+        .solar-project-card__meta,
+        .solar-project-card__actions {
+            grid-template-columns: 1fr;
+        }
+
+        .solar-confirm-card__actions {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (min-width: 768px) {
+        .solar-project-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 
     @media (min-width: 768px) {
         .solar-settings-layout {
             grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+        }
+    }
+
+    @media (min-width: 1200px) {
+        .solar-project-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1480px) {
+        .solar-project-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
         }
     }
 }

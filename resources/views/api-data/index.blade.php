@@ -52,63 +52,7 @@
                 {{ $errors->first('weather_station') }}
             </div>
         @endif
-
-        <section class="solar-card">
-            <div class="solar-page-header">
-                <div>
-                    <p class="solar-kicker">NASA power</p>
-                    <h2 class="text-2xl text-[color:var(--solar-text)]">Fuente satelital</h2>
-                    <p class="solar-subtitle mt-2">Datos climaticos sincronizados desde NASA POWER con una lectura tabular mas clara.</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="solar-pill">{{ number_format($nasaCount, 0, ',', '.') }} registros</span>
-                    <form method="POST" action="{{ route('api-data.fetch-nasa-data') }}">
-                        @csrf
-                        <button type="submit" class="solar-button">Obtener datos NASA POWER</button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="solar-table-shell mt-6">
-                <div class="solar-table-scroll">
-                    <table class="solar-table">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Radiacion</th>
-                                <th>Temp.</th>
-                                <th>Humedad</th>
-                                <th>Precipitacion</th>
-                                <th>Viento</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($nasaRows as $row)
-                                <tr>
-                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
-                                    <td>{{ $formatNumber($row->radiation, 3) }}</td>
-                                    <td>{{ $formatNumber($row->temperature, 2) }}</td>
-                                    <td>{{ $formatNumber($row->humidity, 2) }}</td>
-                                    <td>{{ $formatNumber($row->precipitation, 4) }}</td>
-                                    <td>{{ $formatNumber($row->wind_speed, 2) }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="py-10 text-center">
-                                        Aun no hay datos registrados desde NASA POWER.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="solar-pagination mt-5">
-                {{ $nasaRows->links() }}
-            </div>
-        </section>
-
+        
         <section class="solar-card">
             <div class="solar-page-header">
                 <div>
@@ -178,5 +122,63 @@
                 {{ $weatherStationRows->links() }}
             </div>
         </section>
+
+        <section class="solar-card">
+            <div class="solar-page-header">
+                <div>
+                    <p class="solar-kicker">NASA power</p>
+                    <h2 class="text-2xl text-[color:var(--solar-text)]">Fuente satelital</h2>
+                    <p class="solar-subtitle mt-2">Datos climaticos sincronizados desde NASA POWER con una lectura tabular mas clara.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="solar-pill">{{ number_format($nasaCount, 0, ',', '.') }} registros</span>
+                    <form method="POST" action="{{ route('api-data.fetch-nasa-data') }}">
+                        @csrf
+                        <button type="submit" class="solar-button">Obtener datos NASA POWER</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="solar-table-shell mt-6">
+                <div class="solar-table-scroll">
+                    <table class="solar-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Radiacion</th>
+                                <th>Temp.</th>
+                                <th>Humedad</th>
+                                <th>Precipitacion</th>
+                                <th>Viento</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($nasaRows as $row)
+                                <tr>
+                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
+                                    <td>{{ $formatNumber($row->radiation, 3) }}</td>
+                                    <td>{{ $formatNumber($row->temperature, 2) }}</td>
+                                    <td>{{ $formatNumber($row->humidity, 2) }}</td>
+                                    <td>{{ $formatNumber($row->precipitation, 4) }}</td>
+                                    <td>{{ $formatNumber($row->wind_speed, 2) }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="py-10 text-center">
+                                        Aun no hay datos registrados desde NASA POWER.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="solar-pagination mt-5">
+                {{ $nasaRows->links() }}
+            </div>
+        </section>
+
+        
     </div>
 </x-layouts::app>
