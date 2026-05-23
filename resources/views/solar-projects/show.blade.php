@@ -4,12 +4,14 @@
     $monthlyResults = $solarProject->monthlyResults;
     $hasWeatherData = $solarProject->weather_data_count > 0;
     $energyAnalysis = $energyAnalysis ?? ['insights' => [], 'monthlyInterpretations' => [], 'monthlyHighlights' => []];
+    $solarRecommendations = $solarRecommendations ?? ['items' => [], 'recommendations' => [], 'alerts' => [], 'risks' => [], 'opportunities' => []];
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
     $weatherAnalysis = $weatherAnalysis ?? ['current' => [], 'historical' => []];
     $hasWeatherStationData = ($weatherStationStats['total'] ?? 0) > 0;
     $latestWeatherStationReading = $weatherStationStats['latest'] ?? null;
     $latestEnergyInsight = $energyAnalysis['insights'][0]['message'] ?? 'Sin conclusiones energeticas automaticas.';
+    $latestRecommendation = $solarRecommendations['items'][0]['message'] ?? 'Sin recomendaciones automaticas disponibles.';
     $latestCurrentAnalysis = $weatherAnalysis['current'][0]['message'] ?? 'Sin alertas actuales relevantes.';
     $latestHistoricalAnalysis = $weatherAnalysis['historical'][0]['message'] ?? 'Sin tendencias historicas destacadas.';
 
@@ -94,6 +96,14 @@
                     </p>
                     <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                         Lecturas meteorologicas: {{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }}
+                    </p>
+                </div>
+
+                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60 sm:col-span-2 xl:col-span-4">
+                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Recomendacion operativa</p>
+                    <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $latestRecommendation }}</p>
+                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                        Recomendaciones generadas automaticamente combinando clima, radiacion y metricas energeticas.
                     </p>
                 </div>
             </div>
@@ -276,6 +286,69 @@
                             Ejecuta los calculos solares para habilitar el analisis energetico automatico.
                         </div>
                     @endif
+                </div>
+
+                <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                    <div>
+                        <h2 class="text-base font-semibold text-zinc-950 dark:text-zinc-50">Recomendaciones inteligentes</h2>
+                        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Sugerencias internas generadas por reglas sobre clima, radiacion, cobertura y generacion.</p>
+                    </div>
+
+                    <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
+                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                            <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Recomendaciones</h3>
+                            <div class="mt-4 space-y-3">
+                                @forelse ($solarRecommendations['recommendations'] as $item)
+                                    <div class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100">
+                                        <p class="font-semibold uppercase tracking-wide">{{ $item['priority'] }}</p>
+                                        <p class="mt-1">{{ $item['message'] }}</p>
+                                    </div>
+                                @empty
+                                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
+                                        Aun no hay recomendaciones operativas especificas.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                            <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Alertas y riesgos</h3>
+                            <div class="mt-4 space-y-3">
+                                @forelse (collect($solarRecommendations['alerts'])->merge($solarRecommendations['risks']) as $item)
+                                    @php
+                                        $toneClasses = $item['type'] === 'risk'
+                                            ? 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100'
+                                            : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100';
+                                    @endphp
+
+                                    <div class="rounded-lg border p-3 text-sm {{ $toneClasses }}">
+                                        <p class="font-semibold uppercase tracking-wide">{{ $item['priority'] }}</p>
+                                        <p class="mt-1">{{ $item['message'] }}</p>
+                                    </div>
+                                @empty
+                                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
+                                        No se detectan alertas ni riesgos operativos destacados.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                        <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Oportunidades</h3>
+                        <div class="mt-4 space-y-3">
+                            @forelse ($solarRecommendations['opportunities'] as $item)
+                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100">
+                                    <p class="font-semibold uppercase tracking-wide">{{ $item['priority'] }}</p>
+                                    <p class="mt-1">{{ $item['message'] }}</p>
+                                </div>
+                            @empty
+                                <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-300">
+                                    Aun no se identifican oportunidades operativas adicionales.
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
                 </div>
 
                 <div class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">

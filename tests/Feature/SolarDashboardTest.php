@@ -231,6 +231,49 @@ class SolarDashboardTest extends TestCase
             ->assertSee('Meses con baja cobertura');
     }
 
+    public function test_show_displays_solar_recommendations_when_weather_and_energy_data_exist(): void
+    {
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'start_date' => '2026-05-23',
+            'end_date' => '2026-05-23',
+        ]);
+        $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+        $solarProject->calculationResult()->create([
+            ...$this->calculationResultAttributes(58),
+            'estimated_annual_generation_kwh' => 7000,
+            'annual_consumption_kwh' => 12000,
+            'estimated_annual_savings_cop' => 3200000,
+        ]);
+        $solarProject->monthlyResults()->create([
+            'month_number' => 2,
+            'month_name' => 'febrero',
+            'days_in_month' => 28,
+            'average_daily_solar_radiation' => 3.9,
+            'estimated_generation_kwh' => 620,
+            'estimated_consumption_kwh' => 1000,
+            'coverage_percentage' => 62,
+            'estimated_savings_cop' => 520000,
+        ]);
+        $solarProject->weatherStationReadings()->create([
+            'temperature' => 35.1,
+            'humidity' => 78.0,
+            'thermal_sensation' => 44.0,
+            'uv_index' => 6.4,
+            'solar_radiation' => 740.0,
+            'measured_at' => '2026-05-23 13:00:00',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Recomendaciones inteligentes')
+            ->assertSee('Se recomienda operar equipos de alto consumo entre las 11 AM y 2 PM para aprovechar la mayor disponibilidad solar.')
+            ->assertSee('Existe riesgo de dependencia de red: la cobertura solar proyectada es insuficiente para sostener la mayor parte del consumo.')
+            ->assertSee('El calor extremo puede elevar la demanda de climatizacion; conviene preenfriar espacios durante la franja de mayor generacion solar.');
+    }
+
     public function test_user_cannot_view_foreign_project_summary(): void
     {
         $owner = User::factory()->create();
