@@ -2,6 +2,17 @@
     $formatNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'N/A';
     $formatDate = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->format('Y-m-d H:i') : 'N/A';
     $totalRows = $nasaCount + $weatherStationCount;
+    $latestWeatherStationChartPoint = collect($weatherStationChartRows)->last();
+    $latestUvIndex = $latestWeatherStationChartPoint['uv_index'] ?? null;
+    $uvIndexPercent = $latestUvIndex !== null ? min(100, ((float) $latestUvIndex / 11) * 100) : 0;
+    $uvRisk = match (true) {
+        $latestUvIndex === null => 'Sin dato',
+        $latestUvIndex < 3 => 'Bajo',
+        $latestUvIndex < 6 => 'Moderado',
+        $latestUvIndex < 8 => 'Alto',
+        $latestUvIndex < 11 => 'Muy alto',
+        default => 'Extremo',
+    };
 @endphp
 
 <x-layouts::app :title="__('Datos APIs')">
@@ -71,6 +82,25 @@
                         @csrf
                         <button type="submit" class="solar-button-secondary">Obtener datos de estacion</button>
                     </form>
+                </div>
+            </div>
+
+            <script id="weather-station-realtime-chart-data" type="application/json">@json($weatherStationChartRows)</script>
+
+            <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+                <div class="solar-table-shell p-4">
+                    <div class="h-[320px]">
+                        <canvas id="weather-station-realtime-chart" aria-label="Radiacion, UVA, UVB e IUV en tiempo real" role="img"></canvas>
+                    </div>
+                </div>
+
+                <div class="solar-metric-card" data-weather-station-iuv-card>
+                    <p class="solar-metric-label">IUV actual</p>
+                    <p class="solar-metric-value" data-weather-station-iuv-value>{{ $latestUvIndex !== null ? $formatNumber($latestUvIndex, 2) : 'N/A' }}</p>
+                    <p class="solar-metric-copy" data-weather-station-iuv-risk>{{ $uvRisk }}</p>
+                    <div class="mt-4 h-3 overflow-hidden rounded-full bg-[color:var(--solar-border)]">
+                        <div class="h-full rounded-full bg-[color:var(--solar-sun)] transition-all" data-weather-station-iuv-bar style="width: {{ $uvIndexPercent }}%"></div>
+                    </div>
                 </div>
             </div>
 

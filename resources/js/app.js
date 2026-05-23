@@ -17,6 +17,9 @@ const getSolarChartColors = () => {
         successDark: styles.getPropertyValue('--solar-success').trim() || '#456f47',
         danger: styles.getPropertyValue('--solar-danger').trim() || '#c96a58',
         clay: styles.getPropertyValue('--solar-text').trim() || '#9c6540',
+        uva: '#2f80ed',
+        uvb: '#7b61ff',
+        uvIndex: '#d9480f',
         tooltipBg: isDark ? 'rgba(16, 12, 8, 0.96)' : 'rgba(43, 28, 16, 0.96)',
         tooltipTitle: isDark ? '#fff6ea' : '#fff6ea',
         tooltipBody: isDark ? '#f3dcc0' : '#f0dcc4',
@@ -101,9 +104,220 @@ const moneyFormatter = new Intl.NumberFormat('es-CO', {
     style: 'currency',
 });
 
+const normalizeChartNumber = (value) => {
+    if (value === null || value === undefined || value === 'N/A' || value === '') {
+        return null;
+    }
+
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+    }
+
+    const normalized = String(value).replaceAll('.', '').replace(',', '.');
+    const number = Number(normalized);
+
+    return Number.isFinite(number) ? number : null;
+};
+
+const weatherStationChartRowsToData = (rows) => ({
+    labels: rows.map((row) => row.recorded_at ?? 'N/A'),
+    radiation: rows.map((row) => normalizeChartNumber(row.radiation)),
+    uva: rows.map((row) => normalizeChartNumber(row.uva)),
+    uvb: rows.map((row) => normalizeChartNumber(row.uvb)),
+    uvIndex: rows.map((row) => normalizeChartNumber(row.uv_index)),
+});
+
+const latestNumericValue = (rows, key) => {
+    const values = rows
+        .map((row) => normalizeChartNumber(row[key]))
+        .filter((value) => value !== null);
+
+    return values.length ? values.at(-1) : null;
+};
+
+const uvRiskLabel = (value) => {
+    if (value === null) {
+        return 'Sin dato';
+    }
+
+    if (value < 3) {
+        return 'Bajo';
+    }
+
+    if (value < 6) {
+        return 'Moderado';
+    }
+
+    if (value < 8) {
+        return 'Alto';
+    }
+
+    if (value < 11) {
+        return 'Muy alto';
+    }
+
+    return 'Extremo';
+};
+
+const updateUvIndexIndicator = (rows) => {
+    const value = latestNumericValue(rows, 'uv_index');
+    const valueElement = document.querySelector('[data-weather-station-iuv-value]');
+    const riskElement = document.querySelector('[data-weather-station-iuv-risk]');
+    const barElement = document.querySelector('[data-weather-station-iuv-bar]');
+
+    if (valueElement) {
+        valueElement.textContent = value === null ? 'N/A' : numberFormatter.format(value);
+    }
+
+    if (riskElement) {
+        riskElement.textContent = uvRiskLabel(value);
+    }
+
+    if (barElement) {
+        barElement.style.width = `${Math.min(100, ((value ?? 0) / 11) * 100)}%`;
+    }
+};
+
+const upsertWeatherStationRealtimeChart = (rows) => {
+    const canvas = document.getElementById('weather-station-realtime-chart');
+
+    if (!canvas) {
+        return;
+    }
+
+    const solarColors = getSolarChartColors();
+    const chartData = weatherStationChartRowsToData(rows);
+    const existingChart = activeSolarCharts.get('weather-station-realtime-chart');
+
+    if (existingChart) {
+        existingChart.data.labels = chartData.labels;
+        existingChart.data.datasets[0].data = chartData.radiation;
+        existingChart.data.datasets[1].data = chartData.uva;
+        existingChart.data.datasets[2].data = chartData.uvb;
+        existingChart.data.datasets[3].data = chartData.uvIndex;
+        existingChart.update('none');
+        updateUvIndexIndicator(rows);
+
+        return;
+    }
+
+    createChart('weather-station-realtime-chart', {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                {
+                    label: 'Radiacion',
+                    data: chartData.radiation,
+                    yAxisID: 'radiation',
+                    backgroundColor: `${solarColors.gold}24`,
+                    borderColor: solarColors.gold,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.35,
+                    pointBackgroundColor: solarColors.pointSurface,
+                    pointBorderColor: solarColors.goldDark,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    spanGaps: true,
+                },
+                {
+                    label: 'UVA',
+                    data: chartData.uva,
+                    yAxisID: 'uv',
+                    borderColor: solarColors.uva,
+                    backgroundColor: `${solarColors.uva}22`,
+                    borderWidth: 2,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    spanGaps: true,
+                },
+                {
+                    label: 'UVB',
+                    data: chartData.uvb,
+                    yAxisID: 'uv',
+                    borderColor: solarColors.uvb,
+                    backgroundColor: `${solarColors.uvb}22`,
+                    borderWidth: 2,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    spanGaps: true,
+                },
+                {
+                    label: 'IUV',
+                    data: chartData.uvIndex,
+                    yAxisID: 'uv',
+                    borderColor: solarColors.uvIndex,
+                    backgroundColor: `${solarColors.uvIndex}22`,
+                    borderWidth: 2,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    spanGaps: true,
+                },
+            ],
+        },
+        options: {
+            ...baseOptions('Radiacion', (context) => `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)}`),
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: solarColors.text,
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 8,
+                    },
+                    grid: {
+                        color: solarColors.grid,
+                    },
+                },
+                radiation: {
+                    beginAtZero: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Radiacion',
+                        color: solarColors.text,
+                    },
+                    ticks: {
+                        color: solarColors.text,
+                    },
+                    grid: {
+                        color: solarColors.grid,
+                    },
+                },
+                uv: {
+                    beginAtZero: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'UVA / UVB / IUV',
+                        color: solarColors.text,
+                    },
+                    ticks: {
+                        color: solarColors.text,
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                },
+            },
+        },
+    });
+
+    updateUvIndexIndicator(rows);
+};
+
 const initSolarCharts = () => {
     const dataElement = document.getElementById('solar-monthly-chart-data');
     const weatherStationDataElement = document.getElementById('weather-station-chart-data');
+    const weatherStationRealtimeDataElement = document.getElementById('weather-station-realtime-chart-data');
 
     destroySolarCharts();
 
@@ -242,6 +456,10 @@ const initSolarCharts = () => {
             });
         }
     }
+
+    if (weatherStationRealtimeDataElement) {
+        upsertWeatherStationRealtimeChart(JSON.parse(weatherStationRealtimeDataElement.textContent || '[]'));
+    }
 };
 
 const observeSolarTheme = () => {
@@ -347,6 +565,10 @@ const updateWeatherStationDom = (section, payload) => {
 
     if (rowsElement) {
         rowsElement.innerHTML = renderWeatherStationRows(payload.rows ?? []);
+    }
+
+    if (payload.chartRows) {
+        upsertWeatherStationRealtimeChart(payload.chartRows);
     }
 };
 

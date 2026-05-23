@@ -36,6 +36,7 @@ class ApiDataController extends Controller
         return view('api-data.index', [
             'nasaRows' => $nasaRows,
             'weatherStationRows' => $weatherStationRows,
+            'weatherStationChartRows' => $this->latestWeatherStationChartRows($userId),
             'nasaCount' => $this->nasaRowsCount($userId),
             'weatherStationCount' => $this->weatherStationRowsCount($userId),
         ]);
@@ -151,6 +152,7 @@ class ApiDataController extends Controller
                 'message' => $message,
                 'weatherStationCount' => $total,
                 'rows' => $this->latestWeatherStationRows($request->user()->id),
+                'chartRows' => $this->latestWeatherStationChartRows($request->user()->id),
             ]);
         }
 
@@ -210,7 +212,7 @@ class ApiDataController extends Controller
                 'solar_projects.name as project_name',
                 'weather_station_readings.device_code as device_code',
                 'weather_station_readings.measured_at as recorded_at',
-                'weather_station_readings.solar_radiation as radiation',
+                DB::raw('COALESCE(weather_station_readings.solar_radiation, CASE WHEN weather_station_readings.uva IS NULL AND weather_station_readings.uvb IS NULL AND weather_station_readings.uv_index IS NULL THEN NULL ELSE (COALESCE(weather_station_readings.uva, 0) + COALESCE(weather_station_readings.uvb, 0) + COALESCE(weather_station_readings.uv_index, 0)) / 3 END) as radiation'),
                 'weather_station_readings.temperature as temperature',
                 'weather_station_readings.humidity as humidity',
                 DB::raw('null as precipitation'),
@@ -268,6 +270,28 @@ class ApiDataController extends Controller
                 'uva' => $this->formatJsonNumber($row->uva, 3),
                 'uvb' => $this->formatJsonNumber($row->uvb, 3),
                 'uv_index' => $this->formatJsonNumber($row->uv_index, 3),
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function latestWeatherStationChartRows(int $userId): array
+    {
+        return $this->weatherStationRowsQuery($userId)
+            ->orderByDesc('weather_station_readings.measured_at')
+            ->orderByDesc('weather_station_readings.id')
+            ->limit(30)
+            ->get()
+            ->reverse()
+            ->values()
+            ->map(fn (object $row): array => [
+                'recorded_at' => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'radiation' => $row->radiation !== null ? (float) $row->radiation : null,
+                'uva' => $row->uva !== null ? (float) $row->uva : null,
+                'uvb' => $row->uvb !== null ? (float) $row->uvb : null,
+                'uv_index' => $row->uv_index !== null ? (float) $row->uv_index : null,
             ])
             ->all();
     }
