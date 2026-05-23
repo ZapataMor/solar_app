@@ -67,17 +67,10 @@ class OpenAIRecommendationService
                     ],
                 ]);
 
-                $output = $response->outputText;
-
-                if (! is_string($output) || trim($output) === '') {
-                    return $this->emptyResult('error', 'OpenAI no devolvio contenido utilizable.');
-                }
-
-                /** @var mixed $decoded */
-                $decoded = json_decode($output, true);
+                $decoded = $this->decodeResponsePayload($response->outputText ?? null);
 
                 if (! is_array($decoded)) {
-                    return $this->emptyResult('error', 'La respuesta de OpenAI no pudo interpretarse como JSON.');
+                    return $this->emptyResult('error', 'OpenAI no devolvio contenido utilizable.');
                 }
 
                 return [
@@ -224,6 +217,32 @@ class OpenAIRecommendationService
                 'energy_alerts',
             ],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function decodeResponsePayload(mixed $output): ?array
+    {
+        if (! is_string($output) || trim($output) === '') {
+            return null;
+        }
+
+        /** @var mixed $decoded */
+        $decoded = json_decode($output, true);
+
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        if (! preg_match('/\{.*\}/s', $output, $matches)) {
+            return null;
+        }
+
+        /** @var mixed $fallbackDecoded */
+        $fallbackDecoded = json_decode($matches[0], true);
+
+        return is_array($fallbackDecoded) ? $fallbackDecoded : null;
     }
 
     /**

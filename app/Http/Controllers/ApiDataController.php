@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use App\Services\NasaPowerService;
+use App\Services\NasaWeatherDataService;
 use App\Services\WeatherStationImportService;
-use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,7 +40,11 @@ class ApiDataController extends Controller
         ]);
     }
 
-    public function fetchNasaData(Request $request, NasaPowerService $nasaPowerService): RedirectResponse
+    public function fetchNasaData(
+        Request $request,
+        NasaPowerService $nasaPowerService,
+        NasaWeatherDataService $nasaWeatherDataService,
+    ): RedirectResponse
     {
         $projects = $request->user()->solarProjects()->get();
 
@@ -61,7 +65,7 @@ class ApiDataController extends Controller
                     $solarProject->end_date,
                 );
 
-                [$projectCreated, $projectUpdated] = $this->storeWeatherData($solarProject, $payload);
+                ['created' => $projectCreated, 'updated' => $projectUpdated] = $nasaWeatherDataService->storeDailyData($solarProject, $payload);
                 $created += $projectCreated;
                 $updated += $projectUpdated;
             } catch (Throwable $exception) {
@@ -211,58 +215,4 @@ class ApiDataController extends Controller
             ->count();
     }
 
-    /**
-     * @param  array<string, mixed>  $payload
-     * @return array{0: int, 1: int}
-     */
-    private function storeWeatherData(SolarProject $solarProject, array $payload): array
-    {
-        $parameters = data_get($payload, 'properties.parameter', []);
-
-        $timestamps = collect($parameters)
-            ->flatMap(fn (array $values) => array_keys($values))
-            ->unique()
-            ->sort()
-            ->values();
-
-        if ($timestamps->isEmpty()) {
-            throw new \RuntimeException('NASA POWER response does not contain daily values.');
-        }
-
-        $created = 0;
-        $updated = 0;
-
-        DB::transaction(function () use ($solarProject, $parameters, $timestamps, &$created, &$updated): void {
-            $solarProject->weatherData()
-                ->get()
-                ->filter(fn ($weatherData) => ! $weatherData->date_time->isStartOfDay())
-                ->each->delete();
-
-            foreach ($timestamps as $timestamp) {
-                $weatherData = $solarProject->weatherData()->updateOrCreate(
-                    ['date_time' => Carbon::createFromFormat('Ymd', (string) $timestamp)->startOfDay()],
-                    [
-                        'allsky_sfc_sw_dwn' => $this->cleanWeatherValue($parameters['ALLSKY_SFC_SW_DWN'][$timestamp] ?? null),
-                        't2m' => $this->cleanWeatherValue($parameters['T2M'][$timestamp] ?? null),
-                        'rh2m' => $this->cleanWeatherValue($parameters['RH2M'][$timestamp] ?? null),
-                        'prectotcorr' => $this->cleanWeatherValue($parameters['PRECTOTCORR'][$timestamp] ?? null),
-                        'ws10m' => $this->cleanWeatherValue($parameters['WS10M'][$timestamp] ?? null),
-                    ],
-                );
-
-                $weatherData->wasRecentlyCreated ? $created++ : $updated++;
-            }
-        });
-
-        return [$created, $updated];
-    }
-
-    private function cleanWeatherValue(mixed $value): ?float
-    {
-        if ($value === null || (float) $value <= -900) {
-            return null;
-        }
-
-        return (float) $value;
-    }
 }

@@ -3,15 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\SolarProject;
-use App\Models\WeatherStationReading;
-use App\Services\EnergyAnalysisService;
 use App\Services\NasaPowerService;
-use App\Services\OpenAIRecommendationService;
-use App\Services\SolarRecommendationService;
+use App\Services\NasaWeatherDataService;
+use App\Services\ProjectDashboardService;
 use App\Services\SolarCalculationService;
-use App\Services\WeatherAnalysisService;
+use App\Services\WeatherStationAggregationService;
 use App\Services\WeatherStationImportService;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -60,10 +57,7 @@ class SolarProjectController extends Controller
     public function show(
         Request $request,
         SolarProject $solarProject,
-        EnergyAnalysisService $energyAnalysisService,
-        OpenAIRecommendationService $openAIRecommendationService,
-        SolarRecommendationService $solarRecommendationService,
-        WeatherAnalysisService $weatherAnalysisService,
+        ProjectDashboardService $projectDashboardService,
     ): View
     {
         $this->authorizeOwner($request, $solarProject);
@@ -77,13 +71,7 @@ class SolarProjectController extends Controller
 
         return view('solar-projects.show', [
             'solarProject' => $solarProject,
-            ...$this->projectSummaryData(
-                $solarProject,
-                $energyAnalysisService,
-                $openAIRecommendationService,
-                $solarRecommendationService,
-                $weatherAnalysisService,
-            ),
+            ...$projectDashboardService->build($solarProject),
         ]);
     }
 
@@ -131,6 +119,7 @@ class SolarProjectController extends Controller
         Request $request,
         SolarProject $solarProject,
         NasaPowerService $nasaPowerService,
+        NasaWeatherDataService $nasaWeatherDataService,
     ): RedirectResponse {
         $this->authorizeOwner($request, $solarProject);
 
@@ -140,7 +129,7 @@ class SolarProjectController extends Controller
                 $solarProject->end_date,
             );
 
-            [$created, $updated] = $this->storeWeatherData($solarProject, $payload);
+            ['created' => $created, 'updated' => $updated] = $nasaWeatherDataService->storeDailyData($solarProject, $payload);
             $total = $solarProject->weatherData()->count();
         } catch (Throwable $exception) {
             report($exception);
@@ -160,11 +149,9 @@ class SolarProjectController extends Controller
         Request $request,
         SolarProject $solarProject,
         WeatherStationImportService $weatherStationImportService,
+        WeatherStationAggregationService $weatherStationAggregationService,
     ): RedirectResponse {
         $this->authorizeOwner($request, $solarProject);
-
-        $start = $solarProject->start_date->copy()->startOfDay();
-        $end = $solarProject->end_date->copy()->endOfDay();
 
         try {
             $imported = $weatherStationImportService->importAll($solarProject);
@@ -176,10 +163,7 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        $readings = $solarProject->weatherStationReadings()
-            ->whereBetween('measured_at', [$start, $end])
-            ->orderBy('measured_at')
-            ->get();
+        $readings = $weatherStationAggregationService->readingsForProject($solarProject);
 
         if ($readings->isEmpty()) {
             return back()->withErrors([
@@ -187,27 +171,7 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        $dailyReadings = $readings
-            ->groupBy(fn (WeatherStationReading $reading) => $reading->measured_at->toDateString())
-            ->map(function ($dayReadings) {
-                $radiation = $dayReadings
-                    ->map(fn (WeatherStationReading $reading) => $reading->radiationValue())
-                    ->filter(fn (?float $value) => $value !== null)
-                    ->average();
-
-                if ($radiation === null) {
-                    return null;
-                }
-
-                return [
-                    'date_time' => Carbon::parse($dayReadings->first()->measured_at)->startOfDay(),
-                    'allsky_sfc_sw_dwn' => $radiation,
-                    't2m' => $dayReadings->average(fn (WeatherStationReading $reading) => $reading->temperature !== null ? (float) $reading->temperature : null),
-                    'rh2m' => $dayReadings->average(fn (WeatherStationReading $reading) => $reading->humidity !== null ? (float) $reading->humidity : null),
-                ];
-            })
-            ->filter()
-            ->values();
+        $dailyReadings = $weatherStationAggregationService->dailyRows($readings);
 
         if ($dailyReadings->isEmpty()) {
             return back()->withErrors([
@@ -279,6 +243,7 @@ class SolarProjectController extends Controller
         Request $request,
         SolarProject $solarProject,
         SolarCalculationService $solarCalculationService,
+        WeatherStationAggregationService $weatherStationAggregationService,
     ): RedirectResponse {
         $this->authorizeOwner($request, $solarProject);
 
@@ -288,7 +253,9 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        $dailyReadings = $this->dailyWeatherStationRows($solarProject);
+        $dailyReadings = $weatherStationAggregationService->dailyRows(
+            $weatherStationAggregationService->readingsForProject($solarProject)
+        );
 
         if ($dailyReadings->isEmpty()) {
             return back()->withErrors([
@@ -365,183 +332,8 @@ class SolarProjectController extends Controller
         ];
     }
 
-    /**
-     * @param  array<string, mixed>  $payload
-     * @return array{0: int, 1: int}
-     */
-    private function storeWeatherData(SolarProject $solarProject, array $payload): array
-    {
-        $parameters = data_get($payload, 'properties.parameter', []);
-
-        $timestamps = collect($parameters)
-            ->flatMap(fn (array $values) => array_keys($values))
-            ->unique()
-            ->sort()
-            ->values();
-
-        if ($timestamps->isEmpty()) {
-            throw new \RuntimeException('NASA POWER response does not contain daily values.');
-        }
-
-        $created = 0;
-        $updated = 0;
-
-        DB::transaction(function () use ($solarProject, $parameters, $timestamps, &$created, &$updated) {
-            $solarProject->weatherData()
-                ->get()
-                ->filter(fn ($weatherData) => ! $weatherData->date_time->isStartOfDay())
-                ->each->delete();
-
-            foreach ($timestamps as $timestamp) {
-                $weatherData = $solarProject->weatherData()->updateOrCreate(
-                    ['date_time' => Carbon::createFromFormat('Ymd', (string) $timestamp)->startOfDay()],
-                    [
-                        'allsky_sfc_sw_dwn' => $this->cleanWeatherValue($parameters['ALLSKY_SFC_SW_DWN'][$timestamp] ?? null),
-                        't2m' => $this->cleanWeatherValue($parameters['T2M'][$timestamp] ?? null),
-                        'rh2m' => $this->cleanWeatherValue($parameters['RH2M'][$timestamp] ?? null),
-                        'prectotcorr' => $this->cleanWeatherValue($parameters['PRECTOTCORR'][$timestamp] ?? null),
-                        'ws10m' => $this->cleanWeatherValue($parameters['WS10M'][$timestamp] ?? null),
-                    ],
-                );
-
-                $weatherData->wasRecentlyCreated ? $created++ : $updated++;
-            }
-        });
-
-        return [$created, $updated];
-    }
-
-    private function cleanWeatherValue(mixed $value): ?float
-    {
-        if ($value === null || (float) $value <= -900) {
-            return null;
-        }
-
-        return (float) $value;
-    }
-
-    private function dailyWeatherStationRows(SolarProject $solarProject)
-    {
-        return $solarProject->weatherStationReadings()
-            ->whereBetween('measured_at', [
-                $solarProject->start_date->copy()->startOfDay(),
-                $solarProject->end_date->copy()->endOfDay(),
-            ])
-            ->orderBy('measured_at')
-            ->get()
-            ->groupBy(fn (WeatherStationReading $reading) => $reading->measured_at->toDateString())
-            ->map(function ($dayReadings) {
-                $radiation = $dayReadings
-                    ->map(fn (WeatherStationReading $reading) => $reading->radiationValue())
-                    ->filter(fn (?float $value) => $value !== null)
-                    ->average();
-
-                if ($radiation === null) {
-                    return null;
-                }
-
-                return [
-                    'date_time' => Carbon::parse($dayReadings->first()->measured_at)->startOfDay(),
-                    'allsky_sfc_sw_dwn' => $radiation,
-                    't2m' => $dayReadings->average(fn (WeatherStationReading $reading) => $reading->temperature !== null ? (float) $reading->temperature : null),
-                    'rh2m' => $dayReadings->average(fn (WeatherStationReading $reading) => $reading->humidity !== null ? (float) $reading->humidity : null),
-                    'prectotcorr' => null,
-                    'ws10m' => null,
-                ];
-            })
-            ->filter()
-            ->values();
-    }
-
     private function authorizeOwner(Request $request, SolarProject $solarProject): void
     {
         abort_unless($solarProject->user_id === $request->user()->id, 403);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function projectSummaryData(
-        SolarProject $solarProject,
-        EnergyAnalysisService $energyAnalysisService,
-        OpenAIRecommendationService $openAIRecommendationService,
-        SolarRecommendationService $solarRecommendationService,
-        WeatherAnalysisService $weatherAnalysisService,
-    ): array
-    {
-        $monthlyResults = $solarProject->monthlyResults;
-        $calculationResult = $solarProject->calculationResult;
-        $energyAnalysis = $energyAnalysisService->analyze($calculationResult, $monthlyResults);
-        $weatherStationReadings = $solarProject->weatherStationReadings()
-            ->whereBetween('measured_at', [
-                $solarProject->start_date->copy()->startOfDay(),
-                $solarProject->end_date->copy()->endOfDay(),
-            ])
-            ->orderBy('measured_at')
-            ->get();
-        $stationRadiationValues = $weatherStationReadings
-            ->map(fn (WeatherStationReading $reading) => $reading->radiationValue())
-            ->filter(fn (?float $value) => $value !== null)
-            ->values();
-        $stationDailyRadiation = $weatherStationReadings
-            ->groupBy(fn (WeatherStationReading $reading) => $reading->measured_at->toDateString())
-            ->map(fn ($dayReadings) => $dayReadings
-                ->map(fn (WeatherStationReading $reading) => $reading->radiationValue())
-                ->filter(fn (?float $value) => $value !== null)
-                ->average())
-            ->filter(fn (?float $value) => $value !== null);
-        $weatherAnalysis = $weatherAnalysisService->analyzeReadings($weatherStationReadings);
-        $weatherStationStats = [
-            'total' => $weatherStationReadings->count(),
-            'averageRadiation' => $stationRadiationValues->average(),
-            'maxRadiation' => $stationRadiationValues->max(),
-            'averageUva' => $weatherStationReadings->avg('uva'),
-            'averageUvb' => $weatherStationReadings->avg('uvb'),
-            'maxUvIndex' => $weatherStationReadings->max('uv_index'),
-            'latest' => $weatherStationReadings->sortByDesc('measured_at')->first(),
-        ];
-        $solarRecommendations = $solarRecommendationService->recommend(
-            $weatherAnalysis,
-            $energyAnalysis,
-            $calculationResult,
-            $weatherStationStats,
-        );
-        $openAIRecommendation = $openAIRecommendationService->generate(
-            $weatherAnalysis,
-            $energyAnalysis,
-            $solarRecommendations,
-            $calculationResult,
-            $weatherStationStats,
-        );
-
-        return [
-            'chartData' => [
-                'labels' => $monthlyResults->pluck('month_name')->values()->all(),
-                'generation' => $monthlyResults->pluck('estimated_generation_kwh')->map(fn ($value) => (float) $value)->values()->all(),
-                'consumption' => $monthlyResults->pluck('estimated_consumption_kwh')->map(fn ($value) => (float) $value)->values()->all(),
-                'savings' => $monthlyResults->pluck('estimated_savings_cop')->map(fn ($value) => (float) $value)->values()->all(),
-                'coverage' => $monthlyResults->pluck('coverage_percentage')->map(fn ($value) => (float) $value)->values()->all(),
-            ],
-            'coverageInterpretation' => $energyAnalysis['coverageInterpretation'],
-            'energyAnalysis' => $energyAnalysis,
-            'monthlyHighlights' => $energyAnalysis['monthlyHighlights'],
-            'monthlyTotals' => [
-                'generation' => $monthlyResults->sum('estimated_generation_kwh'),
-                'consumption' => $monthlyResults->sum('estimated_consumption_kwh'),
-                'savings' => $monthlyResults->sum('estimated_savings_cop'),
-            ],
-            'weatherStationStats' => $weatherStationStats,
-            'recentWeatherStationReadings' => $weatherStationReadings
-                ->sortByDesc('measured_at')
-                ->take(8)
-                ->values(),
-            'openAIRecommendation' => $openAIRecommendation,
-            'weatherAnalysis' => $weatherAnalysis,
-            'solarRecommendations' => $solarRecommendations,
-            'weatherStationChartData' => [
-                'labels' => $stationDailyRadiation->keys()->values()->all(),
-                'radiation' => $stationDailyRadiation->map(fn ($value) => (float) $value)->values()->all(),
-            ],
-        ];
     }
 }

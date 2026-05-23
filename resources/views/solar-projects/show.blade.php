@@ -3,18 +3,36 @@
     $calculationResult = $solarProject->calculationResult;
     $monthlyResults = $solarProject->monthlyResults;
     $hasWeatherData = $solarProject->weather_data_count > 0;
+    $dashboard = $dashboard ?? [
+        'state' => ['summary' => null],
+        'insights' => [
+            'energy' => ['summary' => null, 'items' => [], 'monthly' => [], 'highlights' => []],
+            'weather' => ['currentSummary' => null, 'historicalSummary' => null, 'current' => [], 'historical' => [], 'readingCount' => 0],
+        ],
+        'recommendations' => ['summary' => null, 'items' => [], 'groups' => ['actions' => [], 'alerts' => [], 'risks' => [], 'opportunities' => []]],
+        'executiveSummary' => ['text' => null, 'dailyRecommendation' => null, 'alerts' => [], 'enabled' => false, 'error' => null, 'source' => 'rule_based'],
+        'widgets' => ['executive_summary' => 'Sin resumen ejecutivo disponible.', 'widgets' => []],
+    ];
     $energyAnalysis = $energyAnalysis ?? ['insights' => [], 'monthlyInterpretations' => [], 'monthlyHighlights' => []];
     $openAIRecommendation = $openAIRecommendation ?? ['enabled' => false, 'source' => 'disabled', 'executive_summary' => null, 'daily_recommendation' => null, 'energy_alerts' => [], 'error' => null];
     $solarRecommendations = $solarRecommendations ?? ['items' => [], 'recommendations' => [], 'alerts' => [], 'risks' => [], 'opportunities' => []];
+    $aiWidgets = $dashboard['widgets'] ?? ($aiWidgets ?? ['executive_summary' => 'Sin resumen ejecutivo disponible.', 'widgets' => []]);
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
     $weatherAnalysis = $weatherAnalysis ?? ['current' => [], 'historical' => []];
     $hasWeatherStationData = ($weatherStationStats['total'] ?? 0) > 0;
     $latestWeatherStationReading = $weatherStationStats['latest'] ?? null;
-    $latestEnergyInsight = $energyAnalysis['insights'][0]['message'] ?? 'Sin conclusiones energeticas automaticas.';
-    $latestRecommendation = $solarRecommendations['items'][0]['message'] ?? 'Sin recomendaciones automaticas disponibles.';
-    $latestCurrentAnalysis = $weatherAnalysis['current'][0]['message'] ?? 'Sin alertas actuales relevantes.';
-    $latestHistoricalAnalysis = $weatherAnalysis['historical'][0]['message'] ?? 'Sin tendencias historicas destacadas.';
+    $latestEnergyInsight = $dashboard['insights']['energy']['summary'] ?? 'Sin conclusiones energeticas automaticas.';
+    $latestRecommendation = $dashboard['recommendations']['summary'] ?? 'Sin recomendaciones automaticas disponibles.';
+    $latestCurrentAnalysis = $dashboard['insights']['weather']['currentSummary'] ?? 'Sin alertas actuales relevantes.';
+    $latestHistoricalAnalysis = $dashboard['insights']['weather']['historicalSummary'] ?? 'Sin tendencias historicas destacadas.';
+    $coverageInterpretation = $dashboard['state']['summary'] ?? ($coverageInterpretation ?? null);
+    $executiveSummary = $dashboard['executiveSummary'] ?? ['text' => null, 'dailyRecommendation' => null, 'alerts' => [], 'enabled' => false, 'error' => null, 'source' => 'rule_based'];
+    $recommendationGroups = $dashboard['recommendations']['groups'] ?? ['actions' => [], 'alerts' => [], 'risks' => [], 'opportunities' => []];
+    $energyInsights = $dashboard['insights']['energy']['items'] ?? ($energyAnalysis['insights'] ?? []);
+    $monthlyEnergyInsights = $dashboard['insights']['energy']['monthly'] ?? ($energyAnalysis['monthlyInterpretations'] ?? []);
+    $weatherCurrentInsights = $dashboard['insights']['weather']['current'] ?? ($weatherAnalysis['current'] ?? []);
+    $weatherHistoricalInsights = $dashboard['insights']['weather']['historical'] ?? ($weatherAnalysis['historical'] ?? []);
 
     $formatNumber = fn ($value, int $decimals = 2) => number_format((float) $value, $decimals, ',', '.');
     $formatKwh = fn ($value) => $formatNumber($value) . ' kWh';
@@ -111,10 +129,10 @@
                 <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/60 sm:col-span-2 xl:col-span-4">
                     <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Resumen natural con IA</p>
                     <p class="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-                        {{ $openAIRecommendation['executive_summary'] ?? 'La capa OpenAI esta deshabilitada o aun no genero contenido.' }}
+                        {{ $executiveSummary['text'] ?? 'La capa OpenAI esta deshabilitada o aun no genero contenido.' }}
                     </p>
                     <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        {{ $openAIRecommendation['enabled'] ? 'Generado a partir de analisis estructurados y reglas internas.' : ($openAIRecommendation['error'] ?? 'Activa OPENAI_RECOMMENDATIONS_ENABLED y configura OPENAI_API_KEY para habilitar esta capa.') }}
+                        {{ $executiveSummary['enabled'] ? 'Generado a partir de analisis estructurados y reglas internas.' : ($executiveSummary['error'] ?? 'Activa OPENAI_RECOMMENDATIONS_ENABLED y configura OPENAI_API_KEY para habilitar esta capa.') }}
                     </p>
                 </div>
             </div>
@@ -143,6 +161,81 @@
                 {{ $errors->first('solar_calculation') }}
             </div>
         @endif
+
+        <section class="w-full min-w-0 max-w-full rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0 max-w-3xl">
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">Capa IA energetica</p>
+                    <h2 class="mt-2 text-xl font-semibold text-zinc-950 dark:text-zinc-50 sm:text-2xl">Widgets inteligentes del dashboard</h2>
+                    <p class="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                        {{ $dashboard['widgets']['executive_summary'] ?? $aiWidgets['executive_summary'] }}
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <x-dashboard.ai-state-badge state="success" />
+                    <x-dashboard.ai-state-badge state="warning" />
+                    <x-dashboard.ai-state-badge state="danger" />
+                </div>
+            </div>
+
+            <div class="mt-6 grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+                <x-dashboard.ai-widget-card
+                    :title="$aiWidgets['widgets']['recommendation_of_day']['title'] ?? 'Recomendacion del dia'"
+                    :icon="$aiWidgets['widgets']['recommendation_of_day']['icon'] ?? 'lightbulb'"
+                    :state="$aiWidgets['widgets']['recommendation_of_day']['state'] ?? 'warning'"
+                    :priority="$aiWidgets['widgets']['recommendation_of_day']['priority'] ?? 'media'"
+                    :summary="$aiWidgets['widgets']['recommendation_of_day']['summary'] ?? null"
+                    :helper="$aiWidgets['widgets']['recommendation_of_day']['helper'] ?? null"
+                    :items="$aiWidgets['widgets']['recommendation_of_day']['items'] ?? []"
+                    :empty="$aiWidgets['widgets']['recommendation_of_day']['empty'] ?? 'Sin recomendaciones disponibles.'"
+                />
+
+                <x-dashboard.ai-widget-card
+                    :title="$aiWidgets['widgets']['intelligent_alerts']['title'] ?? 'Alertas inteligentes'"
+                    :icon="$aiWidgets['widgets']['intelligent_alerts']['icon'] ?? 'bell'"
+                    :state="$aiWidgets['widgets']['intelligent_alerts']['state'] ?? 'warning'"
+                    :priority="$aiWidgets['widgets']['intelligent_alerts']['priority'] ?? 'media'"
+                    :summary="$aiWidgets['widgets']['intelligent_alerts']['summary'] ?? null"
+                    :helper="$aiWidgets['widgets']['intelligent_alerts']['helper'] ?? null"
+                    :items="$aiWidgets['widgets']['intelligent_alerts']['items'] ?? []"
+                    :empty="$aiWidgets['widgets']['intelligent_alerts']['empty'] ?? 'Sin alertas disponibles.'"
+                />
+
+                <x-dashboard.ai-widget-card
+                    :title="$aiWidgets['widgets']['energy_status']['title'] ?? 'Estado energetico'"
+                    :icon="$aiWidgets['widgets']['energy_status']['icon'] ?? 'bolt'"
+                    :state="$aiWidgets['widgets']['energy_status']['state'] ?? 'warning'"
+                    :priority="$aiWidgets['widgets']['energy_status']['priority'] ?? 'media'"
+                    :summary="$aiWidgets['widgets']['energy_status']['summary'] ?? null"
+                    :helper="$aiWidgets['widgets']['energy_status']['helper'] ?? null"
+                    :metrics="$aiWidgets['widgets']['energy_status']['metrics'] ?? []"
+                />
+
+                <x-dashboard.ai-widget-card
+                    :title="$aiWidgets['widgets']['detected_risks']['title'] ?? 'Riesgos detectados'"
+                    :icon="$aiWidgets['widgets']['detected_risks']['icon'] ?? 'shield-alert'"
+                    :state="$aiWidgets['widgets']['detected_risks']['state'] ?? 'warning'"
+                    :priority="$aiWidgets['widgets']['detected_risks']['priority'] ?? 'media'"
+                    :summary="$aiWidgets['widgets']['detected_risks']['summary'] ?? null"
+                    :helper="$aiWidgets['widgets']['detected_risks']['helper'] ?? null"
+                    :items="$aiWidgets['widgets']['detected_risks']['items'] ?? []"
+                    :empty="$aiWidgets['widgets']['detected_risks']['empty'] ?? 'Sin riesgos disponibles.'"
+                />
+
+                <x-dashboard.ai-widget-card
+                    :title="$aiWidgets['widgets']['savings_opportunities']['title'] ?? 'Oportunidades de ahorro'"
+                    :icon="$aiWidgets['widgets']['savings_opportunities']['icon'] ?? 'piggy-bank'"
+                    :state="$aiWidgets['widgets']['savings_opportunities']['state'] ?? 'success'"
+                    :priority="$aiWidgets['widgets']['savings_opportunities']['priority'] ?? 'media'"
+                    :summary="$aiWidgets['widgets']['savings_opportunities']['summary'] ?? null"
+                    :helper="$aiWidgets['widgets']['savings_opportunities']['helper'] ?? null"
+                    :items="$aiWidgets['widgets']['savings_opportunities']['items'] ?? []"
+                    :empty="$aiWidgets['widgets']['savings_opportunities']['empty'] ?? 'Sin oportunidades disponibles.'"
+                    class="xl:col-span-2 2xl:col-span-1"
+                />
+            </div>
+        </section>
 
         <div class="grid min-w-0 max-w-full gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,0.95fr)]">
             <section class="min-w-0 space-y-6">
@@ -245,7 +338,7 @@
                             <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                                 <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Insights generales</h3>
                                 <div class="mt-4 space-y-3">
-                                    @forelse ($energyAnalysis['insights'] as $energyInsight)
+                                    @forelse ($energyInsights as $energyInsight)
                                         @php
                                             $toneClasses = match ($energyInsight['level'] ?? 'info') {
                                                 'success' => 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100',
@@ -270,7 +363,7 @@
                             <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                                 <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Interpretacion mensual</h3>
                                 <div class="mt-4 space-y-3">
-                                    @forelse ($energyAnalysis['monthlyInterpretations'] as $energyInsight)
+                                    @forelse ($monthlyEnergyInsights as $energyInsight)
                                         @php
                                             $toneClasses = match ($energyInsight['level'] ?? 'info') {
                                                 'success' => 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100',
@@ -309,7 +402,7 @@
                         <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                             <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Recomendaciones</h3>
                             <div class="mt-4 space-y-3">
-                                @forelse ($solarRecommendations['recommendations'] as $item)
+                                @forelse ($recommendationGroups['actions'] as $item)
                                     <div class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100">
                                         <p class="font-semibold uppercase tracking-wide">{{ $item['priority'] }}</p>
                                         <p class="mt-1">{{ $item['message'] }}</p>
@@ -325,7 +418,7 @@
                         <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                             <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Alertas y riesgos</h3>
                             <div class="mt-4 space-y-3">
-                                @forelse (collect($solarRecommendations['alerts'])->merge($solarRecommendations['risks']) as $item)
+                                @forelse (collect($recommendationGroups['alerts'])->merge($recommendationGroups['risks']) as $item)
                                     @php
                                         $toneClasses = $item['type'] === 'risk'
                                             ? 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100'
@@ -348,7 +441,7 @@
                     <div class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                         <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Oportunidades</h3>
                         <div class="mt-4 space-y-3">
-                            @forelse ($solarRecommendations['opportunities'] as $item)
+                            @forelse ($recommendationGroups['opportunities'] as $item)
                                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100">
                                     <p class="font-semibold uppercase tracking-wide">{{ $item['priority'] }}</p>
                                     <p class="mt-1">{{ $item['message'] }}</p>
@@ -368,19 +461,19 @@
                         <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Capa opcional para convertir analisis estructurados en recomendaciones ejecutivas y legibles.</p>
                     </div>
 
-                    @if ($openAIRecommendation['enabled'])
+                    @if ($executiveSummary['enabled'])
                         <div class="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
                             <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                                 <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Resumen ejecutivo</h3>
                                 <p class="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
-                                    {{ $openAIRecommendation['executive_summary'] }}
+                                    {{ $executiveSummary['text'] }}
                                 </p>
                             </div>
 
                             <div class="min-w-0 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                                 <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Recomendacion diaria</h3>
                                 <p class="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
-                                    {{ $openAIRecommendation['daily_recommendation'] }}
+                                    {{ $executiveSummary['dailyRecommendation'] }}
                                 </p>
                             </div>
                         </div>
@@ -388,7 +481,7 @@
                         <div class="mt-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                             <h3 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Alertas energeticas</h3>
                             <div class="mt-4 space-y-3">
-                                @forelse ($openAIRecommendation['energy_alerts'] as $alert)
+                                @forelse ($executiveSummary['alerts'] as $alert)
                                     <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
                                         {{ $alert }}
                                     </div>
@@ -401,7 +494,7 @@
                         </div>
                     @else
                         <div class="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-zinc-200">
-                            {{ $openAIRecommendation['error'] ?? 'La capa OpenAI esta deshabilitada para este entorno.' }}
+                            {{ $executiveSummary['error'] ?? 'La capa OpenAI esta deshabilitada para este entorno.' }}
                         </div>
                     @endif
                 </div>
@@ -438,7 +531,7 @@
                                 </dl>
 
                                 <div class="mt-4 space-y-3">
-                                    @forelse ($weatherAnalysis['current'] as $analysisItem)
+                                    @forelse ($weatherCurrentInsights as $analysisItem)
                                         @php
                                             $toneClasses = match ($analysisItem['type'] ?? 'info') {
                                                 'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
@@ -463,7 +556,7 @@
                                 <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Resumen de tendencia sobre las lecturas almacenadas.</p>
 
                                 <div class="mt-4 space-y-3">
-                                    @forelse ($weatherAnalysis['historical'] as $analysisItem)
+                                    @forelse ($weatherHistoricalInsights as $analysisItem)
                                         @php
                                             $toneClasses = match ($analysisItem['type'] ?? 'info') {
                                                 'warning' => 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
