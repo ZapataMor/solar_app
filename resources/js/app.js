@@ -239,3 +239,167 @@ const observeSolarTheme = () => {
 document.addEventListener('DOMContentLoaded', initSolarCharts);
 document.addEventListener('DOMContentLoaded', observeSolarTheme);
 document.addEventListener('livewire:navigated', initSolarCharts);
+
+const apiDataCountFormatter = new Intl.NumberFormat('es-CO', {
+    maximumFractionDigits: 0,
+});
+
+let weatherStationSyncTimer = null;
+let weatherStationSyncController = null;
+
+const escapeHtml = (value) => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+const renderWeatherStationRows = (rows) => {
+    if (!rows.length) {
+        return `
+            <tr>
+                <td colspan="13" class="py-10 text-center">
+                    Aun no hay lecturas registradas desde el centro meteorologico.
+                </td>
+            </tr>
+        `;
+    }
+
+    return rows.map((row) => `
+        <tr>
+            <td class="font-semibold text-[color:var(--solar-text)]">${escapeHtml(row.project_name)}</td>
+            <td>${escapeHtml(row.recorded_at)}</td>
+            <td>${escapeHtml(row.device_code)}</td>
+            <td>${escapeHtml(row.radiation)}</td>
+            <td>${escapeHtml(row.temperature)}</td>
+            <td>${escapeHtml(row.humidity)}</td>
+            <td>${escapeHtml(row.thermal_sensation)}</td>
+            <td>${escapeHtml(row.co2)}</td>
+            <td>${escapeHtml(row.pm25)}</td>
+            <td>${escapeHtml(row.pm10)}</td>
+            <td>${escapeHtml(row.uva)}</td>
+            <td>${escapeHtml(row.uvb)}</td>
+            <td>${escapeHtml(row.uv_index)}</td>
+        </tr>
+    `).join('');
+};
+
+const setWeatherStationStatus = (section, message, tone = 'neutral') => {
+    const status = section.querySelector('[data-weather-station-status]');
+
+    if (!status) {
+        return;
+    }
+
+    status.textContent = message;
+    status.classList.toggle('text-red-600', tone === 'error');
+    status.classList.toggle('dark:text-red-300', tone === 'error');
+    status.classList.toggle('text-zinc-500', tone !== 'error');
+    status.classList.toggle('dark:text-zinc-400', tone !== 'error');
+};
+
+const updateWeatherStationDom = (section, payload) => {
+    const stationCount = Number(payload.weatherStationCount ?? 0);
+    const formattedStationCount = apiDataCountFormatter.format(stationCount);
+    const stationCountElements = document.querySelectorAll('[data-weather-station-count]');
+    const stationCountPill = section.querySelector('[data-weather-station-count-pill]');
+    const totalCountElement = document.querySelector('[data-api-data-total-count]');
+    const nasaCountElement = document.querySelector('[data-api-data-nasa-count]');
+    const rowsElement = section.querySelector('[data-weather-station-rows]');
+
+    stationCountElements.forEach((element) => {
+        element.textContent = formattedStationCount;
+        element.dataset.count = String(stationCount);
+    });
+
+    if (stationCountPill) {
+        stationCountPill.textContent = `${formattedStationCount} registros`;
+    }
+
+    if (totalCountElement && nasaCountElement) {
+        const nasaCount = Number(nasaCountElement.dataset.count ?? 0);
+        totalCountElement.textContent = apiDataCountFormatter.format(nasaCount + stationCount);
+    }
+
+    if (rowsElement) {
+        rowsElement.innerHTML = renderWeatherStationRows(payload.rows ?? []);
+    }
+};
+
+const syncWeatherStationData = async (section, { manual = false } = {}) => {
+    const form = section.querySelector('[data-weather-station-fetch-form]');
+
+    if (!form || weatherStationSyncController) {
+        return;
+    }
+
+    if (!manual && document.visibilityState !== 'visible') {
+        return;
+    }
+
+    weatherStationSyncController = new AbortController();
+    setWeatherStationStatus(section, manual ? 'Consultando estacion...' : 'Buscando nuevas lecturas...');
+
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: new FormData(form),
+            credentials: 'same-origin',
+            signal: weatherStationSyncController.signal,
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+            throw new Error(payload.message ?? 'No fue posible actualizar los datos.');
+        }
+
+        updateWeatherStationDom(section, payload);
+        setWeatherStationStatus(section, payload.message ?? 'Datos actualizados.');
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            setWeatherStationStatus(section, error.message, 'error');
+        }
+    } finally {
+        weatherStationSyncController = null;
+    }
+};
+
+const initWeatherStationSync = () => {
+    const section = document.querySelector('[data-weather-station-sync]');
+
+    if (weatherStationSyncTimer) {
+        clearInterval(weatherStationSyncTimer);
+        weatherStationSyncTimer = null;
+    }
+
+    if (weatherStationSyncController) {
+        weatherStationSyncController.abort();
+        weatherStationSyncController = null;
+    }
+
+    if (!section) {
+        return;
+    }
+
+    const form = section.querySelector('[data-weather-station-fetch-form]');
+    const interval = Number(section.dataset.syncInterval ?? 15000);
+
+    if (form && !form.dataset.weatherStationSubmitBound) {
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            syncWeatherStationData(section, { manual: true });
+        });
+        form.dataset.weatherStationSubmitBound = 'true';
+    }
+
+    syncWeatherStationData(section);
+    weatherStationSyncTimer = window.setInterval(() => syncWeatherStationData(section), interval);
+};
+
+document.addEventListener('DOMContentLoaded', initWeatherStationSync);
+document.addEventListener('livewire:navigated', initWeatherStationSync);

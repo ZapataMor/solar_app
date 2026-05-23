@@ -4,20 +4,17 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen overflow-hidden bg-[#2a1a10] font-sans text-[#F7EFE4] antialiased max-[980px]:overflow-auto">
-        <div class="login-bg" aria-hidden="true"></div>
+        <div class="login-bg" style="background-image: url('{{ asset('images/login/guajira-desert.png') }}');" aria-hidden="true"></div>
         <div class="login-sunglow" aria-hidden="true"></div>
 
         <div class="login-page">
             <header class="login-topbar">
                 <a href="{{ route('home') }}" class="login-brand" wire:navigate>
                     <span class="login-brand-mark" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F7EFE4" stroke-width="1.8" stroke-linecap="round">
-                            <circle cx="12" cy="12" r="3.6" fill="#F7EFE4" stroke="none" />
-                            <path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M5.6 18.4l1.7-1.7M16.7 7.3l1.7-1.7" />
-                        </svg>
+                        <img src="{{ asset('images/logo.png') }}" alt="" />
                     </span>
                     <span class="login-brand-name">
-                        Solaria
+                        Maicao Coders
                         <small>Guajira · Plataforma</small>
                     </span>
                 </a>

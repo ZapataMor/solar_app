@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
 use App\Services\WeatherStationImportService;
+use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -92,10 +93,16 @@ class ApiDataController extends Controller
     public function fetchWeatherStationData(
         Request $request,
         WeatherStationImportService $weatherStationImportService,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $projects = $request->user()->solarProjects()->get();
 
         if ($projects->isEmpty()) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'No hay proyectos solares registrados para asociar lecturas del centro meteorologico.',
+                ], 422);
+            }
+
             return back()->withErrors([
                 'weather_station' => 'No hay proyectos solares registrados para asociar lecturas del centro meteorologico.',
             ]);
@@ -107,6 +114,12 @@ class ApiDataController extends Controller
             $imported = $weatherStationImportService->importAll($targetProject);
         } catch (Throwable $exception) {
             report($exception);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'No fue posible consultar el endpoint del centro meteorologico.',
+                ], 502);
+            }
 
             return back()->withErrors([
                 'weather_station' => 'No fue posible consultar el endpoint del centro meteorologico.',
@@ -120,14 +133,30 @@ class ApiDataController extends Controller
         $total = $this->weatherStationRowsCount($request->user()->id);
 
         if ($total === 0) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'No hay lecturas del centro meteorologico registradas.',
+                ], 422);
+            }
+
             return back()->withErrors([
                 'weather_station' => 'No hay lecturas del centro meteorologico registradas.',
             ]);
         }
 
+        $message = "Datos del centro meteorologico obtenidos desde el endpoint. Nuevos: {$imported['created']}. Actualizados: {$imported['updated']}. Existentes omitidos: {$imported['skipped']}. Lecturas asociadas: {$associated}. Total visible: {$total}.";
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => $message,
+                'weatherStationCount' => $total,
+                'rows' => $this->latestWeatherStationRows($request->user()->id),
+            ]);
+        }
+
         return back()->with(
             'status',
-            "Datos del centro meteorologico obtenidos desde el endpoint. Nuevos: {$imported['created']}. Actualizados: {$imported['updated']}. Existentes omitidos: {$imported['skipped']}. Lecturas asociadas: {$associated}. Total visible: {$total}.",
+            $message,
         );
     }
 
@@ -215,4 +244,36 @@ class ApiDataController extends Controller
             ->count();
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function latestWeatherStationRows(int $userId): array
+    {
+        return $this->weatherStationRowsQuery($userId)
+            ->orderByDesc('weather_station_readings.measured_at')
+            ->orderByDesc('weather_station_readings.id')
+            ->limit(15)
+            ->get()
+            ->map(fn (object $row): array => [
+                'project_name' => $row->project_name ?? 'Sin asociar',
+                'recorded_at' => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'device_code' => $row->device_code ?? 'N/A',
+                'radiation' => $this->formatJsonNumber($row->radiation, 3),
+                'temperature' => $this->formatJsonNumber($row->temperature, 2),
+                'humidity' => $this->formatJsonNumber($row->humidity, 2),
+                'thermal_sensation' => $this->formatJsonNumber($row->thermal_sensation, 2),
+                'co2' => $row->co2 ?? 'N/A',
+                'pm25' => $this->formatJsonNumber($row->pm25, 2),
+                'pm10' => $this->formatJsonNumber($row->pm10, 2),
+                'uva' => $this->formatJsonNumber($row->uva, 3),
+                'uvb' => $this->formatJsonNumber($row->uvb, 3),
+                'uv_index' => $this->formatJsonNumber($row->uv_index, 3),
+            ])
+            ->all();
+    }
+
+    private function formatJsonNumber(mixed $value, int $decimals = 2): string
+    {
+        return $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'N/A';
+    }
 }

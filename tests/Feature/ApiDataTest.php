@@ -54,6 +54,7 @@ class ApiDataTest extends TestCase
             ->assertSee('Datos APIs')
             ->assertSee('NASA POWER')
             ->assertSee('Centro meteorologico')
+            ->assertSeeInOrder(['Centro meteorologico', 'NASA POWER'])
             ->assertSee('Obtener datos NASA POWER')
             ->assertSee('Obtener datos de estacion')
             ->assertSee($solarProject->name)
@@ -184,6 +185,46 @@ class ApiDataTest extends TestCase
             'solar_project_id' => $solarProject->id,
             'device_code' => 'ST-OUT-OF-RANGE',
         ]);
+    }
+
+    public function test_weather_station_data_can_be_fetched_as_json_for_ajax_refresh(): void
+    {
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create($this->projectAttributes());
+
+        $this->app->instance(WeatherStationImportService::class, new class extends WeatherStationImportService
+        {
+            public function importAll(?SolarProject $solarProject = null): array
+            {
+                WeatherStationReading::query()->create([
+                    'solar_project_id' => $solarProject?->id,
+                    'device_code' => 'ST-AJAX',
+                    'temperature' => 31.45,
+                    'humidity' => 68.9,
+                    'solar_radiation' => 620.123,
+                    'uv_index' => 7.456,
+                    'measured_at' => '2026-05-21 12:30:00',
+                ]);
+
+                return [
+                    'received' => 1,
+                    'created' => 1,
+                    'updated' => 0,
+                    'skipped' => 0,
+                ];
+            }
+        });
+
+        $this->actingAs($user)
+            ->postJson(route('api-data.fetch-weather-station-data'))
+            ->assertOk()
+            ->assertJsonPath('weatherStationCount', 1)
+            ->assertJsonPath('rows.0.project_name', $solarProject->name)
+            ->assertJsonPath('rows.0.device_code', 'ST-AJAX')
+            ->assertJsonPath('rows.0.recorded_at', '2026-05-21 12:30')
+            ->assertJsonPath('rows.0.temperature', '31,45')
+            ->assertJsonPath('rows.0.radiation', '620,123')
+            ->assertJsonPath('rows.0.uv_index', '7,456');
     }
 
     public function test_weather_station_import_service_fetches_readings_from_public_api(): void
