@@ -61,6 +61,40 @@ class ApiDataTest extends TestCase
             ->assertSee('2026-05-21 12:30');
     }
 
+    public function test_nasa_power_table_shows_unique_rows_without_project_names(): void
+    {
+        $user = User::factory()->create();
+        $firstProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'name' => 'Proyecto solar norte',
+        ]);
+        $secondProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'name' => 'Proyecto solar sur',
+        ]);
+
+        foreach ([$firstProject, $secondProject] as $solarProject) {
+            $solarProject->weatherData()->create([
+                'date_time' => '2026-05-21 00:00:00',
+                'allsky_sfc_sw_dwn' => 5.245,
+                't2m' => 28.2,
+                'rh2m' => 70.4,
+                'prectotcorr' => 0.0123,
+                'ws10m' => 4.8,
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->get(route('api-data.index'))
+            ->assertOk()
+            ->assertDontSee('Proyecto solar norte')
+            ->assertDontSee('Proyecto solar sur')
+            ->assertSee('1 registros');
+
+        $this->assertSame(1, $response->viewData('nasaRows')->total());
+        $this->assertSame(1, $response->viewData('nasaCount'));
+    }
+
     public function test_user_can_fetch_nasa_data_from_api_data_page(): void
     {
         Http::fake([

@@ -70,7 +70,6 @@
                     <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
                         <thead class="bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
                             <tr>
-                                <th class="px-4 py-3">Proyecto</th>
                                 <th class="px-4 py-3">Fecha</th>
                                 <th class="px-4 py-3">Radiacion</th>
                                 <th class="px-4 py-3">Temp.</th>
@@ -82,7 +81,6 @@
                         <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                             @forelse ($nasaRows as $row)
                                 <tr class="text-zinc-700 dark:text-zinc-200">
-                                    <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">{{ $row->project_name ?? 'Sin asociar' }}</td>
                                     <td class="px-4 py-3">{{ $formatDate($row->recorded_at) }}</td>
                                     <td class="px-4 py-3">{{ $formatNumber($row->radiation, 3) }}</td>
                                     <td class="px-4 py-3">{{ $formatNumber($row->temperature, 2) }}</td>
@@ -92,7 +90,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-4 py-8 text-center text-zinc-600 dark:text-zinc-400">
+                                    <td colspan="6" class="px-4 py-8 text-center text-zinc-600 dark:text-zinc-400">
                                         Aun no hay datos registrados desde NASA POWER.
                                     </td>
                                 </tr>

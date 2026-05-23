@@ -13,7 +13,9 @@ class SolarProject extends Model
     use HasFactory;
 
     public const LOCATION_NAME = 'Riohacha, La Guajira, Colombia';
+
     public const LATITUDE = 11.5444;
+
     public const LONGITUDE = -72.9072;
 
     protected $fillable = [

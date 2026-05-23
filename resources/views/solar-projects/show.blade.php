@@ -114,7 +114,7 @@
 
             @unless ($hasWeatherData)
                 <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                    Este proyecto aun no tiene datos climaticos sincronizados. Sincroniza los datos NASA POWER antes de ejecutar los calculos.
+                    Este proyecto aun no tiene datos NASA POWER almacenados. Carga los datos desde el modulo Datos APIs antes de ejecutar con NASA.
                 </div>
             @endunless
         </section>
@@ -159,28 +159,21 @@
         <section class="space-y-4 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
             <div>
                 <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-50">Acciones principales</h2>
-                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Consulta clima, ejecuta la simulacion y administra el proyecto.</p>
+                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Ejecuta la simulacion con los datos almacenados en Datos APIs y administra el proyecto.</p>
             </div>
 
             <div class="flex flex-wrap gap-2">
-                <form method="POST" action="{{ route('solar-projects.fetch-weather-data', $solarProject) }}">
-                    @csrf
-                    <button type="submit" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
-                        Consultar o sincronizar datos NASA POWER
-                    </button>
-                </form>
-
-                <form method="POST" action="{{ route('solar-projects.fetch-weather-station-data', $solarProject) }}">
+                <form method="POST" action="{{ route('solar-projects.calculate-weather-station', $solarProject) }}">
                     @csrf
                     <button type="submit" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 dark:bg-amber-400 dark:text-zinc-950 dark:hover:bg-amber-300">
-                        Obtener datos desde centro metereologico
+                        Ejecutar datos con estacion
                     </button>
                 </form>
 
                 <form method="POST" action="{{ route('solar-projects.calculate', $solarProject) }}">
                     @csrf
                     <button type="submit" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
-                        Ejecutar calculos solares
+                        Ejecutar datos con NASA
                     </button>
                 </form>
 

@@ -21,8 +21,8 @@ class ApiDataController extends Controller
         $userId = $request->user()->id;
 
         $nasaRows = $this->nasaRowsQuery($userId)
-            ->orderByDesc('api_weather_data.date_time')
-            ->orderByDesc('api_weather_data.id')
+            ->orderByDesc('recorded_at')
+            ->orderByDesc('record_id')
             ->paginate(15, ['*'], 'nasa_page')
             ->withQueryString();
 
@@ -135,8 +135,7 @@ class ApiDataController extends Controller
             ->select([
                 DB::raw("'nasa' as source_key"),
                 DB::raw("'NASA POWER' as source_name"),
-                'api_weather_data.id as record_id',
-                'solar_projects.name as project_name',
+                DB::raw('MIN(api_weather_data.id) as record_id'),
                 DB::raw('null as device_code'),
                 'api_weather_data.date_time as recorded_at',
                 'api_weather_data.allsky_sfc_sw_dwn as radiation',
@@ -151,6 +150,14 @@ class ApiDataController extends Controller
                 DB::raw('null as uva'),
                 DB::raw('null as uvb'),
                 DB::raw('null as uv_index'),
+            ])
+            ->groupBy([
+                'api_weather_data.date_time',
+                'api_weather_data.allsky_sfc_sw_dwn',
+                'api_weather_data.t2m',
+                'api_weather_data.rh2m',
+                'api_weather_data.prectotcorr',
+                'api_weather_data.ws10m',
             ]);
     }
 
@@ -187,9 +194,8 @@ class ApiDataController extends Controller
 
     private function nasaRowsCount(int $userId): int
     {
-        return DB::table('api_weather_data')
-            ->join('solar_projects', 'api_weather_data.solar_project_id', '=', 'solar_projects.id')
-            ->where('solar_projects.user_id', $userId)
+        return DB::query()
+            ->fromSub($this->nasaRowsQuery($userId), 'nasa_rows')
             ->count();
     }
 

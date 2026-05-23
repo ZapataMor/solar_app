@@ -244,6 +244,42 @@ class SolarProjectTest extends TestCase
         $this->assertDatabaseCount('api_weather_data', 1);
     }
 
+    public function test_user_can_calculate_with_stored_weather_station_data(): void
+    {
+        Http::fake();
+
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'start_date' => '2025-08-20',
+            'end_date' => '2025-08-20',
+        ]);
+        $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+
+        $solarProject->weatherStationReadings()->create([
+            'measured_at' => '2025-08-20 10:28:47',
+            'temperature' => 35.9,
+            'humidity' => 58.2,
+            'solar_radiation' => 5.5,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.calculate-weather-station', $solarProject))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Calculos solares ejecutados correctamente con datos de la estacion meteorologica.')
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('calculation_results', [
+            'solar_project_id' => $solarProject->id,
+        ]);
+        $this->assertDatabaseHas('monthly_results', [
+            'solar_project_id' => $solarProject->id,
+            'month_number' => 8,
+        ]);
+        $this->assertDatabaseCount('api_weather_data', 0);
+        Http::assertNothingSent();
+    }
+
     /**
      * @return array<string, mixed>
      */

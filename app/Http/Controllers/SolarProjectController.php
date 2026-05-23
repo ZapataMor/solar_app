@@ -143,8 +143,7 @@ class SolarProjectController extends Controller
         Request $request,
         SolarProject $solarProject,
         WeatherStationImportService $weatherStationImportService,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $this->authorizeOwner($request, $solarProject);
 
         $start = $solarProject->start_date->copy()->startOfDay();
@@ -259,6 +258,43 @@ class SolarProjectController extends Controller
         return back()->with('status', 'Calculos solares ejecutados correctamente.');
     }
 
+    public function calculateWithWeatherStation(
+        Request $request,
+        SolarProject $solarProject,
+        SolarCalculationService $solarCalculationService,
+    ): RedirectResponse {
+        $this->authorizeOwner($request, $solarProject);
+
+        if ($solarProject->technicalParameter()->doesntExist()) {
+            return back()->withErrors([
+                'solar_calculation' => 'No es posible ejecutar calculos solares sin parametros tecnicos.',
+            ]);
+        }
+
+        $dailyReadings = $this->dailyWeatherStationRows($solarProject);
+
+        if ($dailyReadings->isEmpty()) {
+            return back()->withErrors([
+                'solar_calculation' => 'No hay datos de estacion meteorologica almacenados para procesar en el rango del proyecto.',
+            ]);
+        }
+
+        try {
+            $solarCalculationService->calculate(
+                $solarProject,
+                $solarCalculationService->weatherDataFromRows($dailyReadings),
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'solar_calculation' => 'No fue posible ejecutar los calculos solares con datos de la estacion. Revise los datos del proyecto e intente nuevamente.',
+            ]);
+        }
+
+        return back()->with('status', 'Calculos solares ejecutados correctamente con datos de la estacion meteorologica.');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -365,6 +401,39 @@ class SolarProjectController extends Controller
         }
 
         return (float) $value;
+    }
+
+    private function dailyWeatherStationRows(SolarProject $solarProject)
+    {
+        return $solarProject->weatherStationReadings()
+            ->whereBetween('measured_at', [
+                $solarProject->start_date->copy()->startOfDay(),
+                $solarProject->end_date->copy()->endOfDay(),
+            ])
+            ->orderBy('measured_at')
+            ->get()
+            ->groupBy(fn (WeatherStationReading $reading) => $reading->measured_at->toDateString())
+            ->map(function ($dayReadings) {
+                $radiation = $dayReadings
+                    ->map(fn (WeatherStationReading $reading) => $reading->radiationValue())
+                    ->filter(fn (?float $value) => $value !== null)
+                    ->average();
+
+                if ($radiation === null) {
+                    return null;
+                }
+
+                return [
+                    'date_time' => Carbon::parse($dayReadings->first()->measured_at)->startOfDay(),
+                    'allsky_sfc_sw_dwn' => $radiation,
+                    't2m' => $dayReadings->average(fn (WeatherStationReading $reading) => $reading->temperature !== null ? (float) $reading->temperature : null),
+                    'rh2m' => $dayReadings->average(fn (WeatherStationReading $reading) => $reading->humidity !== null ? (float) $reading->humidity : null),
+                    'prectotcorr' => null,
+                    'ws10m' => null,
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     private function authorizeOwner(Request $request, SolarProject $solarProject): void

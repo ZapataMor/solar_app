@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Models\SolarProject;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 class SolarCalculationService
 {
@@ -12,17 +14,18 @@ class SolarCalculationService
      * NASA POWER daily ALLSKY_SFC_SW_DWN is stored as W/m2.
      * Multiplying by 24 and dividing by 1000 gives daily HSP in kWh/m2/day.
      */
-    public function calculate(SolarProject $solarProject): SolarProject
+    public function calculate(SolarProject $solarProject, ?Collection $weatherData = null): SolarProject
     {
         $solarProject->loadMissing(['technicalParameter', 'weatherData']);
 
         $technicalParameter = $solarProject->technicalParameter;
+        $weatherData ??= $solarProject->weatherData;
 
         if ($technicalParameter === null) {
             throw new \InvalidArgumentException('El proyecto no tiene parametros tecnicos.');
         }
 
-        if ($solarProject->weatherData->isEmpty()) {
+        if ($weatherData->isEmpty()) {
             throw new \InvalidArgumentException('El proyecto no tiene datos climaticos.');
         }
 
@@ -32,7 +35,7 @@ class SolarCalculationService
         );
         $numberOfPanels = $this->calculateNumberOfPanels($usableArea, (float) $technicalParameter->panel_area_m2);
         $installedCapacityKwp = $this->calculateInstalledCapacityKwp($numberOfPanels, (float) $technicalParameter->panel_power_w);
-        $monthlyResults = $this->calculateMonthlyResults($solarProject, $installedCapacityKwp);
+        $monthlyResults = $this->calculateMonthlyResults($solarProject, $installedCapacityKwp, $weatherData);
 
         $estimatedAnnualGeneration = $monthlyResults->sum('estimated_generation_kwh');
         $weatherDays = max(1, $monthlyResults->sum('days_in_month'));
@@ -114,9 +117,10 @@ class SolarCalculationService
     }
 
     /**
+     * @param  Collection<int, object>  $weatherData
      * @return Collection<int, array<string, float|int|string>>
      */
-    private function calculateMonthlyResults(SolarProject $solarProject, float $installedCapacityKwp): Collection
+    private function calculateMonthlyResults(SolarProject $solarProject, float $installedCapacityKwp, Collection $weatherData): Collection
     {
         $technicalParameter = $solarProject->technicalParameter;
         $performanceRatio = (float) $technicalParameter->performance_ratio;
@@ -124,7 +128,7 @@ class SolarCalculationService
         $monthlyConsumption = $this->calculateConsumptionMonthly((float) $solarProject->annual_consumption_kwh);
         $energyRate = (float) $solarProject->energy_rate_cop_kwh;
 
-        return $solarProject->weatherData
+        return $weatherData
             ->filter(fn ($weatherData) => $weatherData->allsky_sfc_sw_dwn !== null)
             ->groupBy(fn ($weatherData) => $weatherData->date_time->format('n'))
             ->sortKeys()
@@ -155,6 +159,27 @@ class SolarCalculationService
                 ];
             })
             ->values();
+    }
+
+    /**
+     * @param  iterable<array{date_time: Carbon|string, allsky_sfc_sw_dwn: mixed, t2m?: mixed, rh2m?: mixed, prectotcorr?: mixed, ws10m?: mixed}>  $rows
+     * @return Collection<int, object>
+     */
+    public function weatherDataFromRows(iterable $rows): Collection
+    {
+        return collect($rows)->map(function (array $row): object {
+            $weatherData = new stdClass;
+            $weatherData->date_time = $row['date_time'] instanceof Carbon
+                ? $row['date_time']
+                : Carbon::parse($row['date_time']);
+            $weatherData->allsky_sfc_sw_dwn = $row['allsky_sfc_sw_dwn'] !== null ? (float) $row['allsky_sfc_sw_dwn'] : null;
+            $weatherData->t2m = ($row['t2m'] ?? null) !== null ? (float) $row['t2m'] : null;
+            $weatherData->rh2m = ($row['rh2m'] ?? null) !== null ? (float) $row['rh2m'] : null;
+            $weatherData->prectotcorr = ($row['prectotcorr'] ?? null) !== null ? (float) $row['prectotcorr'] : null;
+            $weatherData->ws10m = ($row['ws10m'] ?? null) !== null ? (float) $row['ws10m'] : null;
+
+            return $weatherData;
+        });
     }
 
     private function monthName(int $monthNumber): string
