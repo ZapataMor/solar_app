@@ -109,17 +109,33 @@ class SolarProject extends Model
 
     public function monthlyConsumption(): float
     {
-        return (float) ($this->monthly_consumption_kwh ?? 0);
+        $monthlyConsumption = $this->numericConsumption($this->monthly_consumption_kwh);
+
+        if ($monthlyConsumption !== null) {
+            return $monthlyConsumption;
+        }
+
+        $annualConsumption = $this->numericConsumption($this->annual_consumption_kwh);
+
+        if ($annualConsumption !== null) {
+            return $annualConsumption / 12;
+        }
+
+        $dailyConsumption = $this->numericConsumption($this->daily_consumption_kwh);
+
+        return $dailyConsumption !== null ? $dailyConsumption * 30 : 0.0;
     }
 
     public function dailyConsumption(): float
     {
-        return (float) ($this->daily_consumption_kwh ?? 0);
+        $dailyConsumption = $this->numericConsumption($this->daily_consumption_kwh);
+
+        return $dailyConsumption !== null ? $dailyConsumption : $this->monthlyConsumption() / 30;
     }
 
     public function annualConsumption(): float
     {
-        return (float) ($this->annual_consumption_kwh ?? 0);
+        return $this->monthlyConsumption() * 12;
     }
 
     private function numericConsumption(mixed $value): ?float
