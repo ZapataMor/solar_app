@@ -16,6 +16,9 @@ class NasaWeatherDataService
     public function storeDailyData(array $payload): array
     {
         $parameters = data_get($payload, 'properties.parameter', []);
+        if (! is_array($parameters) || $parameters === []) {
+            throw new \RuntimeException('NASA POWER response does not include parameter data.');
+        }
 
         $timestamps = collect($parameters)
             ->flatMap(fn (array $values) => array_keys($values))
@@ -24,7 +27,7 @@ class NasaWeatherDataService
             ->values();
 
         if ($timestamps->isEmpty()) {
-            throw new \RuntimeException('NASA POWER response does not contain daily values.');
+            throw new \RuntimeException('NASA POWER response does not contain temporal values.');
         }
 
         $created = 0;
@@ -32,14 +35,26 @@ class NasaWeatherDataService
 
         DB::transaction(function () use ($parameters, $timestamps, &$created, &$updated): void {
             foreach ($timestamps as $timestamp) {
+                $dateTime = $this->parseNasaTimestamp($timestamp);
+
+                $allsky = $this->cleanValue($parameters['ALLSKY_SFC_SW_DWN'][$timestamp] ?? null);
+                $t2m = $this->cleanValue($parameters['T2M'][$timestamp] ?? null);
+                $rh2m = $this->cleanValue($parameters['RH2M'][$timestamp] ?? null);
+                $prectotcorr = $this->cleanValue($parameters['PRECTOTCORR'][$timestamp] ?? null);
+                $ws10m = $this->cleanValue($parameters['WS10M'][$timestamp] ?? null);
+
+                if ($allsky === null && $t2m === null && $rh2m === null && $prectotcorr === null && $ws10m === null) {
+                    continue;
+                }
+
                 $weatherData = ApiWeatherData::query()->updateOrCreate(
-                    ['date_time' => Carbon::createFromFormat('Ymd', (string) $timestamp)->startOfDay()],
+                    ['date_time' => $dateTime],
                     [
-                        'allsky_sfc_sw_dwn' => $this->cleanValue($parameters['ALLSKY_SFC_SW_DWN'][$timestamp] ?? null),
-                        't2m' => $this->cleanValue($parameters['T2M'][$timestamp] ?? null),
-                        'rh2m' => $this->cleanValue($parameters['RH2M'][$timestamp] ?? null),
-                        'prectotcorr' => $this->cleanValue($parameters['PRECTOTCORR'][$timestamp] ?? null),
-                        'ws10m' => $this->cleanValue($parameters['WS10M'][$timestamp] ?? null),
+                        'allsky_sfc_sw_dwn' => $allsky,
+                        't2m' => $t2m,
+                        'rh2m' => $rh2m,
+                        'prectotcorr' => $prectotcorr,
+                        'ws10m' => $ws10m,
                     ],
                 );
 
@@ -81,5 +96,20 @@ class NasaWeatherDataService
         }
 
         return (float) $value;
+    }
+
+    private function parseNasaTimestamp(mixed $timestamp): Carbon
+    {
+        $timestamp = (string) $timestamp;
+
+        if (preg_match('/^\d{8}$/', $timestamp)) {
+            return Carbon::createFromFormat('Ymd', $timestamp)->startOfDay();
+        }
+
+        if (preg_match('/^\d{10}$/', $timestamp)) {
+            return Carbon::createFromFormat('YmdH', $timestamp)->startOfHour();
+        }
+
+        throw new \RuntimeException("NASA POWER returned an invalid timestamp [{$timestamp}].");
     }
 }

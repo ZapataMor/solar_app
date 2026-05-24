@@ -54,37 +54,21 @@ class ApiDataController extends Controller
             ]);
         }
 
-        $created = 0;
-        $updated = 0;
-        $failed = 0;
+        $startDate = $projects->min('start_date');
+        $endDate = $projects->max('end_date');
 
-        foreach ($projects as $solarProject) {
-            try {
-                $payload = $nasaPowerService->fetchDailyData(
-                    $solarProject->start_date,
-                    $solarProject->end_date,
-                );
+        try {
+            $payload = $nasaPowerService->fetchHourlyData($startDate, $endDate);
+            ['created' => $created, 'updated' => $updated] = $nasaWeatherDataService->storeDailyData($payload);
+        } catch (Throwable $exception) {
+            report($exception);
 
-                ['created' => $projectCreated, 'updated' => $projectUpdated] = $nasaWeatherDataService->storeDailyData($payload);
-                $created += $projectCreated;
-                $updated += $projectUpdated;
-            } catch (Throwable $exception) {
-                report($exception);
-                $failed++;
-            }
-        }
-
-        if ($failed === $projects->count()) {
             return back()->withErrors([
                 'nasa_data' => 'No fue posible consultar NASA POWER para los proyectos registrados.',
             ]);
         }
 
         $message = "NASA POWER sincronizado. Nuevos: {$created}. Existentes actualizados: {$updated}.";
-
-        if ($failed > 0) {
-            $message .= " Proyectos con error: {$failed}.";
-        }
 
         return back()->with('status', $message);
     }

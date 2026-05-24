@@ -62,9 +62,9 @@ class SolarProjectController extends Controller
         $solarProject = DB::transaction(function () use ($request, $validated) {
             $solarProject = $request->user()->solarProjects()->create([
                 ...$this->projectAttributes($validated),
-                'location_name' => SolarProject::LOCATION_NAME,
-                'latitude' => SolarProject::LATITUDE,
-                'longitude' => SolarProject::LONGITUDE,
+                'location_name' => (string) config('services.nasa_power.location_name', SolarProject::LOCATION_NAME),
+                'latitude' => (float) config('services.nasa_power.latitude', SolarProject::LATITUDE),
+                'longitude' => (float) config('services.nasa_power.longitude', SolarProject::LONGITUDE),
             ]);
 
             $solarProject->technicalParameter()->create($this->technicalParameterAttributes($validated));

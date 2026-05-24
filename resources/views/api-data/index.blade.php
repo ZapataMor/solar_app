@@ -1,5 +1,6 @@
 @php
     $formatNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'N/A';
+    $formatNasaNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'Dato no publicado por NASA';
     $formatDate = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->format('Y-m-d H:i') : 'N/A';
     $totalRows = $nasaCount + $weatherStationCount;
     $latestWeatherStationChartPoint = collect($weatherStationChartRows)->last();
@@ -177,6 +178,7 @@
                         <thead>
                             <tr>
                                 <th>Fecha</th>
+                                <th>Estado</th>
                                 <th>Radiacion</th>
                                 <th>Temp.</th>
                                 <th>Humedad</th>
@@ -186,17 +188,29 @@
                         </thead>
                         <tbody>
                             @forelse ($nasaRows as $row)
+                                @php
+                                    $isIncomplete = $row->radiation === null
+                                        || $row->temperature === null
+                                        || $row->humidity === null
+                                        || $row->precipitation === null
+                                        || $row->wind_speed === null;
+                                @endphp
                                 <tr>
                                     <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
-                                    <td>{{ $formatNumber($row->radiation, 3) }}</td>
-                                    <td>{{ $formatNumber($row->temperature, 2) }}</td>
-                                    <td>{{ $formatNumber($row->humidity, 2) }}</td>
-                                    <td>{{ $formatNumber($row->precipitation, 4) }}</td>
-                                    <td>{{ $formatNumber($row->wind_speed, 2) }}</td>
+                                    <td>
+                                        <span class="solar-pill {{ $isIncomplete ? 'solar-pill-warn' : '' }}">
+                                            {{ $isIncomplete ? 'Incompleto' : 'Completo' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ $formatNasaNumber($row->radiation, 3) }}</td>
+                                    <td>{{ $formatNasaNumber($row->temperature, 2) }}</td>
+                                    <td>{{ $formatNasaNumber($row->humidity, 2) }}</td>
+                                    <td>{{ $formatNasaNumber($row->precipitation, 4) }}</td>
+                                    <td>{{ $formatNasaNumber($row->wind_speed, 2) }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="py-10 text-center">
+                                    <td colspan="7" class="py-10 text-center">
                                         Aun no hay datos registrados desde NASA POWER.
                                     </td>
                                 </tr>

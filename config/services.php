@@ -37,6 +37,13 @@ return [
 
     'nasa_power' => [
         'verify_ssl' => env('NASA_POWER_VERIFY_SSL', false),
+        'base_url' => env('NASA_POWER_BASE_URL', 'https://power.larc.nasa.gov/api/temporal'),
+        'community' => env('NASA_POWER_COMMUNITY', 'SB'),
+        'format' => env('NASA_POWER_FORMAT', 'JSON'),
+        'time_standard' => env('NASA_POWER_TIME_STANDARD', 'LST'),
+        'location_name' => env('NASA_POWER_LOCATION_NAME', 'Riohacha, La Guajira, Colombia'),
+        'latitude' => (float) env('NASA_POWER_LATITUDE', 11.5444),
+        'longitude' => (float) env('NASA_POWER_LONGITUDE', -72.9072),
     ],
 
     'weather_station' => [
