@@ -56,6 +56,7 @@ class DashboardTimeScaleService
             'monthly' => $this->monthlyScale(
                 $solarProject,
                 $calculationResult,
+                $orderedMonthlyResults,
                 $monthlyWindow,
                 $dailyBreakdown,
                 $weatherAnalysis,
@@ -194,13 +195,11 @@ class DashboardTimeScaleService
         array $solarRecommendations,
     ): array {
         $latestDay = $dailyWindow->last();
-        $generation = $dailyWindow->isNotEmpty()
-            ? (float) $dailyWindow->avg('generation_kwh')
+        $generation = $latestDay !== null
+            ? (float) $latestDay['generation_kwh']
             : ($calculationResult ? (float) $calculationResult->estimated_daily_generation_kwh : 0.0);
         $consumption = $solarProject->dailyConsumption();
-        $savings = $dailyWindow->isNotEmpty()
-            ? (float) $dailyWindow->avg('savings_cop')
-            : ($generation * (float) $solarProject->energy_rate_cop_kwh);
+        $savings = $generation * (float) $solarProject->energy_rate_cop_kwh;
         $coverage = $this->coverage($generation, $consumption);
         $balance = $generation - $consumption;
         $radiation = $latestDay['radiation_hsp'] ?? null;
@@ -242,7 +241,7 @@ class DashboardTimeScaleService
         return [
             'key' => 'daily',
             'label' => 'Diario',
-            'rangeLabel' => $latestDay ? 'Promedio diario del periodo reciente' : 'Sin datos diarios',
+            'rangeLabel' => $latestDay ? 'Ultimo dia disponible del periodo reciente' : 'Sin datos diarios',
             'summary' => $this->dailySummary($coverage, $savings),
             'stateTitle' => $this->coverageTitle($coverage),
             'stateTone' => $this->coverageTone($coverage),
@@ -274,13 +273,13 @@ class DashboardTimeScaleService
             ),
             'table' => [
                 'title' => 'Operacion diaria reciente',
-                'subtitle' => 'Seguimiento de los ultimos dias con foco operativo. Los KPIs usan promedio diario para mantener coherencia con la proyeccion anual.',
+                'subtitle' => 'Seguimiento de los ultimos dias con foco operativo. Los KPIs usan el ultimo dia disponible o la estimacion diaria derivada.',
                 'headers' => ['Periodo', 'Radiacion', 'Generacion', 'Consumo', 'Cobertura', 'Ahorro'],
                 'rows' => $this->tableRows($dailyWindow),
                 'footer' => $this->tableFooter('Total ultimos 7 dias', $dailyWindow),
             ],
             'highlights' => [
-                $this->highlight('Pico diario', $latestDay ? $latestDay['short_label'].' · '.number_format((float) $generation, 2, ',', '.').' kWh' : 'Pendiente'),
+                $this->highlight('Dia activo', $latestDay ? $latestDay['short_label'].' - '.number_format((float) $generation, 2, ',', '.').' kWh' : 'Pendiente'),
                 $this->highlight('Cobertura promedio', $avgRecentCoverage !== null ? number_format((float) $avgRecentCoverage, 2, ',', '.').'%' : 'Pendiente'),
                 $this->highlight('Consumo base diario', number_format($solarProject->dailyConsumption(), 2, ',', '.').' kWh'),
             ],
@@ -297,6 +296,7 @@ class DashboardTimeScaleService
     private function monthlyScale(
         SolarProject $solarProject,
         ?CalculationResult $calculationResult,
+        Collection $monthlyResults,
         Collection $monthlyWindow,
         Collection $dailyBreakdown,
         array $weatherAnalysis,
@@ -306,19 +306,19 @@ class DashboardTimeScaleService
         $latestObservedDate = $monthlyWindow->last()['date'] ?? null;
         $targetMonthDays = $latestObservedDate instanceof Carbon ? $latestObservedDate->daysInMonth : 30;
         $observedGeneration = (float) $monthlyWindow->sum('generation_kwh');
-        $observedSavings = (float) $monthlyWindow->sum('savings_cop');
         $averageDailyGeneration = $monthlyWindow->isNotEmpty()
             ? (float) $monthlyWindow->avg('generation_kwh')
             : ($calculationResult ? (float) $calculationResult->estimated_monthly_generation_kwh / 30 : 0.0);
-        $averageDailySavings = $monthlyWindow->isNotEmpty()
-            ? (float) $monthlyWindow->avg('savings_cop')
-            : ($averageDailyGeneration * (float) $solarProject->energy_rate_cop_kwh);
         $projectedGeneration = $averageDailyGeneration * $targetMonthDays;
-        $projectedSavings = $averageDailySavings * $targetMonthDays;
+        $latestMonthlyResult = $monthlyResults->last();
 
-        $generation = $observedGeneration;
-        $consumption = ($solarProject->monthlyConsumption() / $targetMonthDays) * $observedDays;
-        $savings = $observedSavings;
+        $generation = $latestMonthlyResult instanceof MonthlyResult
+            ? (float) $latestMonthlyResult->estimated_generation_kwh
+            : ($monthlyWindow->isNotEmpty()
+                ? $projectedGeneration
+                : ($calculationResult ? (float) $calculationResult->estimated_monthly_generation_kwh : 0.0));
+        $consumption = $solarProject->monthlyConsumption();
+        $savings = $generation * (float) $solarProject->energy_rate_cop_kwh;
         $coverage = $this->coverage($generation, $consumption);
         $balance = $generation - $consumption;
 
@@ -367,10 +367,10 @@ class DashboardTimeScaleService
             'key' => 'monthly',
             'label' => 'Mensual',
             'rangeLabel' => $monthlyWindow->isNotEmpty()
-                ? "Acumulado mensual con {$observedDays} dias observados"
+                ? "Mes activo con {$observedDays} dias de datos disponibles"
                 : $latestLabel,
             'summary' => $monthlyWindow->isNotEmpty()
-                ? 'La vista mensual muestra acumulado real hasta hoy. La proyeccion de cierre queda como referencia secundaria.'
+                ? 'La vista mensual compara la generacion del mes activo contra el consumo mensual base. Los datos diarios quedan como referencia operativa.'
                 : $this->monthlySummary($coverage, $savings),
             'stateTitle' => $this->coverageTitle($coverage),
             'stateTone' => $this->coverageTone($coverage),
@@ -403,20 +403,21 @@ class DashboardTimeScaleService
             'table' => [
                 'title' => 'Desglose mensual operativo',
                 'subtitle' => $monthlyWindow->isNotEmpty()
-                    ? 'Comportamiento diario observado del ultimo mes. Los KPIs muestran acumulado real del mes hasta la fecha.'
+                    ? 'Comportamiento diario disponible del ultimo mes. Los KPIs muestran la escala mensual completa del proyecto.'
                     : 'Comportamiento diario del ultimo mes disponible.',
                 'headers' => ['Dia', 'Radiacion', 'Generacion', 'Consumo', 'Cobertura', 'Ahorro'],
                 'rows' => $this->tableRows($monthlyWindow),
                 'footer' => $this->tableFooter(
-                    $monthlyWindow->isNotEmpty() ? 'Acumulado observado' : 'Total del mes',
+                    $monthlyWindow->isNotEmpty() ? 'Total disponible del mes' : 'Total del mes',
                     $monthlyWindow
                 ),
             ],
             'highlights' => [
                 $this->highlight('Mes activo', $latestLabel),
-                $this->highlight('Generacion mensual acumulada', number_format($generation, 2, ',', '.').' kWh'),
+                $this->highlight('Generacion mensual estimada', number_format($generation, 2, ',', '.').' kWh'),
+                $this->highlight('Generacion disponible del mes', number_format($observedGeneration, 2, ',', '.').' kWh'),
                 $this->highlight('Proyeccion al cierre del mes', number_format($projectedGeneration, 2, ',', '.').' kWh'),
-                $this->highlight('Ahorro acumulado del mes', '$ '.number_format($savings, 0, ',', '.').' COP'),
+                $this->highlight('Ahorro mensual estimado', '$ '.number_format($savings, 0, ',', '.').' COP'),
                 $this->highlight('Consumo base mensual', number_format($solarProject->monthlyConsumption(), 2, ',', '.').' kWh'),
             ],
         ];
@@ -440,20 +441,18 @@ class DashboardTimeScaleService
     ): array {
         $observedDays = max(1, $dailyBreakdown->count());
         $observedGeneration = (float) $dailyBreakdown->sum('generation_kwh');
-        $observedSavings = (float) $dailyBreakdown->sum('savings_cop');
         $projectedMonthlyGeneration = $monthlyWindow->isNotEmpty()
             ? ((float) $monthlyWindow->avg('generation_kwh')) * (($monthlyWindow->last()['date'] ?? null) instanceof Carbon ? $monthlyWindow->last()['date']->daysInMonth : 30)
             : ($calculationResult ? (float) $calculationResult->estimated_monthly_generation_kwh : 0.0);
-        $projectedMonthlySavings = $monthlyWindow->isNotEmpty()
-            ? ((float) $monthlyWindow->avg('savings_cop')) * (($monthlyWindow->last()['date'] ?? null) instanceof Carbon ? $monthlyWindow->last()['date']->daysInMonth : 30)
-            : ($calculationResult ? ((float) $calculationResult->estimated_annual_savings_cop / 12) : 0.0);
-        $targetAnnualDays = $this->projectionDaysForAnnualScale($solarProject);
         $projectedAnnualGeneration = $projectedMonthlyGeneration * 12;
-        $projectedAnnualSavings = $projectedMonthlySavings * 12;
 
-        $generation = $observedGeneration;
-        $consumption = ($solarProject->annualConsumption() / $targetAnnualDays) * $observedDays;
-        $savings = $observedSavings;
+        $generation = $calculationResult
+            ? (float) $calculationResult->estimated_annual_generation_kwh
+            : ($dailyBreakdown->isNotEmpty() ? $observedGeneration : (float) $monthlyResults->sum('estimated_generation_kwh'));
+        $consumption = $solarProject->annualConsumption();
+        $savings = $calculationResult
+            ? (float) $calculationResult->estimated_annual_savings_cop
+            : ($generation * (float) $solarProject->energy_rate_cop_kwh);
         $coverage = $this->coverage($generation, $consumption);
         $balance = $generation - $consumption;
 
@@ -461,10 +460,10 @@ class DashboardTimeScaleService
             'key' => 'annual',
             'label' => 'Anual',
             'rangeLabel' => $dailyBreakdown->isNotEmpty()
-                ? "Acumulado anual con {$observedDays} dias observados"
-                : 'Vision anual',
+                ? "Proyeccion anual con {$observedDays} dias de contexto disponible"
+                : 'Vision anual proyectada',
             'summary' => $dailyBreakdown->isNotEmpty()
-                ? 'La lectura anual muestra acumulado real del ano hasta hoy. La proyeccion de cierre anual queda como contexto secundario.'
+                ? 'La lectura anual muestra la proyeccion completa del proyecto. Los datos disponibles quedan como contexto secundario.'
                 : (string) ($energyAnalysis['coverageInterpretation'] ?? 'No hay resumen anual disponible.'),
             'stateTitle' => $this->coverageTitle($coverage),
             'stateTone' => $this->coverageTone($coverage),
@@ -511,7 +510,7 @@ class DashboardTimeScaleService
             'table' => [
                 'title' => 'Desglose anual',
                 'subtitle' => $dailyBreakdown->isNotEmpty()
-                    ? 'Resumen mensual observado y KPI anual acumulado hasta la fecha actual.'
+                    ? 'Resumen mensual disponible y KPI anual proyectado desde el consumo mensual base.'
                     : 'Resumen mensual consolidado del proyecto.',
                 'headers' => ['Mes', 'Dias', 'Radiacion', 'Generacion', 'Consumo', 'Cobertura', 'Ahorro'],
                 'rows' => $monthlyResults->map(fn (MonthlyResult $monthlyResult) => [
@@ -524,26 +523,20 @@ class DashboardTimeScaleService
                     'savings' => (float) $monthlyResult->estimated_savings_cop,
                 ])->values()->all(),
                 'footer' => [
-                    'label' => $dailyBreakdown->isNotEmpty() ? 'Acumulado observado' : 'Total anual',
-                    'generation' => $dailyBreakdown->isNotEmpty() ? $observedGeneration : (float) $monthlyResults->sum('estimated_generation_kwh'),
-                    'consumption' => (float) $monthlyResults->sum('estimated_consumption_kwh'),
-                    'savings' => $dailyBreakdown->isNotEmpty() ? $observedSavings : (float) $monthlyResults->sum('estimated_savings_cop'),
+                    'label' => 'Total anual proyectado',
+                    'generation' => $generation,
+                    'consumption' => $consumption,
+                    'savings' => $savings,
                 ],
             ],
             'highlights' => [
                 $this->highlight('Consumo anual base', number_format($solarProject->annualConsumption(), 2, ',', '.').' kWh'),
-                $this->highlight('Generacion anual acumulada', number_format($generation, 2, ',', '.').' kWh'),
+                $this->highlight('Generacion anual estimada', number_format($generation, 2, ',', '.').' kWh'),
+                $this->highlight('Generacion disponible como contexto', number_format($observedGeneration, 2, ',', '.').' kWh'),
                 $this->highlight('Proyeccion al cierre del ano', number_format($projectedAnnualGeneration, 2, ',', '.').' kWh'),
-                $this->highlight('Ahorro anual acumulado', '$ '.number_format($savings, 0, ',', '.').' COP'),
+                $this->highlight('Ahorro anual estimado', '$ '.number_format($savings, 0, ',', '.').' COP'),
             ],
         ];
-    }
-
-    private function projectionDaysForAnnualScale(SolarProject $solarProject): int
-    {
-        return $solarProject->start_date instanceof Carbon
-            ? $solarProject->start_date->daysInYear
-            : now()->daysInYear;
     }
 
     /**
@@ -558,9 +551,16 @@ class DashboardTimeScaleService
         float $balance,
         ?CalculationResult $calculationResult,
     ): array {
-        $scopeType = str_contains($scopeLabel, 'mensual') || str_contains($scopeLabel, 'anual')
-            ? 'acumulado'
-            : 'actual';
+        $scopeType = match ($scopeLabel) {
+            'anual' => 'proyectado',
+            'mensual' => 'estimado',
+            default => 'operativo',
+        };
+        $consumptionDescription = match ($scopeLabel) {
+            'mensual' => 'Consumo mensual base registrado en el proyecto.',
+            'anual' => 'Consumo anual base derivado del consumo mensual del proyecto.',
+            default => "Demanda {$scopeType} usada para la lectura {$scopeLabel}.",
+        };
 
         return [
             [
@@ -568,16 +568,18 @@ class DashboardTimeScaleService
                 'value' => $consumption,
                 'type' => 'kwh',
                 'tone' => 'text-[color:var(--solar-text)]',
-                'description' => "Demanda {$scopeType} usada para la lectura {$scopeLabel}.",
+                'description' => $consumptionDescription,
             ],
             [
                 'label' => "Generacion {$scopeLabel}",
                 'value' => $generation,
                 'type' => 'kwh',
                 'tone' => 'text-[color:var(--solar-text)]',
-                'description' => str_contains($scopeLabel, 'diaria')
-                    ? "Energia solar observada para la lectura {$scopeLabel}."
-                    : "Energia solar {$scopeType} hasta la fecha para la lectura {$scopeLabel}.",
+                'description' => match ($scopeLabel) {
+                    'diaria' => 'Energia solar del ultimo dia disponible o estimacion diaria derivada.',
+                    'anual' => 'Energia solar anual proyectada para dimensionamiento e impacto.',
+                    default => "Energia solar {$scopeType} para la escala {$scopeLabel}.",
+                },
             ],
             [
                 'label' => "Cobertura {$scopeLabel}",
@@ -591,7 +593,7 @@ class DashboardTimeScaleService
                 'value' => $savings,
                 'type' => 'money',
                 'tone' => 'text-[color:var(--solar-text)]',
-                'description' => "Impacto economico {$scopeType} {$scopeLabel}.",
+                'description' => "Impacto economico {$scopeType} en escala {$scopeLabel}.",
             ],
             [
                 'label' => "Balance {$scopeLabel}",

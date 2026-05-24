@@ -43,7 +43,7 @@ class SolarCalculationService
         $estimatedDailyGeneration = $measuredGeneration / $weatherDays;
         $estimatedAnnualGeneration = $estimatedDailyGeneration * $targetAnnualDays;
         $estimatedMonthlyGeneration = $estimatedAnnualGeneration / 12;
-        $annualConsumption = $solarProject->annualConsumption();
+        $consumptionScales = $this->consumptionScales($solarProject);
 
         DB::transaction(function () use (
             $solarProject,
@@ -54,7 +54,7 @@ class SolarCalculationService
             $estimatedDailyGeneration,
             $estimatedMonthlyGeneration,
             $estimatedAnnualGeneration,
-            $annualConsumption,
+            $consumptionScales,
         ) {
             $solarProject->calculationResult()->updateOrCreate(
                 ['solar_project_id' => $solarProject->id],
@@ -65,8 +65,8 @@ class SolarCalculationService
                     'estimated_daily_generation_kwh' => $estimatedDailyGeneration,
                     'estimated_monthly_generation_kwh' => $estimatedMonthlyGeneration,
                     'estimated_annual_generation_kwh' => $estimatedAnnualGeneration,
-                    'annual_consumption_kwh' => $annualConsumption,
-                    'coverage_percentage' => $this->calculateCoveragePercentage($estimatedAnnualGeneration, $annualConsumption),
+                    'annual_consumption_kwh' => $consumptionScales['annual'],
+                    'coverage_percentage' => $this->calculateCoveragePercentage($estimatedAnnualGeneration, $consumptionScales['annual']),
                     'estimated_annual_savings_cop' => $this->calculateSavings($estimatedAnnualGeneration, (float) $solarProject->energy_rate_cop_kwh),
                 ],
             );
@@ -101,6 +101,30 @@ class SolarCalculationService
     public function calculateConsumptionMonthly(float $annualConsumptionKwh): float
     {
         return $annualConsumptionKwh / 12;
+    }
+
+    public function calculateConsumptionDaily(float $monthlyConsumptionKwh): float
+    {
+        return $monthlyConsumptionKwh / 30;
+    }
+
+    public function calculateConsumptionAnnual(float $monthlyConsumptionKwh): float
+    {
+        return $monthlyConsumptionKwh * 12;
+    }
+
+    /**
+     * @return array{monthly: float, daily: float, annual: float}
+     */
+    public function consumptionScales(SolarProject $solarProject): array
+    {
+        $monthlyConsumption = $solarProject->monthlyConsumption();
+
+        return [
+            'monthly' => $monthlyConsumption,
+            'daily' => $this->calculateConsumptionDaily($monthlyConsumption),
+            'annual' => $this->calculateConsumptionAnnual($monthlyConsumption),
+        ];
     }
 
     public function calculateSavings(float $generatedEnergyKwh, float $energyRateCopKwh): float

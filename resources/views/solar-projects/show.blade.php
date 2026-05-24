@@ -10,6 +10,8 @@
     $dashboard = $dashboard ?? ['executiveSummary' => ['enabled' => false]];
     $hasWeatherData = $solarProject->weather_data_count > 0;
     $hasWeatherStationData = ($weatherStationStats['total'] ?? 0) > 0;
+    $hasTimeScaleCharts = collect($timeScales['scales'] ?? [])
+        ->contains(fn ($scale) => ! empty($scale['chart']['labels'] ?? []));
 
     $formatNumber = fn ($value, int $decimals = 2) => number_format((float) $value, $decimals, ',', '.');
     $formatKwh = fn ($value) => $formatNumber($value).' kWh';
@@ -331,6 +333,9 @@
                 </div>
 
                 @if ($activeScale)
+                    <script type="application/json" id="solar-timescale-chart-data">@json($timeScales)</script>
+
+                    @if ($hasTimeScaleCharts)
                     <section class="solar-card solar-results-workbench w-full min-w-0 max-w-full">
                         <div class="solar-results-workbench__head">
                             <div>
@@ -438,12 +443,10 @@
                                 </div>
                             </div>
                         </div>
-
-                        <script type="application/json" id="solar-timescale-chart-data">@json($timeScales)</script>
-                    </section>
+                        </section>
+                    @endif
 
                     {{-- Analysis panels moved below to span full width --}}
-
                 @else
                     <div class="solar-alert solar-alert-warning">
                         {{ $calculationResult ? 'Los calculos generales existen, pero aun no hay suficientes datos temporales para activar el dashboard dinamico.' : 'Ejecuta los calculos solares para visualizar el dashboard dinamico del proyecto.' }}

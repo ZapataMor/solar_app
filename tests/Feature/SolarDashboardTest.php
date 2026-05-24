@@ -93,6 +93,42 @@ class SolarDashboardTest extends TestCase
             ->assertSee('"daily"', false);
     }
 
+    public function test_monthly_kpi_uses_project_monthly_consumption_not_partial_observed_consumption(): void
+    {
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'monthly_consumption_kwh' => 800,
+            'annual_consumption_kwh' => 9600,
+        ]);
+        $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+        $solarProject->calculationResult()->create([
+            ...$this->calculationResultAttributes(85),
+            'estimated_monthly_generation_kwh' => 990.94,
+            'annual_consumption_kwh' => 9600,
+        ]);
+        $solarProject->monthlyResults()->create([
+            'month_number' => 5,
+            'month_name' => 'mayo',
+            'days_in_month' => 31,
+            'average_daily_solar_radiation' => 5.2,
+            'estimated_generation_kwh' => 990.94,
+            'estimated_consumption_kwh' => 800,
+            'coverage_percentage' => 123.8675,
+            'estimated_savings_cop' => 812570.8,
+        ]);
+        $this->createPartialWeatherData($solarProject);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertSee('Consumo mensual')
+            ->assertSee('800,00 kWh')
+            ->assertSee('Generacion mensual')
+            ->assertSee('990,94 kWh')
+            ->assertSee('Consumo mensual base registrado en el proyecto.');
+    }
+
     public function test_show_does_not_render_chart_containers_when_monthly_results_do_not_exist(): void
     {
         $user = User::factory()->create();
@@ -374,6 +410,20 @@ class SolarDashboardTest extends TestCase
             'coverage_percentage' => 90,
             'estimated_savings_cop' => 738000,
         ]);
+    }
+
+    private function createPartialWeatherData(SolarProject $solarProject): void
+    {
+        foreach (range(1, 16) as $day) {
+            $solarProject->weatherData()->create([
+                'date_time' => sprintf('2026-05-%02d 00:00:00', $day),
+                'allsky_sfc_sw_dwn' => 216.666667,
+                't2m' => 28,
+                'rh2m' => 75,
+                'prectotcorr' => 0,
+                'ws10m' => 4,
+            ]);
+        }
     }
 
     /**
