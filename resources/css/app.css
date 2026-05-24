@@ -1733,7 +1733,7 @@ select:focus[data-flux-control] {
     .solar-results-workbench__charts {
         display: grid;
         gap: 1rem;
-        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
         min-width: 0;
     }
 
@@ -1754,10 +1754,21 @@ select:focus[data-flux-control] {
     }
 
     .solar-results-workbench .solar-chart-canvas {
-        height: 13rem;
+        height: 16rem;
         border-radius: 0.75rem;
         background: color-mix(in srgb, var(--solar-surface-muted) 52%, transparent);
         padding: 0.5rem;
+    }
+
+    @media (min-width: 1200px) {
+        .solar-results-workbench__charts {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.25rem;
+        }
+
+        .solar-results-workbench .solar-chart-canvas {
+            height: 18rem;
+        }
     }
 
     .solar-results-workbench__table {
