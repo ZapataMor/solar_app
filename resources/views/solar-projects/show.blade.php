@@ -450,102 +450,6 @@
                     </div>
                 @endif
 
-                @if ($hasWeatherStationData)
-                    <section class="solar-card w-full min-w-0 max-w-full">
-                        <div class="flex flex-wrap items-start justify-between gap-4">
-                            <div>
-                                <p class="solar-kicker">Clima y radiacion</p>
-                                <h2 class="text-2xl text-[color:var(--solar-text)]">Detalle meteorologico</h2>
-                                <p class="solar-subtitle mt-2">Contexto en tiempo real para interpretar cobertura, ahorro y decisiones diarias.</p>
-                            </div>
-                            <div class="solar-pill">
-                                {{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas
-                            </div>
-                        </div>
-
-                        <div class="solar-weather-board mt-4">
-                            <div class="solar-weather-kpis">
-                                <div class="solar-metric-card">
-                                    <p class="solar-metric-label">Ultima medicion</p>
-                                    <p class="solar-metric-value text-xl">{{ $latestWeatherStationReading?->measured_at?->format('d/m H:i') ?? 'N/A' }}</p>
-                                    <p class="solar-metric-copy">Lectura mas reciente del centro meteorologico.</p>
-                                </div>
-                                <div class="solar-metric-card">
-                                    <p class="solar-metric-label">Radiacion promedio</p>
-                                    <p class="solar-metric-value text-xl">{{ $formatNumber($weatherStationStats['averageRadiation'] ?? 0, 2) }}</p>
-                                    <p class="solar-metric-copy">Promedio de las lecturas locales disponibles.</p>
-                                </div>
-                                <div class="solar-metric-card">
-                                    <p class="solar-metric-label">UV maximo</p>
-                                    <p class="solar-metric-value text-xl">{{ $formatNumber($weatherStationStats['maxUvIndex'] ?? 0, 1) }}</p>
-                                    <p class="solar-metric-copy">Indice UV mas alto registrado.</p>
-                                </div>
-                                <div class="solar-metric-card">
-                                    <p class="solar-metric-label">Fuentes de datos</p>
-                                    <p class="solar-metric-value text-xl">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} / {{ number_format($solarProject->weather_data_count, 0, ',', '.') }}</p>
-                                    <p class="solar-metric-copy">Estacion local vs registros NASA POWER.</p>
-                                </div>
-                            </div>
-
-                            <div class="solar-weather-charts">
-                                <div class="solar-weather-chart-panel">
-                                    <p class="solar-kicker">Tendencia diaria</p>
-                                    <h3>Radiacion observada</h3>
-                                    <div class="solar-weather-chart-canvas">
-                                        <canvas id="weather-station-radiation-chart" aria-label="Radiacion diaria del centro meteorologico" role="img"></canvas>
-                                    </div>
-                                </div>
-
-                                <div class="solar-metric-card solar-weather-iuv-card">
-                                    <p class="solar-metric-label">IUV actual</p>
-                                    <p class="solar-metric-value" data-weather-station-iuv-value>{{ $latestUvIndex !== null ? $formatNumber($latestUvIndex, 2) : 'N/A' }}</p>
-                                    <p class="solar-metric-copy" data-weather-station-iuv-risk>{{ $uvRisk }}</p>
-                                    <div class="solar-weather-iuv-bar">
-                                        <div data-weather-station-iuv-bar style="width: {{ $uvIndexPercent }}%"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="solar-weather-chart-panel">
-                                <p class="solar-kicker">Lecturas recientes</p>
-                                <h3>Radiacion, UVA, UVB e IUV</h3>
-                                <div class="solar-weather-chart-canvas">
-                                    <canvas id="weather-station-realtime-chart" aria-label="Variables UV y radiacion recientes" role="img"></canvas>
-                                </div>
-                            </div>
-
-                            <div class="solar-table-shell">
-                                <div class="solar-table-scroll">
-                                    <table class="solar-table solar-table-fit">
-                                        <thead>
-                                            <tr>
-                                                <th>Fecha</th>
-                                                <th>Rad.</th>
-                                                <th>UVA</th>
-                                                <th>UVB</th>
-                                                <th>IUV</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($recentWeatherStationReadings as $reading)
-                                                <tr>
-                                                    <td class="solar-table-fit-period">{{ $reading->measured_at->format('d/m H:i') }}</td>
-                                                    <td class="solar-table-fit-num">{{ $reading->radiationValue() !== null ? $formatNumber($reading->radiationValue(), 2) : 'N/A' }}</td>
-                                                    <td class="solar-table-fit-num">{{ $reading->uva !== null ? $formatNumber($reading->uva, 2) : 'N/A' }}</td>
-                                                    <td class="solar-table-fit-num">{{ $reading->uvb !== null ? $formatNumber($reading->uvb, 2) : 'N/A' }}</td>
-                                                    <td class="solar-table-fit-num">{{ $reading->uv_index !== null ? $formatNumber($reading->uv_index, 2) : 'N/A' }}</td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <script type="application/json" id="weather-station-realtime-chart-data">@json($weatherStationChartRows)</script>
-                            <script type="application/json" id="weather-station-chart-data">@json($weatherStationChartData)</script>
-                        </div>
-                    </section>
-                @endif
             </section>
 
             <aside class="min-w-0 space-y-6">
@@ -737,6 +641,105 @@
                     </div>
                 </section>
 </div>
+        @endif
+
+        @if ($hasWeatherStationData)
+            <div class="mt-6 xl:col-span-2">
+                <section class="solar-card w-full min-w-0 max-w-full">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <p class="solar-kicker">Clima y radiacion</p>
+                            <h2 class="text-2xl text-[color:var(--solar-text)]">Detalle meteorologico</h2>
+                            <p class="solar-subtitle mt-2">Contexto en tiempo real para interpretar cobertura, ahorro y decisiones diarias.</p>
+                        </div>
+                        <div class="solar-pill">
+                            {{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} lecturas
+                        </div>
+                    </div>
+
+                    <div class="solar-weather-board mt-4">
+                        <div class="solar-weather-kpis">
+                            <div class="solar-metric-card">
+                                <p class="solar-metric-label">Ultima medicion</p>
+                                <p class="solar-metric-value text-xl">{{ $latestWeatherStationReading?->measured_at?->format('d/m H:i') ?? 'N/A' }}</p>
+                                <p class="solar-metric-copy">Lectura mas reciente del centro meteorologico.</p>
+                            </div>
+                            <div class="solar-metric-card">
+                                <p class="solar-metric-label">Radiacion promedio</p>
+                                <p class="solar-metric-value text-xl">{{ $formatNumber($weatherStationStats['averageRadiation'] ?? 0, 2) }}</p>
+                                <p class="solar-metric-copy">Promedio de las lecturas locales disponibles.</p>
+                            </div>
+                            <div class="solar-metric-card">
+                                <p class="solar-metric-label">UV maximo</p>
+                                <p class="solar-metric-value text-xl">{{ $formatNumber($weatherStationStats['maxUvIndex'] ?? 0, 1) }}</p>
+                                <p class="solar-metric-copy">Indice UV mas alto registrado.</p>
+                            </div>
+                            <div class="solar-metric-card">
+                                <p class="solar-metric-label">Fuentes de datos</p>
+                                <p class="solar-metric-value text-xl">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }} / {{ number_format($solarProject->weather_data_count, 0, ',', '.') }}</p>
+                                <p class="solar-metric-copy">Estacion local vs registros NASA POWER.</p>
+                            </div>
+                        </div>
+
+                        <div class="solar-weather-charts">
+                            <div class="solar-weather-chart-panel">
+                                <p class="solar-kicker">Tendencia diaria</p>
+                                <h3>Radiacion observada</h3>
+                                <div class="solar-weather-chart-canvas">
+                                    <canvas id="weather-station-radiation-chart" aria-label="Radiacion diaria del centro meteorologico" role="img"></canvas>
+                                </div>
+                            </div>
+
+                            <div class="solar-metric-card solar-weather-iuv-card">
+                                <p class="solar-metric-label">IUV actual</p>
+                                <p class="solar-metric-value" data-weather-station-iuv-value>{{ $latestUvIndex !== null ? $formatNumber($latestUvIndex, 2) : 'N/A' }}</p>
+                                <p class="solar-metric-copy" data-weather-station-iuv-risk>{{ $uvRisk }}</p>
+                                <div class="solar-weather-iuv-bar">
+                                    <div data-weather-station-iuv-bar style="width: {{ $uvIndexPercent }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="solar-weather-chart-panel">
+                            <p class="solar-kicker">Lecturas recientes</p>
+                            <h3>Radiacion, UVA, UVB e IUV</h3>
+                            <div class="solar-weather-chart-canvas">
+                                <canvas id="weather-station-realtime-chart" aria-label="Variables UV y radiacion recientes" role="img"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="solar-table-shell">
+                            <div class="solar-table-scroll">
+                                <table class="solar-table solar-table-fit">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Rad.</th>
+                                            <th>UVA</th>
+                                            <th>UVB</th>
+                                            <th>IUV</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($recentWeatherStationReadings as $reading)
+                                            <tr>
+                                                <td class="solar-table-fit-period">{{ $reading->measured_at->format('d/m H:i') }}</td>
+                                                <td class="solar-table-fit-num">{{ $reading->radiationValue() !== null ? $formatNumber($reading->radiationValue(), 2) : 'N/A' }}</td>
+                                                <td class="solar-table-fit-num">{{ $reading->uva !== null ? $formatNumber($reading->uva, 2) : 'N/A' }}</td>
+                                                <td class="solar-table-fit-num">{{ $reading->uvb !== null ? $formatNumber($reading->uvb, 2) : 'N/A' }}</td>
+                                                <td class="solar-table-fit-num">{{ $reading->uv_index !== null ? $formatNumber($reading->uv_index, 2) : 'N/A' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <script type="application/json" id="weather-station-realtime-chart-data">@json($weatherStationChartRows)</script>
+                        <script type="application/json" id="weather-station-chart-data">@json($weatherStationChartData)</script>
+                    </div>
+                </section>
+            </div>
         @endif
         </div>
     </div>

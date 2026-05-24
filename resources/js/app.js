@@ -109,6 +109,15 @@ const numberFormatter = new Intl.NumberFormat('es-CO', {
     maximumFractionDigits: 2,
 });
 
+const integerFormatter = new Intl.NumberFormat('es-CO', {
+    maximumFractionDigits: 0,
+});
+
+const radiationFormatter = new Intl.NumberFormat('es-CO', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+});
+
 const moneyFormatter = new Intl.NumberFormat('es-CO', {
     currency: 'COP',
     maximumFractionDigits: 0,
@@ -217,6 +226,30 @@ const formatDashboardMetric = (kpi) => {
     }
 };
 
+const insightToneClass = (level) => ({
+    success: 'solar-insight-card-success',
+    warning: 'solar-insight-card-warning',
+    danger: 'solar-insight-card-danger',
+    info: 'solar-insight-card-info',
+}[level] ?? 'solar-insight-card-info');
+
+const recommendationTypeLabel = (type) => ({
+    recommendation: 'Recomendacion',
+    risk: 'Riesgo',
+    alert: 'Alerta',
+    opportunity: 'Oportunidad',
+}[type] ?? 'Accion');
+
+const recommendationPriorityClass = (priority) => ({
+    alta: 'solar-pill-danger',
+    media: 'solar-pill-warn',
+    baja: 'solar-pill',
+}[priority] ?? 'solar-pill-warn');
+
+const compactMoney = (value) => moneyFormatter.format(value ?? 0).replace(/\s/g, ' ');
+
+const tableHasDaysColumn = (scale) => (scale?.table?.headers ?? []).length > 6;
+
 const renderScaleKpis = (scale) => {
     const container = document.querySelector('[data-scale-kpis]');
 
@@ -235,6 +268,41 @@ const renderScaleKpis = (scale) => {
     `).join('');
 };
 
+const updateExecutiveReportKpis = (scale) => {
+    const kpis = scale?.kpis ?? [];
+    const generationKpi = kpis.find((kpi) => String(kpi.label ?? '').toLowerCase().includes('generacion'));
+    const savingsKpi = kpis.find((kpi) => String(kpi.label ?? '').toLowerCase().includes('ahorro'));
+    const coverageKpi = kpis.find((kpi) => String(kpi.label ?? '').toLowerCase().includes('cobertura'));
+    const risk = String(scale?.risk ?? '');
+    const riskLower = risk.toLowerCase();
+    const alertTone = riskLower.includes('crit')
+        ? 'danger'
+        : (risk ? 'warn' : 'success');
+    const alertLabel = alertTone === 'danger'
+        ? 'Atencion requerida'
+        : (alertTone === 'warn' ? 'Revisar condiciones' : 'Sin alerta critica');
+    const bindings = [
+        ['[data-report-generation-label]', generationKpi?.label ?? 'Generacion'],
+        ['[data-report-generation-value]', generationKpi ? formatDashboardMetric(generationKpi) : 'Pendiente'],
+        ['[data-report-savings-label]', savingsKpi?.label ?? 'Ahorro'],
+        ['[data-report-savings-value]', savingsKpi ? formatDashboardMetric(savingsKpi) : 'Pendiente'],
+        ['[data-report-coverage-label]', coverageKpi?.label ?? 'Cobertura'],
+        ['[data-report-coverage-value]', coverageKpi ? formatDashboardMetric(coverageKpi) : 'Pendiente'],
+        ['[data-report-alert-label]', alertLabel],
+    ];
+
+    bindings.forEach(([selector, value]) => {
+        document.querySelectorAll(selector).forEach((element) => {
+            element.textContent = value;
+        });
+    });
+
+    document.querySelectorAll('[data-report-alert-kpi]').forEach((element) => {
+        element.classList.remove('solar-report-kpi-warn', 'solar-report-kpi-danger', 'solar-report-kpi-success');
+        element.classList.add(`solar-report-kpi-${alertTone === 'warn' ? 'warn' : alertTone}`);
+    });
+};
+
 const renderScaleInsights = (scale) => {
     const container = document.querySelector('[data-scale-insights]');
 
@@ -242,12 +310,17 @@ const renderScaleInsights = (scale) => {
         return;
     }
 
-    container.innerHTML = (scale?.insights ?? []).map((insight) => `
-        <div class="rounded-2xl border border-[rgba(129,88,44,0.12)] bg-white/70 p-4 dark:border-zinc-700/70 dark:bg-zinc-950/40">
-            <p class="text-sm font-semibold text-[color:var(--solar-text)]">${escapeHtml(insight.title ?? 'Insight')}</p>
-            <p class="mt-2 text-sm leading-6 text-[color:var(--solar-text-muted)]">${escapeHtml(insight.message ?? '')}</p>
-        </div>
-    `).join('');
+    container.innerHTML = (scale?.insights ?? []).length
+        ? (scale?.insights ?? []).map((insight) => `
+        <article class="solar-insight-card ${insightToneClass(insight.level ?? 'info')}">
+            <div class="solar-insight-card-head">
+                <p class="solar-insight-card-title">${escapeHtml(insight.title ?? 'Insight')}</p>
+                <span class="solar-pill">${escapeHtml(String(insight.level ?? 'info'))}</span>
+            </div>
+            <p class="solar-insight-card-copy">${escapeHtml(insight.message ?? '')}</p>
+        </article>
+    `).join('')
+        : '<div class="solar-alert solar-alert-warning">Sin insights para la escala activa.</div>';
 };
 
 const renderScaleRecommendations = (scale) => {
@@ -257,12 +330,19 @@ const renderScaleRecommendations = (scale) => {
         return;
     }
 
-    container.innerHTML = (scale?.recommendations ?? []).map((recommendation) => `
-        <div class="rounded-2xl border border-[rgba(129,88,44,0.12)] bg-white/70 p-4 dark:border-zinc-700/70 dark:bg-zinc-950/40">
-            <p class="text-sm font-semibold text-[color:var(--solar-text)]">${escapeHtml(recommendation.type ?? 'recomendacion')}</p>
-            <p class="mt-2 text-sm leading-6 text-[color:var(--solar-text-muted)]">${escapeHtml(recommendation.message ?? '')}</p>
-        </div>
-    `).join('');
+    const recommendations = scale?.recommendations ?? [];
+
+    container.innerHTML = recommendations.length
+        ? recommendations.map((recommendation) => `
+        <article class="solar-recommendation-card">
+            <div class="solar-recommendation-card-head">
+                <p class="solar-recommendation-card-title">${escapeHtml(recommendationTypeLabel(recommendation.type ?? 'recomendacion'))}</p>
+                <span class="solar-pill ${recommendationPriorityClass(recommendation.priority ?? 'media')}">Prioridad ${escapeHtml(recommendation.priority ?? 'media')}</span>
+            </div>
+            <p class="solar-recommendation-card-copy">${escapeHtml(recommendation.message ?? '')}</p>
+        </article>
+    `).join('')
+        : '<div class="solar-alert solar-alert-warning">Sin recomendaciones para la escala activa.</div>';
 };
 
 const renderScaleTable = (scale) => {
@@ -281,61 +361,182 @@ const renderScaleTable = (scale) => {
     }
 
     if (head) {
-        head.innerHTML = `<tr>${(scale?.table?.headers ?? []).map((header) => `<th class="px-3 py-2">${escapeHtml(header)}</th>`).join('')}</tr>`;
+        head.innerHTML = `<tr>${(scale?.table?.headers ?? []).map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr>`;
     }
 
     if (body) {
+        const hasDays = tableHasDaysColumn(scale);
+
         body.innerHTML = (scale?.table?.rows ?? []).map((row) => `
             <tr>
-                <td class="px-3 py-2 font-medium">${escapeHtml(row.period ?? '')}</td>
-                <td class="px-3 py-2">${escapeHtml(numberFormatter.format(row.radiation ?? 0))} kWh/m2/dia</td>
-                <td class="px-3 py-2">${escapeHtml(numberFormatter.format(row.generation ?? 0))} kWh</td>
-                <td class="px-3 py-2">${escapeHtml(numberFormatter.format(row.consumption ?? 0))} kWh</td>
-                <td class="px-3 py-2">${escapeHtml(numberFormatter.format(row.coverage ?? 0))}%</td>
-                <td class="px-3 py-2">${escapeHtml(moneyFormatter.format(row.savings ?? 0))}</td>
+                <td class="solar-table-fit-period">${escapeHtml(row.period ?? '')}</td>
+                ${hasDays ? `<td class="solar-table-fit-num">${escapeHtml(String(row.days ?? '—'))}</td>` : ''}
+                <td class="solar-table-fit-num" title="${escapeHtml(numberFormatter.format(row.radiation ?? 0))} kWh/m²/día">${escapeHtml(radiationFormatter.format(row.radiation ?? 0))}</td>
+                <td class="solar-table-fit-num" title="${escapeHtml(numberFormatter.format(row.generation ?? 0))} kWh">${escapeHtml(integerFormatter.format(row.generation ?? 0))}</td>
+                <td class="solar-table-fit-num" title="${escapeHtml(numberFormatter.format(row.consumption ?? 0))} kWh">${escapeHtml(integerFormatter.format(row.consumption ?? 0))}</td>
+                <td class="solar-table-fit-num" title="${escapeHtml(numberFormatter.format(row.coverage ?? 0))}%">${escapeHtml(integerFormatter.format(row.coverage ?? 0))}%</td>
+                <td class="solar-table-fit-num" title="${escapeHtml(moneyFormatter.format(row.savings ?? 0))}">${escapeHtml(compactMoney(row.savings ?? 0))}</td>
             </tr>
         `).join('');
     }
 
     if (foot) {
         const footer = scale?.table?.footer ?? {};
+        const hasDays = tableHasDaysColumn(scale);
+        const labelColspan = hasDays ? 3 : 2;
+
         foot.innerHTML = `
             <tr>
-                <td class="px-3 py-3" colspan="2">${escapeHtml(footer.label ?? 'Total')}</td>
-                <td class="px-3 py-3">${escapeHtml(numberFormatter.format(footer.generation ?? 0))} kWh</td>
-                <td class="px-3 py-3">${escapeHtml(numberFormatter.format(footer.consumption ?? 0))} kWh</td>
-                <td class="px-3 py-3"></td>
-                <td class="px-3 py-3">${escapeHtml(moneyFormatter.format(footer.savings ?? 0))}</td>
+                <td class="solar-table-fit-period" colspan="${labelColspan}">${escapeHtml(footer.label ?? 'Total')}</td>
+                <td class="solar-table-fit-num" title="${escapeHtml(numberFormatter.format(footer.generation ?? 0))} kWh">${escapeHtml(integerFormatter.format(footer.generation ?? 0))}</td>
+                <td class="solar-table-fit-num" title="${escapeHtml(numberFormatter.format(footer.consumption ?? 0))} kWh">${escapeHtml(integerFormatter.format(footer.consumption ?? 0))}</td>
+                <td class="solar-table-fit-num"></td>
+                <td class="solar-table-fit-num" title="${escapeHtml(moneyFormatter.format(footer.savings ?? 0))}">${escapeHtml(compactMoney(footer.savings ?? 0))}</td>
             </tr>
         `;
     }
 };
 
 const renderScaleHighlights = (scale) => {
-    const container = document.querySelector('[data-scale-highlights]');
+    document.querySelectorAll('[data-report-highlights]').forEach((container) => {
+        container.innerHTML = (scale?.highlights ?? []).map((highlight) => `
+            <div>
+                <span>${escapeHtml(highlight.label ?? '')}</span>
+                <strong>${escapeHtml(highlight.value ?? '')}</strong>
+            </div>
+        `).join('');
+    });
 
-    if (!container) {
-        return;
-    }
-
-    container.innerHTML = (scale?.highlights ?? []).map((highlight) => `
-        <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
-            <dt class="text-zinc-500 dark:text-zinc-400">${escapeHtml(highlight.label ?? '')}</dt>
-            <dd class="mt-1 font-semibold text-zinc-950 dark:text-zinc-50">${escapeHtml(highlight.value ?? '')}</dd>
-        </div>
-    `).join('');
+    document.querySelectorAll('[data-scale-highlights]').forEach((container) => {
+        container.innerHTML = (scale?.highlights ?? []).map((highlight) => `
+            <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/60">
+                <dt class="text-zinc-500 dark:text-zinc-400">${escapeHtml(highlight.label ?? '')}</dt>
+                <dd class="mt-1 font-semibold text-zinc-950 dark:text-zinc-50">${escapeHtml(highlight.value ?? '')}</dd>
+            </div>
+        `).join('');
+    });
 };
 
 const renderSolarEnergyCharts = (chartData) => {
     const labels = chartData?.labels ?? [];
 
-    ['solar-generation-chart', 'solar-consumption-generation-chart', 'solar-savings-chart', 'solar-coverage-chart'].forEach(destroyChart);
+    ['solar-executive-chart', 'solar-generation-chart', 'solar-consumption-generation-chart', 'solar-savings-chart', 'solar-coverage-chart'].forEach(destroyChart);
 
     if (!labels.length) {
         return;
     }
 
     const solarColors = getSolarChartColors();
+
+    createChart('solar-executive-chart', {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Generacion kWh',
+                    data: chartData.generation ?? [],
+                    yAxisID: 'energy',
+                    backgroundColor: solarColors.gold,
+                    borderColor: solarColors.goldDark,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    order: 2,
+                },
+                {
+                    label: 'Consumo kWh',
+                    data: chartData.consumption ?? [],
+                    yAxisID: 'energy',
+                    backgroundColor: `${solarColors.clay}CC`,
+                    borderColor: solarColors.clay,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    order: 3,
+                },
+                {
+                    label: 'Ahorro COP',
+                    data: chartData.savings ?? [],
+                    yAxisID: 'money',
+                    type: 'line',
+                    backgroundColor: `${solarColors.success}26`,
+                    borderColor: solarColors.success,
+                    borderWidth: 3,
+                    fill: true,
+                    pointBackgroundColor: solarColors.pointSurface,
+                    pointBorderColor: solarColors.success,
+                    pointBorderWidth: 2,
+                    pointRadius: 3,
+                    tension: 0.35,
+                    order: 1,
+                },
+            ],
+        },
+        options: {
+            ...baseOptions('kWh'),
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            plugins: {
+                ...baseOptions('kWh').plugins,
+                tooltip: {
+                    ...baseOptions('kWh').plugins.tooltip,
+                    callbacks: {
+                        label: (context) => {
+                            if (context.dataset.yAxisID === 'money') {
+                                return `${context.dataset.label}: ${moneyFormatter.format(context.parsed.y)}`;
+                            }
+
+                            return `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)} kWh`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: solarColors.text,
+                        maxRotation: 0,
+                        autoSkip: true,
+                    },
+                    grid: {
+                        color: solarColors.grid,
+                    },
+                },
+                energy: {
+                    beginAtZero: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'kWh',
+                        color: solarColors.text,
+                    },
+                    ticks: {
+                        color: solarColors.text,
+                    },
+                    grid: {
+                        color: solarColors.grid,
+                    },
+                },
+                money: {
+                    beginAtZero: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'COP',
+                        color: solarColors.text,
+                    },
+                    ticks: {
+                        color: solarColors.text,
+                        callback: (value) => moneyFormatter.format(value).replace(',00', ''),
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                },
+            },
+        },
+    });
 
     createChart('solar-generation-chart', {
         type: 'bar',
@@ -429,8 +630,7 @@ const applyDashboardScale = (scaleKey, payload) => {
     }
 
     document.querySelectorAll('[data-scale-button]').forEach((button) => {
-        const isActive = button.dataset.scaleButton === scaleKey;
-        button.className = isActive ? 'solar-button' : 'solar-button-ghost';
+        button.classList.toggle('is-active', button.dataset.scaleButton === scaleKey);
     });
 
     const textBindings = [
@@ -447,11 +647,13 @@ const applyDashboardScale = (scaleKey, payload) => {
     ];
 
     textBindings.forEach(([selector, value]) => {
-        const element = document.querySelector(selector);
+        document.querySelectorAll(selector).forEach((element) => {
+            if (!value) {
+                return;
+            }
 
-        if (element && value) {
             element.textContent = value;
-        }
+        });
     });
 
     const stateTitle = document.querySelector('[data-scale-state-title]');
@@ -461,6 +663,7 @@ const applyDashboardScale = (scaleKey, payload) => {
     }
 
     renderScaleKpis(scale);
+    updateExecutiveReportKpis(scale);
     renderScaleInsights(scale);
     renderScaleRecommendations(scale);
     renderScaleTable(scale);
