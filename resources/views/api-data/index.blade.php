@@ -64,7 +64,7 @@
                 {{ $errors->first('weather_station') }}
             </div>
         @endif
-        <section class="solar-card" data-weather-station-sync data-sync-interval="15000">
+        <section class="solar-card" data-api-pagination-section="weather-station" data-weather-station-sync data-sync-interval="15000">
             <div class="solar-page-header">
                 <div>
                     <p class="solar-kicker">Estacion local</p>
@@ -151,12 +151,12 @@
                 </div>
             </div>
 
-            <div class="solar-pagination mt-5">
+            <div class="solar-pagination mt-5" data-api-pagination-links>
                 {{ $weatherStationRows->links() }}
             </div>
         </section>
 
-        <section class="solar-card">
+        <section class="solar-card" data-api-pagination-section="nasa">
             <div class="solar-page-header">
                 <div>
                     <p class="solar-kicker">NASA power</p>
@@ -220,7 +220,7 @@
                 </div>
             </div>
 
-            <div class="solar-pagination mt-5">
+            <div class="solar-pagination mt-5" data-api-pagination-links>
                 {{ $nasaRows->links() }}
             </div>
         </section>

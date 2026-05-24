@@ -895,6 +895,7 @@ const apiDataCountFormatter = new Intl.NumberFormat('es-CO', {
 
 let weatherStationSyncTimer = null;
 let weatherStationSyncController = null;
+let apiPaginationController = null;
 
 const renderWeatherStationRows = (rows) => {
     if (!rows.length) {
@@ -1048,3 +1049,119 @@ const initWeatherStationSync = () => {
 
 document.addEventListener('DOMContentLoaded', initWeatherStationSync);
 document.addEventListener('livewire:navigated', initWeatherStationSync);
+
+const apiDataPagePath = '/api-data';
+
+const sectionKeyFromUrl = (url) => {
+    const parsedUrl = new URL(url, window.location.href);
+
+    if (parsedUrl.searchParams.has('station_page')) {
+        return 'weather-station';
+    }
+
+    if (parsedUrl.searchParams.has('nasa_page')) {
+        return 'nasa';
+    }
+
+    return null;
+};
+
+const replaceApiPaginationSection = (html, sectionKey) => {
+    const documentFragment = new DOMParser().parseFromString(html, 'text/html');
+    const currentSection = document.querySelector(`[data-api-pagination-section="${sectionKey}"]`);
+    const nextSection = documentFragment.querySelector(`[data-api-pagination-section="${sectionKey}"]`);
+
+    if (!currentSection || !nextSection) {
+        return false;
+    }
+
+    currentSection.replaceWith(nextSection);
+    initApiDataPagination();
+    initWeatherStationSync();
+
+    return true;
+};
+
+const loadApiPaginationPage = async (url, { pushState = true } = {}) => {
+    const sectionKey = sectionKeyFromUrl(url);
+
+    if (!sectionKey) {
+        window.location.href = url;
+        return;
+    }
+
+    if (apiPaginationController) {
+        apiPaginationController.abort();
+    }
+
+    const section = document.querySelector(`[data-api-pagination-section="${sectionKey}"]`);
+    apiPaginationController = new AbortController();
+    section?.classList.add('opacity-60', 'pointer-events-none');
+
+    try {
+        const response = await fetch(url, {
+            headers: {
+                Accept: 'text/html',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            signal: apiPaginationController.signal,
+        });
+
+        if (!response.ok) {
+            throw new Error('No fue posible cargar la pagina solicitada.');
+        }
+
+        const replaced = replaceApiPaginationSection(await response.text(), sectionKey);
+
+        if (!replaced) {
+            window.location.href = url;
+            return;
+        }
+
+        if (pushState) {
+            window.history.pushState({ apiDataPagination: true }, '', url);
+        }
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            window.location.href = url;
+        }
+    } finally {
+        section?.classList.remove('opacity-60', 'pointer-events-none');
+        apiPaginationController = null;
+    }
+};
+
+const initApiDataPagination = () => {
+    document.querySelectorAll('[data-api-pagination-links] a[href]').forEach((link) => {
+        if (link.dataset.apiPaginationBound) {
+            return;
+        }
+
+        link.addEventListener('click', (event) => {
+            const url = new URL(link.href);
+
+            if (url.pathname !== apiDataPagePath) {
+                return;
+            }
+
+            event.preventDefault();
+            loadApiPaginationPage(link.href);
+        });
+
+        link.dataset.apiPaginationBound = 'true';
+    });
+};
+
+window.addEventListener('popstate', () => {
+    if (window.location.pathname === apiDataPagePath) {
+        const sectionKey = sectionKeyFromUrl(window.location.href);
+
+        if (sectionKey) {
+            loadApiPaginationPage(window.location.href, { pushState: false });
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', initApiDataPagination);
+document.addEventListener('livewire:navigated', initApiDataPagination);
