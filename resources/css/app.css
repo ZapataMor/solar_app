@@ -2065,8 +2065,12 @@ select:focus[data-flux-control] {
     .solar-project-card__actions {
         display: grid;
         gap: 0.75rem;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         margin-top: auto;
+    }
+
+    .solar-project-card__actions > .solar-button {
+        grid-column: 1 / -1;
     }
 
     .solar-project-card__actions form {
@@ -2085,7 +2089,7 @@ select:focus[data-flux-control] {
         display: inline-flex;
         width: 100%;
         min-height: 3rem;
-        padding-inline: 0.9rem;
+        padding-inline: 1rem;
         text-align: center;
         white-space: nowrap;
     }
