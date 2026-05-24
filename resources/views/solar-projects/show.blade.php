@@ -442,74 +442,7 @@
                         <script type="application/json" id="solar-timescale-chart-data">@json($timeScales)</script>
                     </section>
 
-                    <section class="solar-card w-full min-w-0 max-w-full">
-                        <div class="solar-analysis-board">
-                            <div class="solar-analysis-panel">
-                                <div>
-                                    <p class="solar-kicker">Insights del periodo</p>
-                                    <h2 class="text-xl text-[color:var(--solar-text)]">Analisis operativo</h2>
-                                    <p class="solar-subtitle mt-2">Lectura visual del comportamiento reciente y decisiones de corto plazo.</p>
-                                </div>
-
-                                <div class="solar-analysis-panel-list" data-scale-insights>
-                                    @forelse ($activeScale['insights'] ?? [] as $insight)
-                                        @php
-                                            $insightTone = match ($insight['level'] ?? 'info') {
-                                                'success' => 'solar-insight-card-success',
-                                                'warning' => 'solar-insight-card-warning',
-                                                'danger' => 'solar-insight-card-danger',
-                                                default => 'solar-insight-card-info',
-                                            };
-                                        @endphp
-                                        <article class="solar-insight-card {{ $insightTone }}">
-                                            <div class="solar-insight-card-head">
-                                                <p class="solar-insight-card-title">{{ $insight['title'] }}</p>
-                                                <span class="solar-pill">{{ ucfirst($insight['level'] ?? 'info') }}</span>
-                                            </div>
-                                            <p class="solar-insight-card-copy">{{ $insight['message'] }}</p>
-                                        </article>
-                                    @empty
-                                        <div class="solar-alert solar-alert-warning">Sin insights para la escala activa.</div>
-                                    @endforelse
-                                </div>
-                            </div>
-
-                            <div class="solar-analysis-panel">
-                                <div>
-                                    <p class="solar-kicker">Recomendaciones inteligentes</p>
-                                    <h2 class="text-xl text-[color:var(--solar-text)]">Acciones sugeridas</h2>
-                                    <p class="solar-subtitle mt-2">Priorizadas segun la escala temporal activa del dashboard.</p>
-                                </div>
-
-                                <div class="solar-analysis-panel-list" data-scale-recommendations>
-                                    @forelse ($activeScale['recommendations'] ?? [] as $recommendation)
-                                        @php
-                                            $priorityTone = match ($recommendation['priority'] ?? 'media') {
-                                                'alta' => 'solar-pill-danger',
-                                                'baja' => 'solar-pill',
-                                                default => 'solar-pill-warn',
-                                            };
-                                            $typeLabel = match ($recommendation['type'] ?? 'recomendacion') {
-                                                'risk' => 'Riesgo',
-                                                'alert' => 'Alerta',
-                                                'opportunity' => 'Oportunidad',
-                                                default => 'Recomendacion',
-                                            };
-                                        @endphp
-                                        <article class="solar-recommendation-card">
-                                            <div class="solar-recommendation-card-head">
-                                                <p class="solar-recommendation-card-title">{{ $typeLabel }}</p>
-                                                <span class="solar-pill {{ $priorityTone }}">Prioridad {{ $recommendation['priority'] ?? 'media' }}</span>
-                                            </div>
-                                            <p class="solar-recommendation-card-copy">{{ $recommendation['message'] }}</p>
-                                        </article>
-                                    @empty
-                                        <div class="solar-alert solar-alert-warning">Sin recomendaciones para la escala activa.</div>
-                                    @endforelse
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+                    {{-- Analysis panels moved below to span full width --}}
 
                 @else
                     <div class="solar-alert solar-alert-warning">
@@ -731,6 +664,80 @@
                     </section>
                 @endif
             </aside>
+
+            {{-- Analysis panels: span full width below main and aside --}}
+        @if ($activeScale)
+            <div class="mt-6 xl:col-span-2">
+                <section class="solar-card w-full min-w-0 max-w-full">
+                    <div class="solar-analysis-board">
+                        <div class="solar-analysis-panel">
+                            <div>
+                                <p class="solar-kicker">Insights del periodo</p>
+                                <h2 class="text-xl text-[color:var(--solar-text)]">Analisis operativo</h2>
+                                <p class="solar-subtitle mt-2">Lectura visual del comportamiento reciente y decisiones de corto plazo.</p>
+                            </div>
+
+                            <div class="solar-analysis-panel-list" data-scale-insights>
+                                @forelse ($activeScale['insights'] ?? [] as $insight)
+                                    @php
+                                        $insightTone = match ($insight['level'] ?? 'info') {
+                                            'success' => 'solar-insight-card-success',
+                                            'warning' => 'solar-insight-card-warning',
+                                            'danger' => 'solar-insight-card-danger',
+                                            default => 'solar-insight-card-info',
+                                        };
+                                    @endphp
+                                    <article class="solar-insight-card {{ $insightTone }}">
+                                        <div class="solar-insight-card-head">
+                                            <p class="solar-insight-card-title">{{ $insight['title'] }}</p>
+                                            <span class="solar-pill">{{ ucfirst($insight['level'] ?? 'info') }}</span>
+                                        </div>
+                                        <p class="solar-insight-card-copy">{{ $insight['message'] }}</p>
+                                    </article>
+                                @empty
+                                    <div class="solar-alert solar-alert-warning">Sin insights para la escala activa.</div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div class="solar-analysis-panel">
+                            <div>
+                                <p class="solar-kicker">Recomendaciones inteligentes</p>
+                                <h2 class="text-xl text-[color:var(--solar-text)]">Acciones sugeridas</h2>
+                                <p class="solar-subtitle mt-2">Priorizadas segun la escala temporal activa del dashboard.</p>
+                            </div>
+
+                            <div class="solar-analysis-panel-list" data-scale-recommendations>
+                                @forelse ($activeScale['recommendations'] ?? [] as $recommendation)
+                                    @php
+                                        $priorityTone = match ($recommendation['priority'] ?? 'media') {
+                                            'alta' => 'solar-pill-danger',
+                                            'baja' => 'solar-pill',
+                                            default => 'solar-pill-warn',
+                                        };
+                                        $typeLabel = match ($recommendation['type'] ?? 'recomendacion') {
+                                            'risk' => 'Riesgo',
+                                            'alert' => 'Alerta',
+                                            'opportunity' => 'Oportunidad',
+                                            default => 'Recomendacion',
+                                        };
+                                    @endphp
+                                    <article class="solar-recommendation-card">
+                                        <div class="solar-recommendation-card-head">
+                                            <p class="solar-recommendation-card-title">{{ $typeLabel }}</p>
+                                            <span class="solar-pill {{ $priorityTone }}">Prioridad {{ $recommendation['priority'] ?? 'media' }}</span>
+                                        </div>
+                                        <p class="solar-recommendation-card-copy">{{ $recommendation['message'] }}</p>
+                                    </article>
+                                @empty
+                                    <div class="solar-alert solar-alert-warning">Sin recomendaciones para la escala activa.</div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                </section>
+</div>
+        @endif
         </div>
     </div>
 </x-layouts::app>
