@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('weather_station_readings', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('solar_project_id')->nullable()->constrained()->nullOnDelete();
             $table->string('device_code')->nullable();
             $table->decimal('latitude', 10, 7)->nullable();
             $table->decimal('longitude', 10, 7)->nullable();
@@ -31,7 +30,7 @@ return new class extends Migration
             $table->json('raw_payload')->nullable();
             $table->timestamps();
 
-            $table->index(['solar_project_id', 'measured_at']);
+            $table->index('measured_at');
             $table->index(['device_code', 'measured_at']);
         });
     }

@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('api_weather_data', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('solar_project_id')->constrained()->cascadeOnDelete();
             $table->dateTime('date_time');
             $table->decimal('allsky_sfc_sw_dwn', 10, 4)->nullable();
             $table->decimal('t2m', 8, 3)->nullable();
@@ -22,7 +21,7 @@ return new class extends Migration
             $table->decimal('ws10m', 8, 3)->nullable();
             $table->timestamps();
 
-            $table->unique(['solar_project_id', 'date_time']);
+            $table->unique('date_time');
         });
     }
 

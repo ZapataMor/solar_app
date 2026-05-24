@@ -4,14 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WeatherStationReading extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'solar_project_id',
         'device_code',
         'latitude',
         'longitude',
@@ -47,12 +45,6 @@ class WeatherStationReading extends Model
             'raw_payload' => 'array',
         ];
     }
-
-    public function solarProject(): BelongsTo
-    {
-        return $this->belongsTo(SolarProject::class);
-    }
-
     public function radiationValue(): ?float
     {
         if ($this->solar_radiation !== null) {

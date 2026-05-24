@@ -85,7 +85,6 @@ class WeatherStationReadingController extends Controller
         $thermalSensation = $this->value($payload, ['thermal_sensation', 'sensacion_termica', 'st']);
 
         return [
-            'solar_project_id' => null,
             'device_code' => $this->value($payload, ['device_code', 'codigo_dispositivo']),
             'latitude' => $this->value($payload, ['latitude', 'latitud', 'lat']),
             'longitude' => $this->value($payload, ['longitude', 'longitud', 'lng', 'lon']),

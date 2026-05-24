@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -16,10 +17,10 @@ class SolarCalculationService
      */
     public function calculate(SolarProject $solarProject, ?Collection $weatherData = null): SolarProject
     {
-        $solarProject->loadMissing(['technicalParameter', 'weatherData']);
+        $solarProject->loadMissing('technicalParameter');
 
         $technicalParameter = $solarProject->technicalParameter;
-        $weatherData ??= $solarProject->weatherData;
+        $weatherData ??= $this->apiWeatherDataForProject($solarProject);
 
         if ($technicalParameter === null) {
             throw new \InvalidArgumentException('El proyecto no tiene parametros tecnicos.');
@@ -205,6 +206,17 @@ class SolarCalculationService
 
             return $weatherData;
         });
+    }
+
+    private function apiWeatherDataForProject(SolarProject $solarProject): Collection
+    {
+        return ApiWeatherData::query()
+            ->whereBetween('date_time', [
+                $solarProject->start_date->copy()->startOfDay(),
+                $solarProject->end_date->copy()->endOfDay(),
+            ])
+            ->orderBy('date_time')
+            ->get();
     }
 
     private function monthName(int $monthNumber): string

@@ -28,7 +28,9 @@ class ProjectDashboardService
         $weatherStationReadings = $this->weatherStationAggregationService->readingsForProject($solarProject);
         $weatherAnalysis = $this->weatherAnalysisService->analyzeReadings($weatherStationReadings);
         $weatherStationStats = $this->weatherStationAggregationService->stats($weatherStationReadings);
-        $projectWeatherData = collect($solarProject->getRelationValue('weatherData') ?? []);
+        $projectWeatherData = $solarProject->relationLoaded('weatherData')
+            ? collect($solarProject->getRelation('weatherData'))
+            : ($solarProject->start_date && $solarProject->end_date ? $solarProject->weatherData()->get() : collect());
         $dailyClimateRows = $projectWeatherData->isNotEmpty()
             ? $projectWeatherData
             : ($weatherStationReadings->isNotEmpty()

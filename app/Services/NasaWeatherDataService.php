@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,7 @@ class NasaWeatherDataService
      * @param  array<string, mixed>  $payload
      * @return array{created: int, updated: int}
      */
-    public function storeDailyData(SolarProject $solarProject, array $payload): array
+    public function storeDailyData(array $payload): array
     {
         $parameters = data_get($payload, 'properties.parameter', []);
 
@@ -29,14 +30,9 @@ class NasaWeatherDataService
         $created = 0;
         $updated = 0;
 
-        DB::transaction(function () use ($solarProject, $parameters, $timestamps, &$created, &$updated): void {
-            $solarProject->weatherData()
-                ->get()
-                ->filter(fn ($weatherData) => ! $weatherData->date_time->isStartOfDay())
-                ->each->delete();
-
+        DB::transaction(function () use ($parameters, $timestamps, &$created, &$updated): void {
             foreach ($timestamps as $timestamp) {
-                $weatherData = $solarProject->weatherData()->updateOrCreate(
+                $weatherData = ApiWeatherData::query()->updateOrCreate(
                     ['date_time' => Carbon::createFromFormat('Ymd', (string) $timestamp)->startOfDay()],
                     [
                         'allsky_sfc_sw_dwn' => $this->cleanValue($parameters['ALLSKY_SFC_SW_DWN'][$timestamp] ?? null),
@@ -55,6 +51,27 @@ class NasaWeatherDataService
             'created' => $created,
             'updated' => $updated,
         ];
+    }
+
+    public function dataForProject(SolarProject $solarProject): \Illuminate\Support\Collection
+    {
+        return ApiWeatherData::query()
+            ->whereBetween('date_time', [
+                $solarProject->start_date->copy()->startOfDay(),
+                $solarProject->end_date->copy()->endOfDay(),
+            ])
+            ->orderBy('date_time')
+            ->get();
+    }
+
+    public function countForProject(SolarProject $solarProject): int
+    {
+        return ApiWeatherData::query()
+            ->whereBetween('date_time', [
+                $solarProject->start_date->copy()->startOfDay(),
+                $solarProject->end_date->copy()->endOfDay(),
+            ])
+            ->count();
     }
 
     private function cleanValue(mixed $value): ?float

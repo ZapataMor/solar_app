@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ApiWeatherData extends Model
 {
@@ -31,10 +30,5 @@ class ApiWeatherData extends Model
             'prectotcorr' => 'decimal:4',
             'ws10m' => 'decimal:3',
         ];
-    }
-
-    public function solarProject(): BelongsTo
-    {
-        return $this->belongsTo(SolarProject::class);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
 use App\Models\User;
 use App\Models\WeatherStationReading;
@@ -30,7 +31,6 @@ class SolarProjectController extends Controller
                 'user:id,name',
                 'calculationResult',
             ])
-            ->withCount(['weatherData', 'weatherStationReadings'])
             ->latest();
 
         if (! $isAdmin) {
@@ -38,10 +38,8 @@ class SolarProjectController extends Controller
         }
 
         $solarProjects = $solarProjectsQuery->paginate(12)->withQueryString();
-        $globalWeatherStationCount = WeatherStationReading::query()->count();
-
-        $solarProjects->getCollection()->transform(function (SolarProject $solarProject) use ($globalWeatherStationCount) {
-            $solarProject->setAttribute('weather_station_readings_count', $globalWeatherStationCount);
+        $solarProjects->getCollection()->transform(function (SolarProject $solarProject) {
+            $this->attachWeatherCounts($solarProject);
 
             return $solarProject;
         });
@@ -83,6 +81,7 @@ class SolarProjectController extends Controller
         Request $request,
         SolarProject $solarProject,
         ProjectDashboardService $projectDashboardService,
+        NasaWeatherDataService $nasaWeatherDataService,
     ): View
     {
         $this->authorizeOwner($request, $solarProject);
@@ -91,9 +90,10 @@ class SolarProjectController extends Controller
             'technicalParameter',
             'calculationResult',
             'monthlyResults' => fn ($query) => $query->orderBy('month_number'),
-            'weatherData' => fn ($query) => $query->orderBy('date_time'),
-        ])
-            ->loadCount(['weatherData', 'weatherStationReadings']);
+        ]);
+
+        $solarProject->setRelation('weatherData', $nasaWeatherDataService->dataForProject($solarProject));
+        $this->attachWeatherCounts($solarProject);
 
         return view('solar-projects.show', [
             'solarProject' => $solarProject,
@@ -155,8 +155,8 @@ class SolarProjectController extends Controller
                 $solarProject->end_date,
             );
 
-            ['created' => $created, 'updated' => $updated] = $nasaWeatherDataService->storeDailyData($solarProject, $payload);
-            $total = $solarProject->weatherData()->count();
+            ['created' => $created, 'updated' => $updated] = $nasaWeatherDataService->storeDailyData($payload);
+            $total = $nasaWeatherDataService->countForProject($solarProject);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -205,29 +205,9 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        $created = 0;
-        $updated = 0;
-
-        DB::transaction(function () use ($solarProject, $dailyReadings, &$created, &$updated): void {
-            foreach ($dailyReadings as $dailyReading) {
-                $weatherData = $solarProject->weatherData()->updateOrCreate(
-                    ['date_time' => $dailyReading['date_time']],
-                    [
-                        'allsky_sfc_sw_dwn' => $dailyReading['allsky_sfc_sw_dwn'],
-                        't2m' => $dailyReading['t2m'],
-                        'rh2m' => $dailyReading['rh2m'],
-                        'prectotcorr' => null,
-                        'ws10m' => null,
-                    ],
-                );
-
-                $weatherData->wasRecentlyCreated ? $created++ : $updated++;
-            }
-        });
-
         return back()->with(
             'status',
-            "Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: {$imported['created']}. Lecturas existentes omitidas: {$imported['skipped']}. Dias nuevos: {$created}. Dias actualizados: {$updated}.",
+            "Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: {$imported['created']}. Lecturas existentes omitidas: {$imported['skipped']}. Dias disponibles para este proyecto: {$dailyReadings->count()}.",
         );
     }
 
@@ -235,10 +215,9 @@ class SolarProjectController extends Controller
         Request $request,
         SolarProject $solarProject,
         SolarCalculationService $solarCalculationService,
+        NasaWeatherDataService $nasaWeatherDataService,
     ): RedirectResponse {
         $this->authorizeOwner($request, $solarProject);
-
-        $solarProject->loadCount('weatherData');
 
         if ($solarProject->technicalParameter()->doesntExist()) {
             return back()->withErrors([
@@ -246,7 +225,7 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        if ($solarProject->weather_data_count === 0) {
+        if ($nasaWeatherDataService->countForProject($solarProject) === 0) {
             return back()->withErrors([
                 'solar_calculation' => 'No es posible ejecutar calculos solares sin datos climaticos de NASA POWER.',
             ]);
@@ -364,5 +343,31 @@ class SolarProjectController extends Controller
             $request->user()->role === 'admin' || $solarProject->user_id === $request->user()->id,
             403
         );
+    }
+
+    private function attachWeatherCounts(SolarProject $solarProject): void
+    {
+        $solarProject->setAttribute('weather_data_count', $this->apiWeatherDataCount($solarProject));
+        $solarProject->setAttribute('weather_station_readings_count', $this->weatherStationReadingCount($solarProject));
+    }
+
+    private function apiWeatherDataCount(SolarProject $solarProject): int
+    {
+        return ApiWeatherData::query()
+            ->whereBetween('date_time', [
+                $solarProject->start_date->copy()->startOfDay(),
+                $solarProject->end_date->copy()->endOfDay(),
+            ])
+            ->count();
+    }
+
+    private function weatherStationReadingCount(SolarProject $solarProject): int
+    {
+        return WeatherStationReading::query()
+            ->whereBetween('measured_at', [
+                $solarProject->start_date->copy()->startOfDay(),
+                $solarProject->end_date->copy()->endOfDay(),
+            ])
+            ->count();
     }
 }

@@ -21,6 +21,8 @@ return new class extends Migration
             $table->decimal('longitude', 8, 4)->default(-72.9072);
             $table->date('start_date');
             $table->date('end_date');
+            $table->decimal('monthly_consumption_kwh', 12, 2);
+            $table->decimal('daily_consumption_kwh', 12, 2);
             $table->decimal('annual_consumption_kwh', 12, 2);
             $table->decimal('energy_rate_cop_kwh', 12, 2);
             $table->timestamps();

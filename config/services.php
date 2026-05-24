@@ -44,6 +44,10 @@ return [
         'device_code' => env('METEO_DEVICE_CODE', 'METEOESTACION'),
         'since_parameter' => env('METEO_API_SINCE_PARAMETER', 'fecha_desde'),
         'verify_ssl' => env('METEO_API_VERIFY_SSL', false),
+        'api_key' => env('METEO_API_KEY'),
+        'api_key_header' => env('METEO_API_KEY_HEADER', 'X-API-KEY'),
+        'user_agent' => env('METEO_API_USER_AGENT', 'SolarApp/1.0 (+https://solar.local)'),
+        'referer' => env('METEO_API_REFERER'),
         'schedule_timezone' => env('WEATHER_STATION_SCHEDULE_TIMEZONE', 'America/Bogota'),
     ],
 

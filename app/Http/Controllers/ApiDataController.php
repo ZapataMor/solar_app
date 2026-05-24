@@ -19,9 +19,7 @@ class ApiDataController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        $userId = $request->user()->id;
-
-        $nasaRows = $this->nasaRowsQuery($userId)
+        $nasaRows = $this->nasaRowsQuery()
             ->orderByDesc('recorded_at')
             ->orderByDesc('record_id')
             ->paginate(15, ['*'], 'nasa_page')
@@ -37,7 +35,7 @@ class ApiDataController extends Controller
             'nasaRows' => $nasaRows,
             'weatherStationRows' => $weatherStationRows,
             'weatherStationChartRows' => $this->latestWeatherStationChartRows(),
-            'nasaCount' => $this->nasaRowsCount($userId),
+            'nasaCount' => $this->nasaRowsCount(),
             'weatherStationCount' => $this->weatherStationRowsCount(),
         ]);
     }
@@ -67,7 +65,7 @@ class ApiDataController extends Controller
                     $solarProject->end_date,
                 );
 
-                ['created' => $projectCreated, 'updated' => $projectUpdated] = $nasaWeatherDataService->storeDailyData($solarProject, $payload);
+                ['created' => $projectCreated, 'updated' => $projectUpdated] = $nasaWeatherDataService->storeDailyData($payload);
                 $created += $projectCreated;
                 $updated += $projectUpdated;
             } catch (Throwable $exception) {
@@ -99,15 +97,18 @@ class ApiDataController extends Controller
             $imported = $weatherStationImportService->importAll();
         } catch (Throwable $exception) {
             report($exception);
+            $errorMessage = app()->isLocal()
+                ? "No fue posible consultar el endpoint del centro meteorologico. Detalle: {$exception->getMessage()}"
+                : 'No fue posible consultar el endpoint del centro meteorologico.';
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'message' => 'No fue posible consultar el endpoint del centro meteorologico.',
+                    'message' => $errorMessage,
                 ], 502);
             }
 
             return back()->withErrors([
-                'weather_station' => 'No fue posible consultar el endpoint del centro meteorologico.',
+                'weather_station' => $errorMessage,
             ]);
         }
 
@@ -142,15 +143,13 @@ class ApiDataController extends Controller
         );
     }
 
-    private function nasaRowsQuery(int $userId): Builder
+    private function nasaRowsQuery(): Builder
     {
         return DB::table('api_weather_data')
-            ->join('solar_projects', 'api_weather_data.solar_project_id', '=', 'solar_projects.id')
-            ->where('solar_projects.user_id', $userId)
             ->select([
                 DB::raw("'nasa' as source_key"),
                 DB::raw("'NASA POWER' as source_name"),
-                DB::raw('MIN(api_weather_data.id) as record_id'),
+                'api_weather_data.id as record_id',
                 DB::raw('null as device_code'),
                 'api_weather_data.date_time as recorded_at',
                 'api_weather_data.allsky_sfc_sw_dwn as radiation',
@@ -165,14 +164,6 @@ class ApiDataController extends Controller
                 DB::raw('null as uva'),
                 DB::raw('null as uvb'),
                 DB::raw('null as uv_index'),
-            ])
-            ->groupBy([
-                'api_weather_data.date_time',
-                'api_weather_data.allsky_sfc_sw_dwn',
-                'api_weather_data.t2m',
-                'api_weather_data.rh2m',
-                'api_weather_data.prectotcorr',
-                'api_weather_data.ws10m',
             ]);
     }
 
@@ -201,10 +192,10 @@ class ApiDataController extends Controller
             ]);
     }
 
-    private function nasaRowsCount(int $userId): int
+    private function nasaRowsCount(): int
     {
         return DB::query()
-            ->fromSub($this->nasaRowsQuery($userId), 'nasa_rows')
+            ->fromSub($this->nasaRowsQuery(), 'nasa_rows')
             ->count();
     }
 

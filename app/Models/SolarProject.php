@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -60,19 +61,32 @@ class SolarProject extends Model
         return $this->hasOne(TechnicalParameter::class);
     }
 
-    public function weatherData(): HasMany
+    public function weatherData(): Builder
     {
-        return $this->hasMany(ApiWeatherData::class);
+        if ($this->start_date === null || $this->end_date === null) {
+            return ApiWeatherData::query()->whereRaw('1 = 0');
+        }
+
+        return ApiWeatherData::query()
+            ->whereBetween('date_time', [
+                $this->start_date->copy()->startOfDay(),
+                $this->end_date->copy()->endOfDay(),
+            ])
+            ->orderBy('date_time');
     }
 
-    public function apiWeatherData(): HasMany
+    public function weatherStationReadings(): Builder
     {
-        return $this->hasMany(ApiWeatherData::class);
-    }
+        if ($this->start_date === null || $this->end_date === null) {
+            return WeatherStationReading::query()->whereRaw('1 = 0');
+        }
 
-    public function weatherStationReadings(): HasMany
-    {
-        return $this->hasMany(WeatherStationReading::class);
+        return WeatherStationReading::query()
+            ->whereBetween('measured_at', [
+                $this->start_date->copy()->startOfDay(),
+                $this->end_date->copy()->endOfDay(),
+            ])
+            ->orderBy('measured_at');
     }
 
     public function calculationResult(): HasOne
