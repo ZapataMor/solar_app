@@ -51,26 +51,10 @@ class OpenAIRecommendationService
 
         return Cache::remember($cacheKey, now()->addMinutes($ttlMinutes), function () use ($payload) {
             try {
-                $response = OpenAI::responses()->create([
-                    'model' => (string) config('services.openai_recommendations.model', 'gpt-5-mini'),
-                    'input' => $this->buildInput($payload),
-                    'max_output_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
-                    'temperature' => 0.2,
-                    'text' => [
-                        'format' => [
-                            'type' => 'json_schema',
-                            'name' => 'solar_ai_recommendations',
-                            'description' => 'Executive summary, daily recommendation, and energy alerts for a solar dashboard.',
-                            'strict' => true,
-                            'schema' => $this->responseSchema(),
-                        ],
-                    ],
-                ]);
-
-                $decoded = $this->decodeResponsePayload($response->outputText ?? null);
+                $decoded = $this->requestStructuredRecommendation($payload);
 
                 if (! is_array($decoded)) {
-                    return $this->emptyResult('error', 'OpenAI no devolvio contenido utilizable.');
+                    return $this->emptyResult('error', 'La IA no devolvio contenido utilizable.');
                 }
 
                 return [
@@ -90,6 +74,55 @@ class OpenAIRecommendationService
                 return $this->emptyResult('error', 'No fue posible generar recomendaciones con IA en este momento.');
             }
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    private function requestStructuredRecommendation(array $payload): ?array
+    {
+        try {
+            $response = OpenAI::responses()->create([
+                'model' => (string) config('services.openai_recommendations.model', 'gpt-5-mini'),
+                'input' => $this->buildInput($payload),
+                'max_output_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                'temperature' => 0.2,
+                'text' => [
+                    'format' => [
+                        'type' => 'json_schema',
+                        'name' => 'solar_ai_recommendations',
+                        'description' => 'Executive summary, daily recommendation, and energy alerts for a solar dashboard.',
+                        'strict' => true,
+                        'schema' => $this->responseSchema(),
+                    ],
+                ],
+            ]);
+
+            $decoded = $this->decodeResponsePayload($this->extractResponseText($response));
+
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        } catch (Throwable $responsesException) {
+            // Fallback to chat.completions when responses endpoint is unavailable.
+        }
+
+        try {
+            $chatResponse = OpenAI::chat()->create([
+                'model' => (string) config('services.openai_recommendations.model', 'gpt-5-mini'),
+                'messages' => $this->buildChatMessages($payload),
+                'temperature' => 0.2,
+                'max_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                'response_format' => [
+                    'type' => 'json_object',
+                ],
+            ]);
+
+            return $this->decodeResponsePayload($this->extractResponseText($chatResponse));
+        } catch (Throwable $chatException) {
+            return null;
+        }
     }
 
     private function providerSource(): string
@@ -152,6 +185,11 @@ class OpenAIRecommendationService
                 'max_uv_index' => isset($weatherStationStats['maxUvIndex']) ? (float) $weatherStationStats['maxUvIndex'] : null,
                 'reading_count' => isset($weatherStationStats['total']) ? (int) $weatherStationStats['total'] : 0,
             ],
+            'nasa_radiation_quality' => [
+                'total_rows' => isset($weatherStationStats['nasaDataQuality']['totalRows']) ? (int) $weatherStationStats['nasaDataQuality']['totalRows'] : 0,
+                'estimated_rows' => isset($weatherStationStats['nasaDataQuality']['estimatedRows']) ? (int) $weatherStationStats['nasaDataQuality']['estimatedRows'] : 0,
+                'estimated_ratio' => isset($weatherStationStats['nasaDataQuality']['estimatedRatio']) ? (float) $weatherStationStats['nasaDataQuality']['estimatedRatio'] : 0.0,
+            ],
         ];
     }
 
@@ -172,6 +210,7 @@ class OpenAIRecommendationService
                             'Tu tarea es transformar analisis estructurados en texto claro, prudente y accionable.',
                             'No inventes datos, no agregues cifras que no aparezcan en la entrada.',
                             'Si la informacion es insuficiente, dilo de forma explicita.',
+                            'Si la calidad de radiacion NASA indica estimaciones, evita recomendaciones agresivas y aclara la incertidumbre.',
                             'Enfocate en autoconsumo, horarios de carga, cobertura solar y riesgos operativos.',
                             'Devuelve unicamente JSON valido que siga exactamente el esquema solicitado.',
                         ]),
@@ -189,6 +228,34 @@ class OpenAIRecommendationService
                         ),
                     ],
                 ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildChatMessages(array $payload): array
+    {
+        return [
+            [
+                'role' => 'system',
+                'content' => implode("\n", [
+                    'Eres un analista energetico para un dashboard solar en Riohacha.',
+                    'Tu tarea es transformar analisis estructurados en texto claro, prudente y accionable.',
+                    'No inventes datos, no agregues cifras que no aparezcan en la entrada.',
+                    'Si la informacion es insuficiente, dilo de forma explicita.',
+                    'Enfocate en autoconsumo, horarios de carga, cobertura solar y riesgos operativos.',
+                    'Responde unicamente JSON valido con las claves: executive_summary, daily_recommendation, energy_alerts.',
+                ]),
+            ],
+            [
+                'role' => 'user',
+                'content' => "Analiza este resumen estructurado y genera una respuesta ejecutiva y prudente:\n".json_encode(
+                    $payload,
+                    JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                ),
             ],
         ];
     }
@@ -250,6 +317,35 @@ class OpenAIRecommendationService
         $fallbackDecoded = json_decode($matches[0], true);
 
         return is_array($fallbackDecoded) ? $fallbackDecoded : null;
+    }
+
+    private function extractResponseText(mixed $response): ?string
+    {
+        if (is_object($response)) {
+            if (isset($response->outputText) && is_string($response->outputText) && trim($response->outputText) !== '') {
+                return $response->outputText;
+            }
+
+            if (isset($response->choices[0]->message->content) && is_string($response->choices[0]->message->content)) {
+                return $response->choices[0]->message->content;
+            }
+
+            if (isset($response->output) && is_iterable($response->output)) {
+                foreach ($response->output as $item) {
+                    if (! isset($item->content) || ! is_iterable($item->content)) {
+                        continue;
+                    }
+
+                    foreach ($item->content as $content) {
+                        if (isset($content->text) && is_string($content->text) && trim($content->text) !== '') {
+                            return $content->text;
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

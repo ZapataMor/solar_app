@@ -102,24 +102,30 @@ class SolarProjectTest extends TestCase
         $this->actingAs($user)
             ->post(route('solar-projects.fetch-weather-data', $solarProject))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', 'Datos climáticos sincronizados. Nuevos: 2. Existentes actualizados: 0. Total del proyecto: 2.')
+            ->assertSessionHas('status', 'Datos climáticos sincronizados. Nuevos: 2. Existentes actualizados: 0. Total del proyecto: 3.')
             ->assertRedirect();
 
         $this->actingAs($user)
             ->post(route('solar-projects.fetch-weather-data', $solarProject))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', 'Datos climáticos sincronizados. Nuevos: 0. Existentes actualizados: 2. Total del proyecto: 2.')
+            ->assertSessionHas('status', 'Datos climáticos sincronizados. Nuevos: 0. Existentes actualizados: 2. Total del proyecto: 3.')
             ->assertRedirect();
 
-        $this->assertSame(2, ApiWeatherData::query()->whereBelongsTo($solarProject)->count());
+        $this->assertSame(3, ApiWeatherData::query()
+            ->whereBetween('date_time', [
+                $solarProject->start_date->copy()->startOfDay(),
+                $solarProject->end_date->copy()->endOfDay(),
+            ])
+            ->count());
         $this->assertDatabaseMissing('api_weather_data', [
             'solar_project_id' => $solarProject->id,
             'date_time' => '2017-01-01 01:00:00',
         ]);
         $this->assertDatabaseHas('api_weather_data', [
-            'solar_project_id' => $solarProject->id,
             'date_time' => '2017-01-02 00:00:00',
             'allsky_sfc_sw_dwn' => 5.4,
+            'radiation_source' => 'nasa_real',
+            'radiation_fallback_method' => 'nasa_real',
             't2m' => 26.1,
             'rh2m' => 80.1,
             'prectotcorr' => 0.03,
@@ -135,6 +141,60 @@ class SolarProjectTest extends TestCase
             && $request['community'] === 'SB'
             && $request['time-standard'] === 'LST'
             && $request['format'] === 'JSON');
+    }
+
+    public function test_fetch_weather_data_estimates_radiation_when_allsky_is_missing(): void
+    {
+        Http::fake([
+            'power.larc.nasa.gov/*' => Http::response([
+                'properties' => [
+                    'parameter' => [
+                        'ALLSKY_SFC_SW_DWN' => [
+                            '20170101' => 5.0,
+                            '20170103' => 5.4,
+                        ],
+                        'T2M' => [
+                            '20170101' => 26.3,
+                            '20170102' => 26.1,
+                            '20170103' => 26.2,
+                        ],
+                        'RH2M' => [
+                            '20170101' => 78.5,
+                            '20170102' => 80.1,
+                            '20170103' => 79.8,
+                        ],
+                        'PRECTOTCORR' => [
+                            '20170101' => 0.0,
+                            '20170102' => 0.0,
+                            '20170103' => 0.0,
+                        ],
+                        'WS10M' => [
+                            '20170101' => 5.0,
+                            '20170102' => 5.1,
+                            '20170103' => 5.2,
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            ...$this->projectAttributes(),
+            'start_date' => '2017-01-01',
+            'end_date' => '2017-01-03',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.fetch-weather-data', $solarProject))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('api_weather_data', [
+            'date_time' => '2017-01-02 00:00:00',
+            'radiation_source' => 'estimated',
+            'radiation_fallback_method' => 'interpolated_recent',
+        ]);
     }
 
     public function test_fetch_weather_data_caps_future_end_date_to_latest_available_date(): void

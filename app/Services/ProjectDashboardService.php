@@ -31,6 +31,23 @@ class ProjectDashboardService
         $projectWeatherData = $solarProject->relationLoaded('weatherData')
             ? collect($solarProject->getRelation('weatherData'))
             : ($solarProject->start_date && $solarProject->end_date ? $solarProject->weatherData()->get() : collect());
+        $nasaEstimatedRadiationCount = $projectWeatherData
+            ->filter(fn ($row) => ($row->radiation_source ?? 'nasa_real') !== 'nasa_real')
+            ->count();
+        $nasaTotalRadiationRows = $projectWeatherData
+            ->filter(fn ($row) => $row->allsky_sfc_sw_dwn !== null)
+            ->count();
+        $nasaDataQuality = [
+            'totalRows' => $nasaTotalRadiationRows,
+            'estimatedRows' => $nasaEstimatedRadiationCount,
+            'estimatedRatio' => $nasaTotalRadiationRows > 0
+                ? $nasaEstimatedRadiationCount / $nasaTotalRadiationRows
+                : 0.0,
+        ];
+        $weatherAndNasaStats = [
+            ...$weatherStationStats,
+            'nasaDataQuality' => $nasaDataQuality,
+        ];
         $dailyClimateRows = $projectWeatherData->isNotEmpty()
             ? $projectWeatherData
             : ($weatherStationReadings->isNotEmpty()
@@ -47,7 +64,7 @@ class ProjectDashboardService
             $energyAnalysis,
             $solarRecommendations,
             $calculationResult,
-            $weatherStationStats,
+            $weatherAndNasaStats,
         );
 
         $dashboard = $this->buildDashboardNarrative(
@@ -57,6 +74,7 @@ class ProjectDashboardService
             $openAIRecommendation,
             $calculationResult,
             $weatherStationStats,
+            $nasaDataQuality,
         );
         $dashboard['widgets'] = $this->dashboardAiWidgetService->build($dashboard);
         $timeScales = $this->dashboardTimeScaleService->build(
@@ -93,9 +111,10 @@ class ProjectDashboardService
                 'savings' => $monthlyResults->sum('estimated_savings_cop'),
             ],
             'weatherStationStats' => $weatherStationStats,
+            'nasaDataQuality' => $nasaDataQuality,
             'recentWeatherStationReadings' => $weatherStationReadings
                 ->sortByDesc('measured_at')
-                ->take(8)
+                ->take(60)
                 ->values(),
             'openAIRecommendation' => $dashboard['executiveSummary']['ai'],
             'weatherAnalysis' => [
@@ -120,6 +139,7 @@ class ProjectDashboardService
      * @param  array<string, mixed>  $solarRecommendations
      * @param  array<string, mixed>  $openAIRecommendation
      * @param  array<string, mixed>  $weatherStationStats
+     * @param  array<string, mixed>  $nasaDataQuality
      * @return array<string, mixed>
      */
     private function buildDashboardNarrative(
@@ -129,6 +149,7 @@ class ProjectDashboardService
         array $openAIRecommendation,
         ?CalculationResult $calculationResult,
         array $weatherStationStats,
+        array $nasaDataQuality,
     ): array {
         $coverage = $calculationResult ? (float) $calculationResult->coverage_percentage : null;
         $annualSavings = $calculationResult ? (float) $calculationResult->estimated_annual_savings_cop : null;
@@ -206,6 +227,7 @@ class ProjectDashboardService
                     $openAIRecommendation['energy_alerts'] ?? [],
                     fn ($item) => is_string($item) && filled(trim($item))
                 )),
+                'dataQuality' => $nasaDataQuality,
                 'error' => $openAIRecommendation['error'] ?? null,
                 'enabled' => (bool) ($openAIRecommendation['enabled'] ?? false),
                 'ai' => $openAIRecommendation,

@@ -44,6 +44,20 @@ return [
         'location_name' => env('NASA_POWER_LOCATION_NAME', 'Riohacha, La Guajira, Colombia'),
         'latitude' => (float) env('NASA_POWER_LATITUDE', 11.5444),
         'longitude' => (float) env('NASA_POWER_LONGITUDE', -72.9072),
+        'riohacha_monthly_hsp' => [
+            1 => 5.5,
+            2 => 5.8,
+            3 => 5.9,
+            4 => 5.7,
+            5 => 5.5,
+            6 => 5.4,
+            7 => 5.6,
+            8 => 5.7,
+            9 => 5.5,
+            10 => 5.3,
+            11 => 5.2,
+            12 => 5.3,
+        ],
     ],
 
     'weather_station' => [
