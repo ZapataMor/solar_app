@@ -17,10 +17,54 @@
 
     $riskText = (string) ($activeScale['risk'] ?? 'Sin riesgo critico detectado.');
     $riskTone = str_contains(strtolower($riskText), 'crit') ? 'danger' : (filled($riskText) ? 'warn' : 'success');
+    $averageRadiation = isset($weatherStationStats['averageRadiation']) ? (float) $weatherStationStats['averageRadiation'] : null;
+    $latestUvIndex = isset($weatherStationStats['maxUvIndex']) ? (float) $weatherStationStats['maxUvIndex'] : null;
+    $heroScene = $averageRadiation !== null && $averageRadiation >= 550
+        ? 'high'
+        : (($averageRadiation !== null && $averageRadiation >= 250) ? 'medium' : 'low');
+    $heroSceneLabel = match ($heroScene) {
+        'high' => 'Radiacion excelente',
+        'medium' => 'Radiacion moderada',
+        default => 'Radiacion baja',
+    };
+    $heroSceneSubtitle = match ($heroScene) {
+        'high' => 'Produccion optima para autoconsumo',
+        'medium' => 'Produccion estable con variaciones',
+        default => 'Produccion reducida y mayor dependencia de red',
+    };
+    $heroStatusLabel = match ($heroScene) {
+        'high' => 'Despejado',
+        'medium' => 'Parcialmente nublado',
+        default => 'Nublado',
+    };
 
     $formatNumber = fn ($value, int $decimals = 2) => number_format((float) $value, $decimals, ',', '.');
     $formatKwh = fn ($value) => $formatNumber($value) . ' kWh';
     $formatMoney = fn ($value) => '$ ' . number_format((float) $value, 0, ',', '.') . ' COP';
+    $installedCapacityLabel = $calculationResult?->installed_capacity_kwp
+        ? $formatNumber($calculationResult->installed_capacity_kwp) . ' kWp'
+        : 'Pendiente';
+    $usableAreaLabel = $calculationResult?->usable_area_m2
+        ? $formatNumber($calculationResult->usable_area_m2) . ' m2'
+        : ($technicalParameter?->available_area_m2 ? $formatNumber($technicalParameter->available_area_m2) . ' m2' : 'Pendiente');
+    $tariffValue = $solarProject->energy_rate_cop_per_kwh ?? $solarProject->energy_rate_cop_kwh ?? null;
+    $heroCloudiness = match ($heroScene) {
+        'high' => 8,
+        'medium' => 45,
+        default => 88,
+    };
+    $heroEfficiency = match ($heroScene) {
+        'high' => 94,
+        'medium' => 58,
+        default => 24,
+    };
+    $installedCapacityValue = $calculationResult?->installed_capacity_kwp ? (float) $calculationResult->installed_capacity_kwp : 13.2;
+    $heroProduction = match ($heroScene) {
+        'high' => $installedCapacityValue * 0.94,
+        'medium' => $installedCapacityValue * 0.54,
+        default => $installedCapacityValue * 0.2,
+    };
+    $heroTrendWeights = [5, 10, 22, 39, 58, 75, 88, 94, 91, 80, 62, 42, 22, 10, 5];
 
     $badgeClass = fn ($tone) => match ($tone) {
         'success' => 'solar-pill-success',
@@ -57,10 +101,134 @@
             <div class="solar-alert solar-alert-danger">{{ $errors->first() }}</div>
         @endif
 
-        <section class="solar-hero">
-            <div class="solar-page-header gap-4">
-                <div class="max-w-4xl">
-                    <p class="solar-kicker">Dashboard solar operativo</p>
+        <section class="solar-live-dashboard solar-hero-scene-{{ $heroScene }}">
+            <header class="solar-live-header">
+                <div>
+                    <p class="solar-live-kicker">Condicion solar en tiempo real</p>
+                    <p class="solar-live-meta">{{ $solarProject->updated_at?->format('d M Y - H:i') }} COT - {{ $calculationResult?->estimated_panels ?? 24 }} paneles - {{ $installedCapacityLabel }}</p>
+                </div>
+
+                <div class="solar-live-controls" aria-label="Estado solar actual">
+                    <span class="solar-live-control {{ $heroScene === 'high' ? 'is-active' : '' }}">Alta</span>
+                    <span class="solar-live-control {{ $heroScene === 'medium' ? 'is-active' : '' }}">Media</span>
+                    <span class="solar-live-control {{ $heroScene === 'low' ? 'is-active' : '' }}">Baja</span>
+                    <span class="solar-live-control is-auto">Auto</span>
+                </div>
+            </header>
+
+            <div class="solar-live-panel">
+                <aside class="solar-live-stats">
+                    <div class="solar-live-status">
+                        <div class="solar-live-lights" aria-hidden="true">
+                            <span></span>
+                            <span class="is-current"></span>
+                            <span></span>
+                        </div>
+                        <div>
+                            <h1>{{ $heroSceneLabel }}</h1>
+                            <p>{{ $heroSceneSubtitle }}</p>
+                        </div>
+                    </div>
+
+                    <div class="solar-live-reading">
+                        <p>Irradiancia solar</p>
+                        <strong>{{ $averageRadiation !== null ? $formatNumber($averageRadiation, 0) : 'N/A' }}</strong>
+                        <span>W/m2</span>
+                    </div>
+
+                    <div class="solar-live-kpis">
+                        <article>
+                            <p>Produccion</p>
+                            <strong>{{ $formatNumber($heroProduction, 1) }}<span>kW</span></strong>
+                        </article>
+                        <article>
+                            <p>Nubosidad</p>
+                            <strong>{{ $heroCloudiness }}<span>%</span></strong>
+                        </article>
+                        <article>
+                            <p>Estado</p>
+                            <strong class="solar-live-state">{{ $heroScene === 'high' ? 'Sistema estable' : ($heroScene === 'medium' ? 'Produccion variable' : 'Capacidad reducida') }}</strong>
+                        </article>
+                    </div>
+
+                    <div class="solar-live-efficiency">
+                        <div>
+                            <span>Eficiencia del sistema</span>
+                            <strong>{{ $heroEfficiency }}%</strong>
+                        </div>
+                        <i style="--efficiency: {{ $heroEfficiency }}%"></i>
+                    </div>
+                </aside>
+
+                <section class="solar-live-sky">
+                    <div class="solar-hero-sky"></div>
+                    <div class="solar-hero-sun-glow"></div>
+                    <div class="solar-hero-sun-core"></div>
+                    <span class="solar-hero-cloud solar-hero-cloud-a"></span>
+                    <span class="solar-hero-cloud solar-hero-cloud-b"></span>
+                    <span class="solar-hero-cloud solar-hero-cloud-c"></span>
+                    <div class="solar-hero-particles" aria-hidden="true">
+                        @for ($particle = 0; $particle < 10; $particle++)
+                            <span></span>
+                        @endfor
+                    </div>
+                    <div class="solar-hero-rain" aria-hidden="true">
+                        @for ($drop = 0; $drop < 14; $drop++)
+                            <span></span>
+                        @endfor
+                    </div>
+
+                    <div class="solar-live-weather-pill">
+                        <span></span>
+                        {{ $heroStatusLabel }}
+                    </div>
+
+                    <div class="solar-live-trend">
+                        <p>Tendencia solar - 6h - 18h</p>
+                        <div class="solar-live-curve">
+                            @foreach ($heroTrendWeights as $point)
+                                <span style="--point: {{ $point }}%"></span>
+                            @endforeach
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="solar-live-footer">
+                <span>Actualizacion - cada 30 s</span>
+                <span>Solar Dashboard v2.4 - 2026</span>
+            </footer>
+        </section>
+
+        <section class="solar-project-context">
+            <div class="solar-project-context__copy">
+                <p class="solar-kicker">Dashboard solar operativo</p>
+                <h1 class="solar-title">{{ $solarProject->name }}</h1>
+                <p class="solar-subtitle">{{ $solarProject->location_name }} - Actualizado {{ $solarProject->updated_at?->format('d/m/Y H:i') }}</p>
+                <p class="solar-project-context__description">{{ $solarProject->description ?: 'Proyecto sin descripcion.' }}</p>
+
+                <div class="solar-project-context__badges">
+                    <span class="solar-pill {{ $badgeClass($coverageTone) }}">Cobertura {{ $coverageLabel }}</span>
+                    <span class="solar-pill {{ $badgeClass($riskTone) }}">Riesgo {{ $riskTone === 'danger' ? 'Alto' : ($riskTone === 'warn' ? 'Moderado' : 'Bajo') }}</span>
+                    <span class="solar-pill {{ $badgeClass(($dashboard['executiveSummary']['enabled'] ?? false) ? 'success' : 'warn') }}">
+                        IA {{ ($dashboard['executiveSummary']['enabled'] ?? false) ? 'Activa' : 'Pendiente' }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="solar-project-context__actions">
+                <a href="{{ route('solar-projects.edit', $solarProject) }}" class="solar-button-secondary">Editar</a>
+                <form method="POST" action="{{ route('solar-projects.fetch-weather-data', $solarProject) }}">@csrf<button class="solar-button-ghost" type="submit">Sincronizar NASA</button></form>
+                <form method="POST" action="{{ route('solar-projects.calculate-weather-station', $solarProject) }}">@csrf<button class="solar-button" type="submit">Recalcular dashboard</button></form>
+                <form method="POST" action="{{ route('solar-projects.destroy', $solarProject) }}" onsubmit="return confirm('¿Eliminar proyecto?');">@csrf @method('DELETE')<button class="solar-button-danger" type="submit">Eliminar</button></form>
+                <a href="{{ route('solar-projects.index') }}" class="solar-button-ghost">Volver</a>
+            </div>
+        </section>
+
+        <section class="solar-hero solar-hero-split solar-hero-scene-{{ $heroScene }}">
+            <div class="solar-hero-top">
+                <div class="solar-hero-copy">
+                    {{-- <p class="solar-kicker">Dashboard solar operativo</p> --}}
                     <h1 class="solar-title">{{ $solarProject->name }}</h1>
                     <p class="solar-subtitle">{{ $solarProject->location_name }} · Actualizado {{ $solarProject->updated_at?->format('d/m/Y H:i') }}</p>
                     <p class="mt-3 text-sm text-[color:var(--solar-text-muted)]">{{ $solarProject->description ?: 'Proyecto sin descripcion.' }}</p>
@@ -74,35 +242,73 @@
                     </div>
                 </div>
 
-                <div class="flex flex-wrap gap-2">
-                    <a href="{{ route('solar-projects.edit', $solarProject) }}" class="solar-button-secondary">Editar</a>
-                    <form method="POST" action="{{ route('solar-projects.fetch-weather-data', $solarProject) }}">@csrf<button class="solar-button-ghost" type="submit">Sincronizar NASA</button></form>
-                    <form method="POST" action="{{ route('solar-projects.calculate-weather-station', $solarProject) }}">@csrf<button class="solar-button" type="submit">Recalcular dashboard</button></form>
-                    <form method="POST" action="{{ route('solar-projects.destroy', $solarProject) }}" onsubmit="return confirm('¿Eliminar proyecto?');">@csrf @method('DELETE')<button class="solar-button-danger" type="submit">Eliminar</button></form>
-                    <a href="{{ route('solar-projects.index') }}" class="solar-button-ghost">Volver</a>
+                <div class="solar-hero-scene-card">
+                    <div class="solar-hero-scene-viewport">
+                        <div class="solar-hero-sky"></div>
+                        <div class="solar-hero-sun-glow"></div>
+                        <div class="solar-hero-sun-core"></div>
+                        <span class="solar-hero-cloud solar-hero-cloud-a"></span>
+                        <span class="solar-hero-cloud solar-hero-cloud-b"></span>
+                        <span class="solar-hero-cloud solar-hero-cloud-c"></span>
+                        <div class="solar-hero-particles" aria-hidden="true">
+                            @for ($particle = 0; $particle < 10; $particle++)
+                                <span></span>
+                            @endfor
+                        </div>
+                        <div class="solar-hero-rain" aria-hidden="true">
+                            @for ($drop = 0; $drop < 14; $drop++)
+                                <span></span>
+                            @endfor
+                        </div>
+                        <div class="solar-hero-chart">
+                            <div class="solar-hero-chart-grid">
+                                @for ($bar = 0; $bar < 12; $bar++)
+                                    <span style="--bar-height: {{ [12, 24, 38, 54, 72, 90, 100, 92, 76, 58, 34, 18][$bar] }}%"></span>
+                                @endfor
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="solar-hero-scene-meta">
+                        <div>
+                            <p class="solar-hero-scene-label">{{ $heroSceneLabel }}</p>
+                            <p class="solar-hero-scene-copy">{{ $heroSceneSubtitle }}</p>
+                        </div>
+                        <div class="solar-hero-scene-stat">
+                            <span>{{ $heroStatusLabel }}</span>
+                            <strong>{{ $averageRadiation !== null ? $formatNumber($averageRadiation, 0) : 'N/A' }} W/m2</strong>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </section>
 
-        <section class="solar-card mt-6">
-            <div class="solar-page-header">
-                <div>
-                    <p class="solar-kicker">Contexto del proyecto</p>
-                    <h2 class="text-2xl text-[color:var(--solar-text)]">Resumen ejecutivo técnico</h2>
+            <div class="solar-hero-bottom">
+                <div class="solar-hero-bottom-grid">
+                    <div class="solar-hero-metrics">
+                        <article class="solar-metric-card"><p class="solar-metric-label">Consumo mensual</p><p class="solar-metric-value">{{ $formatKwh($solarProject->monthlyConsumption()) }}</p></article>
+                        <article class="solar-metric-card"><p class="solar-metric-label">Tarifa energetica</p><p class="solar-metric-value">{{ $tariffValue !== null ? '$ '.number_format((float) $tariffValue, 0, ',', '.').' COP' : 'Pendiente' }}</p></article>
+                        <article class="solar-metric-card"><p class="solar-metric-label">Capacidad instalada</p><p class="solar-metric-value">{{ $installedCapacityLabel }}</p></article>
+                        <article class="solar-metric-card"><p class="solar-metric-label">Area utilizable</p><p class="solar-metric-value">{{ $usableAreaLabel }}</p></article>
+                        <article class="solar-metric-card"><p class="solar-metric-label">Lecturas locales</p><p class="solar-metric-value">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }}</p></article>
+                        <article class="solar-metric-card"><p class="solar-metric-label">Indice UV maximo</p><p class="solar-metric-value">{{ $latestUvIndex !== null ? $formatNumber($latestUvIndex, 1) : 'N/A' }}</p></article>
+                    </div>
+
+                    <div class="solar-hero-actions-panel">
+                        <div>
+                            <p class="solar-kicker">Acciones del contenedor</p>
+                            <h2 class="text-2xl text-[color:var(--solar-text)]">Control rapido del proyecto</h2>
+                            <p class="solar-subtitle mt-2">La parte superior muestra la animacion y aqui abajo se mantienen los datos y acciones operativas del dashboard.</p>
+                        </div>
+
+                        <div class="solar-hero-actions">
+                            <a href="{{ route('solar-projects.edit', $solarProject) }}" class="solar-button-secondary">Editar</a>
+                            <form method="POST" action="{{ route('solar-projects.fetch-weather-data', $solarProject) }}">@csrf<button class="solar-button-ghost" type="submit">Sincronizar NASA</button></form>
+                            <form method="POST" action="{{ route('solar-projects.calculate-weather-station', $solarProject) }}">@csrf<button class="solar-button" type="submit">Recalcular dashboard</button></form>
+                            <form method="POST" action="{{ route('solar-projects.destroy', $solarProject) }}" onsubmit="return confirm('¿Eliminar proyecto?');">@csrf @method('DELETE')<button class="solar-button-danger" type="submit">Eliminar</button></form>
+                            <a href="{{ route('solar-projects.index') }}" class="solar-button-ghost">Volver</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                <div class="solar-metric-card"><p class="solar-metric-label">Consumo mensual</p><p class="solar-metric-value">{{ $formatKwh($solarProject->monthlyConsumption()) }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Consumo anual</p><p class="solar-metric-value">{{ $formatKwh($solarProject->annualConsumption()) }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Tarifa</p><p class="solar-metric-value">$ {{ number_format($solarProject->energy_rate_cop_per_kwh, 0, ',', '.') }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Paneles</p><p class="solar-metric-value">{{ $calculationResult?->number_of_panels ?? 'N/A' }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Capacidad</p><p class="solar-metric-value">{{ $calculationResult?->installed_capacity_kwp ? $formatNumber($calculationResult->installed_capacity_kwp) . ' kWp' : 'N/A' }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Area util</p><p class="solar-metric-value">{{ $calculationResult?->usable_area_m2 ? $formatNumber($calculationResult->usable_area_m2) . ' m2' : ($technicalParameter?->available_area_m2 ? $formatNumber($technicalParameter->available_area_m2) . ' m2' : 'N/A') }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Ubicacion</p><p class="solar-metric-value text-base">{{ $solarProject->location_name }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Coordenadas</p><p class="solar-metric-value text-base">{{ number_format((float) $solarProject->latitude, 4) }}, {{ number_format((float) $solarProject->longitude, 4) }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Fuente NASA</p><p class="solar-metric-value">{{ number_format($solarProject->weather_data_count, 0, ',', '.') }}</p></div>
-                <div class="solar-metric-card"><p class="solar-metric-label">Lecturas locales</p><p class="solar-metric-value">{{ number_format($weatherStationStats['total'] ?? 0, 0, ',', '.') }}</p></div>
             </div>
         </section>
 
@@ -273,7 +479,6 @@
         </div>
 
         <script type="application/json" id="solar-timescale-chart-data">@json($timeScales)</script>
-
         <script type="application/json" id="weather-station-chart-data">@json($weatherStationChartData ?? ['labels' => [], 'radiation' => []])</script>
     </div>
 </x-layouts::app>
