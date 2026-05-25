@@ -180,6 +180,7 @@
                                 <th>Fecha</th>
                                 <th>Estado</th>
                                 <th>Radiacion</th>
+                                <th>Origen radiacion</th>
                                 <th>Temp.</th>
                                 <th>Humedad</th>
                                 <th>Precipitacion</th>
@@ -194,6 +195,15 @@
                                         || $row->humidity === null
                                         || $row->precipitation === null
                                         || $row->wind_speed === null;
+                                    $sourceLabel = match ($row->radiation_method ?? 'nasa_real') {
+                                        'nasa_real' => 'NASA real',
+                                        'interpolated_recent' => 'Estimado: interpolacion',
+                                        'weather_signals_model' => 'Estimado: señales meteo',
+                                        'historical_monthly' => 'Estimado: historico mensual',
+                                        'riohacha_climatology' => 'Estimado: climatologia Riohacha',
+                                        'last_valid_known' => 'Estimado: ultimo valor valido',
+                                        default => 'Estimado',
+                                    };
                                 @endphp
                                 <tr>
                                     <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
@@ -203,6 +213,12 @@
                                         </span>
                                     </td>
                                     <td>{{ $formatNasaNumber($row->radiation, 3) }}</td>
+                                    <td>
+                                        {{ $sourceLabel }}
+                                        <span class="text-xs text-[color:var(--solar-text-muted)]">
+                                            ({{ number_format((float) ($row->radiation_confidence ?? 0), 2, ',', '.') }})
+                                        </span>
+                                    </td>
                                     <td>{{ $formatNasaNumber($row->temperature, 2) }}</td>
                                     <td>{{ $formatNasaNumber($row->humidity, 2) }}</td>
                                     <td>{{ $formatNasaNumber($row->precipitation, 4) }}</td>
@@ -210,7 +226,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="py-10 text-center">
+                                    <td colspan="8" class="py-10 text-center">
                                         Aun no hay datos registrados desde NASA POWER.
                                     </td>
                                 </tr>

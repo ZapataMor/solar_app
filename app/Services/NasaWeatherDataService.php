@@ -55,6 +55,7 @@ class NasaWeatherDataService
             $ws10mByTimestamp = collect($timestamps)->mapWithKeys(fn ($timestamp) => [
                 $timestamp => $this->cleanValue($parameters['WS10M'][$timestamp] ?? null),
             ])->all();
+            $historicalMonthAverages = $this->snapshotHistoricalMonthAverages($timestamps);
 
             foreach ($timestamps as $timestamp) {
                 $dateTime = $this->parseNasaTimestamp($timestamp);
@@ -67,6 +68,7 @@ class NasaWeatherDataService
                     $rh2mByTimestamp,
                     $prectotcorrByTimestamp,
                     $ws10mByTimestamp,
+                    $historicalMonthAverages,
                 );
 
                 $allsky = $radiation['value'];
@@ -155,5 +157,31 @@ class NasaWeatherDataService
         }
 
         throw new \RuntimeException("NASA POWER returned an invalid timestamp [{$timestamp}].");
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, string>  $timestamps
+     * @return array<int, float>
+     */
+    private function snapshotHistoricalMonthAverages(\Illuminate\Support\Collection $timestamps): array
+    {
+        $months = $timestamps
+            ->map(fn (string $timestamp) => $this->parseNasaTimestamp($timestamp)->month)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($months === []) {
+            return [];
+        }
+
+        return ApiWeatherData::query()
+            ->selectRaw('MONTH(date_time) as month, AVG(allsky_sfc_sw_dwn) as avg_radiation')
+            ->whereNotNull('allsky_sfc_sw_dwn')
+            ->whereIn(DB::raw('MONTH(date_time)'), $months)
+            ->groupByRaw('MONTH(date_time)')
+            ->get()
+            ->mapWithKeys(fn ($row) => [(int) $row->month => (float) $row->avg_radiation])
+            ->all();
     }
 }

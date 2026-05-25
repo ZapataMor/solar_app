@@ -13,3 +13,8 @@ Schedule::command('weather-station:fetch')
     ->between('06:00', '18:30')
     ->timezone(config('services.weather_station.schedule_timezone', 'America/Bogota'))
     ->withoutOverlapping();
+
+Schedule::command('nasa-power:fetch')
+    ->hourlyAt(1)
+    ->timezone(config('app.timezone', 'America/Bogota'))
+    ->withoutOverlapping();

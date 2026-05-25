@@ -26,6 +26,7 @@ class NasaRadiationFallbackService
         array $rh2mByTimestamp = [],
         array $precipByTimestamp = [],
         array $windByTimestamp = [],
+        array $historicalMonthAverages = [],
     ): array {
         $current = $allskyByTimestamp[$timestamp] ?? null;
 
@@ -49,7 +50,23 @@ class NasaRadiationFallbackService
             ];
         }
 
-        $historicalMonthAverage = $this->historicalMonthAverage($dateTime);
+        $weatherSignalsEstimate = $this->estimateFromWeatherSignals(
+            $dateTime,
+            $t2mByTimestamp[$timestamp] ?? null,
+            $rh2mByTimestamp[$timestamp] ?? null,
+            $precipByTimestamp[$timestamp] ?? null,
+            $windByTimestamp[$timestamp] ?? null
+        );
+        if ($weatherSignalsEstimate !== null) {
+            return [
+                'value' => $weatherSignalsEstimate,
+                'source' => 'estimated',
+                'method' => 'weather_signals_model',
+                'confidence' => 0.80,
+            ];
+        }
+
+        $historicalMonthAverage = $this->historicalMonthAverage($dateTime, $historicalMonthAverages);
         if ($historicalMonthAverage !== null) {
             return [
                 'value' => $this->adjustByWeatherSignals(
@@ -57,7 +74,8 @@ class NasaRadiationFallbackService
                     $t2mByTimestamp[$timestamp] ?? null,
                     $rh2mByTimestamp[$timestamp] ?? null,
                     $precipByTimestamp[$timestamp] ?? null,
-                    $windByTimestamp[$timestamp] ?? null
+                    $windByTimestamp[$timestamp] ?? null,
+                    20.0
                 ),
                 'source' => 'estimated',
                 'method' => 'historical_monthly',
@@ -73,7 +91,8 @@ class NasaRadiationFallbackService
                     $t2mByTimestamp[$timestamp] ?? null,
                     $rh2mByTimestamp[$timestamp] ?? null,
                     $precipByTimestamp[$timestamp] ?? null,
-                    $windByTimestamp[$timestamp] ?? null
+                    $windByTimestamp[$timestamp] ?? null,
+                    20.0
                 ),
                 'source' => 'estimated',
                 'method' => 'riohacha_climatology',
@@ -144,9 +163,16 @@ class NasaRadiationFallbackService
         return (float) (($previous['value'] ?? $next['value']) ?? 0.0);
     }
 
-    private function historicalMonthAverage(Carbon $dateTime): ?float
+    /**
+     * @param  array<int, float>  $historicalMonthAverages
+     */
+    private function historicalMonthAverage(Carbon $dateTime, array $historicalMonthAverages = []): ?float
     {
         $month = $dateTime->month;
+
+        if (array_key_exists($month, $historicalMonthAverages)) {
+            return (float) $historicalMonthAverages[$month];
+        }
 
         return ApiWeatherData::query()
             ->whereMonth('date_time', $month)
@@ -183,7 +209,8 @@ class NasaRadiationFallbackService
         ?float $temperature,
         ?float $humidity,
         ?float $precipitation,
-        ?float $windSpeed
+        ?float $windSpeed,
+        float $minFloor = 20.0
     ): float {
         $factor = 1.0;
 
@@ -203,7 +230,41 @@ class NasaRadiationFallbackService
             $factor += 0.02;
         }
 
-        return max(20.0, $baseRadiationWm2 * max(0.55, min(1.10, $factor)));
+        return max($minFloor, $baseRadiationWm2 * max(0.55, min(1.10, $factor)));
+    }
+
+    private function estimateFromWeatherSignals(
+        Carbon $dateTime,
+        ?float $temperature,
+        ?float $humidity,
+        ?float $precipitation,
+        ?float $windSpeed
+    ): ?float {
+        $availableSignals = collect([$temperature, $humidity, $precipitation, $windSpeed])
+            ->filter(fn ($value) => $value !== null)
+            ->count();
+
+        if ($availableSignals < 2) {
+            return null;
+        }
+
+        $hour = ((int) $dateTime->hour) + 0.5;
+        $daylightCurve = sin(pi() * (($hour - 6.0) / 12.0));
+        if ($daylightCurve <= 0) {
+            return 0.0;
+        }
+
+        $seasonalDailyMean = $this->riohachaClimatology($dateTime) ?? 220.0;
+        $estimatedNoonPeak = $seasonalDailyMean * 3.5;
+        $baseByHour = $estimatedNoonPeak * $daylightCurve;
+
+        return $this->adjustByWeatherSignals(
+            $baseByHour,
+            $temperature,
+            $humidity,
+            $precipitation,
+            $windSpeed,
+            0.0
+        );
     }
 }
-
