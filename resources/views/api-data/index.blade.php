@@ -65,7 +65,7 @@
             </div>
         @endif
         <section class="solar-card" data-api-pagination-section="weather-station" data-weather-station-sync data-sync-interval="15000">
-            <div class="solar-page-header">
+            <div class="solar-page-header solar-api-section-header">
                 <div>
                     <p class="solar-kicker">Estacion local</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Centro meteorologico</h2>
@@ -74,7 +74,7 @@
                         Actualizacion automatica activa.
                     </p>
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="solar-api-actions">
                     <span class="solar-pill solar-pill-warn" data-weather-station-count-pill>
                         {{ number_format($weatherStationCount, 0, ',', '.') }} registros
                     </span>

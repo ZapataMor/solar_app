@@ -5,7 +5,7 @@
 @if($sidebar)
     <flux:sidebar.brand name="Solar IA Riohacha" class="solar-sidebar-brand" {{ $attributes }}>
         <x-slot name="logo" class="solar-brand-mark flex aspect-square size-10 items-center justify-center rounded-2xl">
-            <x-app-logo-icon class="size-5 fill-current text-white" />
+            <img src="{{ asset('images/logo.png') }}" alt="Maicao Coders" class="solar-brand-logo" />
         </x-slot>
         <span class="solar-brand-copy">
             <strong>Solar IA Riohacha</strong>
@@ -15,7 +15,7 @@
 @else
     <flux:brand name="Solar IA Riohacha" {{ $attributes }}>
         <x-slot name="logo" class="solar-brand-mark flex aspect-square size-10 items-center justify-center rounded-2xl">
-            <x-app-logo-icon class="size-5 fill-current text-white" />
+            <img src="{{ asset('images/logo.png') }}" alt="Maicao Coders" class="solar-brand-logo" />
         </x-slot>
         <span class="solar-brand-copy">
             <strong>Solar IA Riohacha</strong>

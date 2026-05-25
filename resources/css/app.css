@@ -25,68 +25,68 @@
     --color-zinc-900: #171717;
     --color-zinc-950: #0a0a0a;
 
-    --color-accent: #c56f21;
-    --color-accent-content: #8f4b18;
+    --color-accent: #c87427;
+    --color-accent-content: #8f5528;
     --color-accent-foreground: #fffaf2;
 }
 
 @layer theme {
     .dark {
-        --color-accent: #f0b35f;
-        --color-accent-content: #f0b35f;
-        --color-accent-foreground: #2f2318;
+        --color-accent: #d89b45;
+        --color-accent-content: #e0ad62;
+        --color-accent-foreground: #111c26;
     }
 }
 
 @layer base {
     :root {
-        --solar-bg: #f7f1e4;
-        --solar-bg-alt: #f1e4c9;
-        --solar-surface: rgba(255, 249, 240, 0.82);
-        --solar-surface-strong: #fffaf2;
-        --solar-surface-muted: #f5ead7;
-        --solar-surface-elevated: rgba(255, 252, 247, 0.94);
-        --solar-border: rgba(129, 88, 44, 0.14);
-        --solar-border-strong: rgba(129, 88, 44, 0.22);
-        --solar-text: #352515;
-        --solar-text-muted: #77614b;
-        --solar-sun: #d1842e;
-        --solar-sun-soft: #efb35f;
-        --solar-gold: #a85c1e;
-        --solar-success: #5b8a5d;
-        --solar-warning: #d39a2f;
-        --solar-danger: #c96a58;
-        --solar-danger-bg: rgba(252, 239, 236, 0.92);
-        --solar-success-bg: rgba(235, 246, 236, 0.9);
-        --solar-warning-bg: rgba(255, 246, 223, 0.92);
-        --solar-panel-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
-        --solar-shadow: 0 20px 50px -30px rgba(83, 49, 20, 0.34);
+        --solar-bg: #f8fbff;
+        --solar-bg-alt: #dbeafe;
+        --solar-surface: rgba(250, 253, 255, 0.8);
+        --solar-surface-strong: #ffffff;
+        --solar-surface-muted: #eaf4ff;
+        --solar-surface-elevated: rgba(248, 252, 255, 0.9);
+        --solar-border: rgba(71, 85, 105, 0.14);
+        --solar-border-strong: rgba(71, 85, 105, 0.24);
+        --solar-text: #392719;
+        --solar-text-muted: #7a6653;
+        --solar-sun: #c87427;
+        --solar-sun-soft: #e1a751;
+        --solar-gold: #a85b1e;
+        --solar-success: #4f805b;
+        --solar-warning: #bd7e2b;
+        --solar-danger: #b96755;
+        --solar-danger-bg: rgba(252, 235, 229, 0.86);
+        --solar-success-bg: rgba(229, 243, 231, 0.84);
+        --solar-warning-bg: rgba(255, 241, 215, 0.86);
+        --solar-panel-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
+        --solar-shadow: 0 26px 70px -42px rgba(30, 41, 59, 0.38);
         --solar-content-max: 96rem;
         --solar-sidebar-width: 17rem;
     }
 
     .dark {
-        --solar-bg: #120f0a;
-        --solar-bg-alt: #1a1510;
-        --solar-surface: rgba(30, 24, 18, 0.84);
-        --solar-surface-strong: #1d1711;
-        --solar-surface-muted: #251d15;
-        --solar-surface-elevated: rgba(34, 28, 21, 0.96);
-        --solar-border: rgba(240, 179, 95, 0.16);
-        --solar-border-strong: rgba(240, 179, 95, 0.28);
-        --solar-text: #f7ead8;
-        --solar-text-muted: #cfbb9f;
-        --solar-sun: #f0b35f;
-        --solar-sun-soft: #ffd18d;
-        --solar-gold: #f0b35f;
-        --solar-success: #9dd3a0;
-        --solar-warning: #efc66c;
-        --solar-danger: #ef9b8a;
-        --solar-danger-bg: rgba(106, 45, 38, 0.3);
-        --solar-success-bg: rgba(43, 87, 53, 0.28);
-        --solar-warning-bg: rgba(115, 84, 26, 0.28);
-        --solar-panel-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        --solar-shadow: 0 24px 60px -36px rgba(0, 0, 0, 0.7);
+        --solar-bg: #071019;
+        --solar-bg-alt: #101a22;
+        --solar-surface: rgba(18, 29, 39, 0.78);
+        --solar-surface-strong: #111c26;
+        --solar-surface-muted: #1b2833;
+        --solar-surface-elevated: rgba(23, 35, 46, 0.88);
+        --solar-border: rgba(224, 177, 95, 0.16);
+        --solar-border-strong: rgba(224, 177, 95, 0.3);
+        --solar-text: #f7eddc;
+        --solar-text-muted: #c5b59f;
+        --solar-sun: #d89b45;
+        --solar-sun-soft: #f0c572;
+        --solar-gold: #e0ad62;
+        --solar-success: #93cfa0;
+        --solar-warning: #e0ad62;
+        --solar-danger: #e39178;
+        --solar-danger-bg: rgba(124, 62, 45, 0.28);
+        --solar-success-bg: rgba(55, 101, 70, 0.24);
+        --solar-warning-bg: rgba(133, 91, 35, 0.26);
+        --solar-panel-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        --solar-shadow: 0 28px 72px -42px rgba(0, 0, 0, 0.82);
     }
 
     html {
@@ -99,45 +99,50 @@
 
     body {
         position: relative;
-        background:
-            radial-gradient(circle at top left, rgba(239, 179, 95, 0.3) 0%, rgba(239, 179, 95, 0) 34%),
-            radial-gradient(circle at top right, rgba(209, 132, 46, 0.14) 0%, rgba(209, 132, 46, 0) 28%),
-            linear-gradient(180deg, #fbf5ea 0%, #f7f1e4 40%, #efe2ca 100%);
+        background: #f8fbff;
         color: var(--solar-text);
     }
 
     .dark body {
-        background:
-            radial-gradient(circle at top left, rgba(240, 179, 95, 0.2) 0%, rgba(240, 179, 95, 0) 32%),
-            radial-gradient(circle at top right, rgba(201, 106, 88, 0.12) 0%, rgba(201, 106, 88, 0) 28%),
-            linear-gradient(180deg, #16110c 0%, #120f0a 45%, #0c0906 100%);
+        background: linear-gradient(135deg, #070f17 0%, #0c1822 50%, #071019 100%);
     }
 
-    body::before,
-    body::after {
+    .solar-shell-body::before,
+    .solar-shell-body::after {
         content: '';
         position: fixed;
-        inset: auto;
         z-index: 0;
         pointer-events: none;
-        border-radius: 999px;
-        filter: blur(18px);
     }
 
-    body::before {
-        top: -120px;
-        right: -80px;
-        width: 420px;
-        height: 420px;
-        background: radial-gradient(circle, rgba(239, 179, 95, 0.34) 0%, rgba(239, 179, 95, 0) 68%);
+    .solar-shell-body::before {
+        inset: 0;
+        background-image:
+            linear-gradient(to right, rgba(47, 36, 25, 0.055) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(47, 36, 25, 0.055) 1px, transparent 1px),
+            radial-gradient(circle, rgba(51, 65, 85, 0.28) 1px, transparent 1px);
+        background-position: 0 0, 0 0, 0 0;
+        background-size: 20px 20px, 20px 20px, 20px 20px;
+        mask-image: linear-gradient(to left, #000 0%, #000 50%, transparent 78%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to left, #000 0%, #000 50%, transparent 78%, transparent 100%);
     }
 
-    body::after {
-        bottom: -140px;
-        left: -120px;
-        width: 420px;
-        height: 420px;
-        background: radial-gradient(circle, rgba(201, 106, 88, 0.12) 0%, rgba(201, 106, 88, 0) 72%);
+    .solar-shell-body::after {
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 42%, rgba(219, 234, 254, 0.24) 100%);
+    }
+
+    .dark .solar-shell-body::before {
+        background-image:
+            linear-gradient(to right, rgba(255, 250, 240, 0.026) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 250, 240, 0.026) 1px, transparent 1px),
+            radial-gradient(circle, rgba(204, 172, 122, 0.09) 1px, transparent 1px);
+        mask-image: linear-gradient(to left, #000 0%, #000 48%, transparent 78%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to left, #000 0%, #000 48%, transparent 78%, transparent 100%);
+    }
+
+    .dark .solar-shell-body::after {
+        background: linear-gradient(135deg, rgba(255, 250, 240, 0.018) 0%, rgba(255, 250, 240, 0) 46%, rgba(189, 149, 90, 0.018) 100%);
     }
 
     h1,
@@ -791,7 +796,8 @@ select:focus[data-flux-control] {
 
     .solar-shell-sidebar {
         border-color: var(--solar-border) !important;
-        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 92%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 92%, transparent) 100%) !important;
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 90%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 88%, transparent) 100%) !important;
         backdrop-filter: blur(16px);
         box-shadow: var(--solar-panel-shadow), inset -1px 0 0 color-mix(in srgb, var(--solar-border-strong) 70%, transparent);
     }
@@ -823,11 +829,19 @@ select:focus[data-flux-control] {
     }
 
     .solar-brand-mark {
-        background: linear-gradient(145deg, #8f4b18 0%, #c56f21 55%, #efb35f 100%) !important;
+        overflow: hidden;
+        background: rgba(255, 250, 240, 0.96) !important;
         color: #fff7ee !important;
         box-shadow:
-            0 14px 34px -18px rgba(197, 111, 33, 0.66),
-            inset 0 1px 0 rgba(255, 255, 255, 0.26);
+            0 14px 34px -18px rgba(169, 91, 31, 0.44),
+            inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+
+    .solar-brand-logo {
+        display: block;
+        width: 82%;
+        height: 82%;
+        object-fit: contain;
     }
 
     .solar-brand-copy {
@@ -855,9 +869,7 @@ select:focus[data-flux-control] {
         margin: 0.25rem 0 1rem;
         border: 1px solid var(--solar-border);
         border-radius: 1.1rem;
-        background:
-            radial-gradient(circle at top right, color-mix(in srgb, var(--solar-sun-soft) 28%, transparent) 0%, transparent 42%),
-            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 96%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 92%, transparent) 100%);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 84%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 78%, transparent) 100%);
         padding: 1rem;
         box-shadow: var(--solar-shadow);
     }
@@ -894,8 +906,13 @@ select:focus[data-flux-control] {
 
     .solar-nav-item:hover,
     .solar-header-item:hover {
-        background: rgba(239, 179, 95, 0.14) !important;
+        background: color-mix(in srgb, #dbeafe 68%, transparent) !important;
         color: var(--solar-text) !important;
+    }
+
+    .dark .solar-nav-item:hover,
+    .dark .solar-header-item:hover {
+        background: color-mix(in srgb, var(--solar-surface-muted) 76%, transparent) !important;
     }
 
     .solar-user-trigger {
@@ -928,6 +945,49 @@ select:focus[data-flux-control] {
         gap: 1rem;
     }
 
+    .solar-api-section-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: flex-start;
+    }
+
+    .solar-api-section-header [data-weather-station-status] {
+        min-height: 1.25rem;
+    }
+
+    .solar-api-actions {
+        display: grid;
+        grid-template-columns: auto auto;
+        align-items: flex-start;
+        justify-content: end;
+        gap: 0.5rem;
+        min-width: max-content;
+    }
+
+    .solar-api-actions form {
+        display: flex;
+        margin: 0;
+    }
+
+    .solar-api-actions .solar-button,
+    .solar-api-actions .solar-button-secondary,
+    .solar-api-actions .solar-pill {
+        min-height: 3.25rem;
+        white-space: nowrap;
+    }
+
+    .solar-api-actions .solar-button-secondary {
+        border-color: var(--solar-border) !important;
+        background: color-mix(in srgb, var(--solar-surface-elevated) 90%, transparent) !important;
+        color: var(--solar-text) !important;
+        box-shadow: none;
+    }
+
+    .dark .solar-api-actions .solar-button-secondary {
+        background: color-mix(in srgb, var(--solar-surface-elevated) 78%, transparent) !important;
+        color: var(--solar-text) !important;
+    }
+
     .solar-kicker {
         color: var(--solar-gold);
         font-family: var(--font-mono);
@@ -958,30 +1018,20 @@ select:focus[data-flux-control] {
         overflow: hidden;
         border: 1px solid var(--solar-border);
         border-radius: 1.9rem;
-        background:
-            radial-gradient(circle at top right, color-mix(in srgb, var(--solar-sun-soft) 28%, transparent) 0%, transparent 32%),
-            radial-gradient(circle at bottom left, color-mix(in srgb, var(--solar-danger) 12%, transparent) 0%, transparent 30%),
-            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 97%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 90%, transparent) 100%);
+        background: linear-gradient(135deg, color-mix(in srgb, var(--solar-surface-strong) 88%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 72%, transparent) 100%);
         padding: clamp(1.35rem, 2vw, 2rem);
         box-shadow: var(--solar-shadow);
+        backdrop-filter: blur(14px);
     }
 
     .solar-hero::after {
-        content: '';
-        position: absolute;
-        right: -7rem;
-        top: -6rem;
-        width: 18rem;
-        height: 18rem;
-        border-radius: 999px;
-        background: radial-gradient(circle, rgba(239, 179, 95, 0.34) 0%, rgba(239, 179, 95, 0) 70%);
-        pointer-events: none;
+        content: none;
     }
 
     .solar-card {
         border: 1px solid var(--solar-border);
         border-radius: 1.5rem;
-        background: var(--solar-surface);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface) 96%, transparent) 0%, color-mix(in srgb, var(--solar-surface-muted) 54%, transparent) 100%);
         padding: 1.25rem;
         box-shadow: var(--solar-shadow);
         backdrop-filter: blur(12px);
@@ -990,7 +1040,7 @@ select:focus[data-flux-control] {
     .solar-card-strong {
         border: 1px solid color-mix(in srgb, var(--solar-sun) 16%, transparent);
         border-radius: 1.6rem;
-        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 90%, transparent) 100%);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 90%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 72%, transparent) 100%);
         padding: 1.35rem;
         box-shadow: var(--solar-shadow);
     }
@@ -1033,7 +1083,7 @@ select:focus[data-flux-control] {
         gap: 0.7rem;
         border: 1px solid var(--solar-border);
         border-radius: 1.25rem;
-        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 92%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 78%, transparent) 100%);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 84%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 62%, transparent) 100%);
         padding: 1.15rem;
         transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
     }
@@ -1372,15 +1422,26 @@ select:focus[data-flux-control] {
     }
 
     .solar-button {
-        background: linear-gradient(135deg, #9f531b 0%, #c56f21 55%, #efb35f 100%);
-        color: #fff7ee;
-        box-shadow: 0 16px 30px -20px rgba(159, 83, 27, 0.8);
+        background: #050505;
+        color: #fffaf2;
+        box-shadow: 0 16px 30px -22px rgba(0, 0, 0, 0.58);
     }
 
     .solar-button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 18px 34px -20px rgba(159, 83, 27, 0.92);
+        box-shadow: 0 18px 34px -22px rgba(0, 0, 0, 0.72);
         filter: brightness(1.04);
+    }
+
+    .dark .solar-button {
+        background: linear-gradient(135deg, #b7792f 0%, #d89b45 58%, #efc56f 100%);
+        color: #111c26;
+        box-shadow: 0 18px 36px -24px color-mix(in srgb, var(--solar-sun-soft) 46%, transparent);
+    }
+
+    .dark .solar-button:hover {
+        box-shadow: 0 20px 38px -24px color-mix(in srgb, var(--solar-sun-soft) 56%, transparent);
+        filter: brightness(1.06);
     }
 
     .solar-button-secondary {
@@ -1392,9 +1453,15 @@ select:focus[data-flux-control] {
     .solar-button-secondary:hover,
     .solar-button-ghost:hover {
         transform: translateY(-1px);
-        border-color: rgba(197, 111, 33, 0.28);
-        background: rgba(247, 236, 215, 0.96);
+        border-color: color-mix(in srgb, #93c5fd 36%, transparent);
+        background: color-mix(in srgb, #dbeafe 48%, var(--solar-surface-strong) 52%);
         color: var(--solar-text);
+    }
+
+    .dark .solar-button-secondary:hover,
+    .dark .solar-button-ghost:hover {
+        border-color: color-mix(in srgb, var(--solar-sun-soft) 34%, transparent);
+        background: color-mix(in srgb, var(--solar-surface-muted) 70%, var(--solar-surface-elevated) 30%);
     }
 
     .solar-button-ghost {
@@ -1556,8 +1623,8 @@ select:focus[data-flux-control] {
     }
 
     .solar-scale-tab.is-active {
-        background: linear-gradient(135deg, #9f531b 0%, #c56f21 55%, #efb35f 100%);
-        box-shadow: 0 12px 24px -18px rgba(159, 83, 27, 0.75);
+        background: linear-gradient(135deg, #a95b1f 0%, #c87427 55%, #e1a751 100%);
+        box-shadow: 0 12px 24px -18px color-mix(in srgb, var(--solar-sun) 72%, transparent);
         color: #fff7ee;
     }
 
@@ -1936,9 +2003,7 @@ select:focus[data-flux-control] {
         gap: 1.25rem;
         border: 1px solid color-mix(in srgb, var(--solar-border) 82%, transparent);
         border-radius: 1.5rem;
-        background:
-            radial-gradient(circle at top right, color-mix(in srgb, var(--solar-sun-soft) 16%, transparent) 0%, transparent 34%),
-            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 96%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 74%, transparent) 100%);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 96%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 74%, transparent) 100%);
         padding: 1.25rem;
     }
 
@@ -1972,10 +2037,10 @@ select:focus[data-flux-control] {
         overflow: hidden;
         border: 1px solid color-mix(in srgb, var(--solar-border) 82%, transparent);
         border-radius: 1.45rem;
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-elevated) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 72%, transparent) 100%);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-elevated) 88%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 62%, transparent) 100%);
         padding: 1.2rem;
         box-shadow: 0 18px 40px -32px rgba(83, 49, 20, 0.55);
+        backdrop-filter: blur(10px);
         transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
     }
 
@@ -1986,14 +2051,7 @@ select:focus[data-flux-control] {
     }
 
     .solar-project-card__glow {
-        position: absolute;
-        top: -4rem;
-        right: -4rem;
-        width: 10rem;
-        height: 10rem;
-        border-radius: 999px;
-        background: radial-gradient(circle, rgba(239, 179, 95, 0.22) 0%, rgba(239, 179, 95, 0) 70%);
-        pointer-events: none;
+        display: none;
     }
 
     .solar-project-card__top {
@@ -2117,9 +2175,7 @@ select:focus[data-flux-control] {
         width: min(100%, 28rem);
         border: 1px solid color-mix(in srgb, var(--solar-danger) 24%, transparent);
         border-radius: 1.5rem;
-        background:
-            radial-gradient(circle at top right, color-mix(in srgb, var(--solar-sun-soft) 16%, transparent) 0%, transparent 36%),
-            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 80%, transparent) 100%);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 80%, transparent) 100%);
         padding: 1.4rem;
         box-shadow: 0 28px 70px -34px rgba(20, 14, 10, 0.72);
     }
@@ -2154,22 +2210,13 @@ select:focus[data-flux-control] {
         overflow: hidden;
         border: 1px dashed color-mix(in srgb, var(--solar-sun) 30%, transparent);
         border-radius: 1.6rem;
-        background:
-            radial-gradient(circle at top, color-mix(in srgb, var(--solar-sun-soft) 18%, transparent) 0%, transparent 38%),
-            linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 78%, transparent) 100%);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 98%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 78%, transparent) 100%);
         padding: clamp(2rem, 5vw, 3.5rem) 1.5rem;
         text-align: center;
     }
 
     .solar-empty-state__glow {
-        position: absolute;
-        inset: auto auto -3rem 50%;
-        width: 12rem;
-        height: 12rem;
-        border-radius: 999px;
-        background: radial-gradient(circle, rgba(239, 179, 95, 0.2) 0%, rgba(239, 179, 95, 0) 72%);
-        transform: translateX(-50%);
-        pointer-events: none;
+        display: none;
     }
 
     .solar-pagination nav > div:first-child {
@@ -2205,8 +2252,9 @@ select:focus[data-flux-control] {
     [data-flux-modal] dialog:not([data-flux-flyout]),
     [data-flux-modal-content] {
         border-color: var(--solar-border) !important;
-        background: var(--solar-surface-elevated) !important;
+        background: color-mix(in srgb, var(--solar-surface-elevated) 92%, transparent) !important;
         color: var(--solar-text);
+        backdrop-filter: blur(14px);
     }
 
     [data-flux-menu-separator],
@@ -2222,14 +2270,26 @@ select:focus[data-flux-control] {
     [data-flux-navlist-item]:hover,
     [data-flux-menu-item]:hover,
     [data-flux-navlist-item][data-current] {
-        background: color-mix(in srgb, var(--solar-sun-soft) 12%, transparent) !important;
+        background: color-mix(in srgb, #dbeafe 74%, transparent) !important;
         color: var(--solar-text) !important;
     }
 
+    .dark [data-flux-navlist-item]:hover,
+    .dark [data-flux-menu-item]:hover,
+    .dark [data-flux-navlist-item][data-current] {
+        background: color-mix(in srgb, var(--solar-surface-muted) 82%, transparent) !important;
+    }
+
     [data-flux-sidebar-item][data-current] {
-        background: color-mix(in srgb, var(--solar-sun-soft) 16%, transparent) !important;
+        background: linear-gradient(90deg, color-mix(in srgb, #dbeafe 82%, transparent) 0%, color-mix(in srgb, #eaf4ff 72%, transparent) 100%) !important;
         color: var(--solar-text) !important;
-        border: 1px solid color-mix(in srgb, var(--solar-sun) 20%, transparent);
+        border: 1px solid color-mix(in srgb, #93c5fd 30%, transparent);
+        box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 18%, transparent);
+    }
+
+    .dark [data-flux-sidebar-item][data-current] {
+        background: linear-gradient(90deg, color-mix(in srgb, var(--solar-surface-muted) 82%, transparent) 0%, color-mix(in srgb, var(--solar-surface-elevated) 70%, transparent) 100%) !important;
+        border-color: color-mix(in srgb, var(--solar-border-strong) 80%, transparent);
     }
 
     [data-flux-input] input,
@@ -2265,13 +2325,13 @@ select:focus[data-flux-control] {
     .dark .solar-button-secondary:hover,
     .dark .solar-button-ghost:hover {
         border-color: color-mix(in srgb, var(--solar-sun-soft) 34%, transparent);
-        background: color-mix(in srgb, var(--solar-sun-soft) 18%, var(--solar-surface-elevated) 82%);
+        background: color-mix(in srgb, var(--solar-surface-muted) 70%, var(--solar-surface-elevated) 30%);
         color: #fff6ea;
         box-shadow: 0 14px 28px -22px rgba(0, 0, 0, 0.72);
     }
 
     .dark .solar-button:hover {
-        box-shadow: 0 20px 36px -20px rgba(240, 179, 95, 0.34);
+        box-shadow: 0 20px 36px -20px color-mix(in srgb, var(--solar-sun-soft) 38%, transparent);
         filter: brightness(1.1);
     }
 
@@ -2335,6 +2395,22 @@ select:focus[data-flux-control] {
         .solar-page-header {
             flex-direction: column;
             align-items: stretch;
+        }
+
+        .solar-api-section-header {
+            grid-template-columns: 1fr;
+        }
+
+        .solar-api-actions {
+            justify-content: stretch;
+            min-width: 0;
+        }
+
+        .solar-api-actions .solar-pill,
+        .solar-api-actions form,
+        .solar-api-actions .solar-button,
+        .solar-api-actions .solar-button-secondary {
+            width: 100%;
         }
 
         .solar-report-kpis,
