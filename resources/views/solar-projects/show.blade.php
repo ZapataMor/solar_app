@@ -5,6 +5,7 @@
     $activeScaleKey = $timeScales['defaultScale'] ?? 'monthly';
     $activeScale = $timeScales['activeScale'] ?? ($timeScales['scales'][$activeScaleKey] ?? null);
     $dashboard = $dashboard ?? ['executiveSummary' => ['enabled' => false]];
+    $futurePredictions = $dashboard['futurePredictions'] ?? [];
     $generateAiRecommendations = (bool) ($generateAiRecommendations ?? false);
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
@@ -423,6 +424,36 @@
                 @empty
                     <div class="solar-alert solar-alert-warning">Sin recomendaciones adicionales para la escala activa.</div>
                 @endforelse
+            </div>
+        </section>
+
+        <section class="solar-card mt-6">
+            <div class="solar-page-header">
+                <div>
+                    <p class="solar-kicker">Prediccion operativa</p>
+                    <h2 class="text-2xl text-[color:var(--solar-text)]">Escenario proxima semana</h2>
+                </div>
+                <span class="solar-pill">Basado en historico</span>
+            </div>
+            <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                <article class="solar-recommendation-card">
+                    <div class="solar-recommendation-card-head"><p class="solar-recommendation-card-title">Tendencia de temperatura</p></div>
+                    <p class="solar-recommendation-card-copy">
+                        {{ $futurePredictions['temperature']['message'] ?? 'Sin prediccion termica disponible.' }}
+                    </p>
+                    @if (isset($futurePredictions['temperature']['projected_next_week_c']) && $futurePredictions['temperature']['projected_next_week_c'] !== null)
+                        <p class="solar-recommendation-card-copy mt-2">
+                            Proyeccion: {{ number_format((float) $futurePredictions['temperature']['projected_next_week_c'], 2, ',', '.') }} C
+                            (delta semanal: {{ number_format((float) ($futurePredictions['temperature']['delta_c'] ?? 0), 2, ',', '.') }} C)
+                        </p>
+                    @endif
+                </article>
+                <article class="solar-recommendation-card">
+                    <div class="solar-recommendation-card-head"><p class="solar-recommendation-card-title">Ventana solar recomendada</p></div>
+                    <p class="solar-recommendation-card-copy">
+                        {{ $futurePredictions['radiation_window']['message'] ?? 'Sin ventana solar identificada.' }}
+                    </p>
+                </article>
             </div>
         </section>
 

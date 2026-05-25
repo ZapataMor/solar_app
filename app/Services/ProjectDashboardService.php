@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\CalculationResult;
 use App\Models\SolarProject;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class ProjectDashboardService
 {
@@ -86,6 +88,11 @@ class ProjectDashboardService
             $nasaDataQuality,
         );
         $dashboard['widgets'] = $this->dashboardAiWidgetService->build($dashboard);
+        $dashboard['futurePredictions'] = $this->buildFuturePredictions(
+            $projectWeatherData,
+            $weatherStationReadings,
+            $solarProject
+        );
         $timeScales = $this->dashboardTimeScaleService->build(
             $solarProject,
             $calculationResult,
@@ -139,6 +146,80 @@ class ProjectDashboardService
             ],
             'weatherStationChartData' => $this->weatherStationAggregationService->chartData($weatherStationReadings),
             'timeScales' => $timeScales,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $projectWeatherData
+     * @param  Collection<int, mixed>  $weatherStationReadings
+     * @return array<string, mixed>
+     */
+    private function buildFuturePredictions(Collection $projectWeatherData, Collection $weatherStationReadings, SolarProject $solarProject): array
+    {
+        $nasaTempSeries = $projectWeatherData
+            ->filter(fn ($row) => isset($row->date_time) && $row->t2m !== null)
+            ->sortBy('date_time')
+            ->values();
+
+        $latestTemp = $nasaTempSeries->last();
+        $last7Start = Carbon::now()->subDays(7);
+        $prev7Start = Carbon::now()->subDays(14);
+
+        $last7Avg = $nasaTempSeries
+            ->filter(fn ($row) => Carbon::parse($row->date_time)->greaterThanOrEqualTo($last7Start))
+            ->avg(fn ($row) => (float) $row->t2m);
+        $prev7Avg = $nasaTempSeries
+            ->filter(fn ($row) => Carbon::parse($row->date_time)->betweenIncluded($prev7Start, $last7Start))
+            ->avg(fn ($row) => (float) $row->t2m);
+
+        $tempDelta = ($last7Avg !== null && $prev7Avg !== null) ? ($last7Avg - $prev7Avg) : null;
+        $nextWeekTemp = ($latestTemp && $tempDelta !== null) ? ((float) $latestTemp->t2m + $tempDelta) : null;
+
+        $nasaRadiationRows = $projectWeatherData
+            ->filter(fn ($row) => isset($row->date_time) && $row->allsky_sfc_sw_dwn !== null)
+            ->filter(fn ($row) => Carbon::parse($row->date_time)->gte(Carbon::now()->subDays(30)));
+
+        $hourlyNasa = $nasaRadiationRows
+            ->groupBy(fn ($row) => Carbon::parse($row->date_time)->format('H'))
+            ->map(fn ($rows, $hour) => [
+                'hour' => (int) $hour,
+                'avg_radiation' => collect($rows)->avg(fn ($row) => (float) $row->allsky_sfc_sw_dwn),
+            ])
+            ->filter(fn (array $row) => $row['hour'] >= 6 && $row['hour'] <= 18)
+            ->sortByDesc('avg_radiation')
+            ->values();
+
+        $topHours = $hourlyNasa->take(3)->sortBy('hour')->values();
+        $windowStart = $topHours->first()['hour'] ?? null;
+        $windowEnd = $topHours->last()['hour'] ?? null;
+
+        $recommendedLoadShift = ($windowStart !== null && $windowEnd !== null)
+            ? "Se proyecta mejor captacion solar entre {$windowStart}:00 y {$windowEnd}:59. Conviene mover cargas altas (bombeo, climatizacion, procesos pesados) a esa ventana."
+            : 'No hay suficiente historial horario para definir una ventana solar optima.';
+
+        $tempMessage = match (true) {
+            $nextWeekTemp === null => 'No hay suficiente informacion para proyectar la temperatura de la proxima semana.',
+            $tempDelta !== null && $tempDelta >= 1.5 => 'Se proyecta incremento termico para la proxima semana. Recomendado reforzar ventilacion y anticipar leve perdida de eficiencia en paneles por calor.',
+            $tempDelta !== null && $tempDelta <= -1.5 => 'Se proyecta descenso termico para la proxima semana. Puede mejorar ligeramente la eficiencia del sistema.',
+            default => 'Se proyecta estabilidad termica para la proxima semana, sin cambios fuertes esperados.',
+        };
+
+        return [
+            'temperature' => [
+                'projected_next_week_c' => $nextWeekTemp !== null ? round((float) $nextWeekTemp, 2) : null,
+                'delta_c' => $tempDelta !== null ? round((float) $tempDelta, 2) : null,
+                'message' => $tempMessage,
+            ],
+            'radiation_window' => [
+                'start_hour' => $windowStart,
+                'end_hour' => $windowEnd,
+                'message' => $recommendedLoadShift,
+            ],
+            'operational_recommendations' => [
+                $recommendedLoadShift,
+                'Programar recarga de baterias y tareas flexibles dentro de la ventana solar dominante para reducir compra de red.',
+                'Monitorear tendencia semanal de temperatura para ajustar estrategia de consumo en horas de mayor estres termico.',
+            ],
         ];
     }
 

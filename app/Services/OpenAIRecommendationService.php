@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CalculationResult;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use OpenAI\Laravel\Facades\OpenAI;
 use RuntimeException;
@@ -60,6 +61,10 @@ class OpenAIRecommendationService
             $decoded = $this->requestStructuredRecommendation($payload);
 
             if (! is_array($decoded)) {
+                Log::warning('AI recommendations: decoded payload is null/non-array', [
+                    'provider' => $this->providerSource(),
+                    'model' => (string) config('services.openai_recommendations.model', ''),
+                ]);
                 return $this->emptyResult('error', 'La IA no devolvio contenido utilizable.');
             }
 
@@ -92,6 +97,10 @@ class OpenAIRecommendationService
      */
     private function requestStructuredRecommendation(array $payload): ?array
     {
+        if ($this->isAnthropicProvider()) {
+            return $this->requestAnthropicRecommendation($payload);
+        }
+
         $model = (string) config('services.openai_recommendations.model', 'gpt-5-mini');
         $useResponsesApi = $this->supportsResponsesApi($model);
         $lastErrorMessage = null;
@@ -171,11 +180,151 @@ class OpenAIRecommendationService
         throw new RuntimeException($lastErrorMessage ?: 'No fue posible generar recomendaciones con IA.');
     }
 
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    private function requestAnthropicRecommendation(array $payload): ?array
+    {
+        $baseUrl = rtrim((string) config('openai.base_uri', 'https://api.anthropic.com/v1'), '/');
+        $apiKey = (string) config('openai.api_key', '');
+        $model = (string) config('services.openai_recommendations.model', 'claude-haiku-4-5');
+
+        if ($apiKey === '') {
+            throw new RuntimeException('Missing Anthropic API key.');
+        }
+
+        $response = Http::timeout((int) config('openai.request_timeout', 30))
+            ->retry(1, 300)
+            ->withHeaders([
+                'x-api-key' => $apiKey,
+                'anthropic-version' => '2023-06-01',
+                'content-type' => 'application/json',
+            ])
+            ->post("{$baseUrl}/messages", [
+                'model' => $model,
+                'max_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                'temperature' => 0.2,
+                'system' => $this->anthropicSystemPrompt(false),
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => "Analiza este resumen estructurado y genera una respuesta ejecutiva y prudente:\n".json_encode(
+                            $payload,
+                            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                        ),
+                    ],
+                ],
+            ]);
+
+        try {
+            $response->throw();
+        } catch (Throwable $exception) {
+            $message = (string) data_get($response->json(), 'error.message', mb_substr($response->body(), 0, 500));
+            throw new RuntimeException($message, 0, $exception);
+        }
+
+        $text = (string) data_get($response->json(), 'content.0.text', '');
+        if ($text === '') {
+            Log::warning('AI recommendations anthropic: empty text payload', [
+                'model' => $model,
+                'response_excerpt' => mb_substr($response->body(), 0, 800),
+            ]);
+        }
+
+        $decoded = $this->decodeResponsePayload($text);
+        if (! is_array($decoded)) {
+            Log::warning('AI recommendations anthropic: unable to decode JSON payload', [
+                'model' => $model,
+                'text_excerpt' => mb_substr($text, 0, 800),
+            ]);
+
+            $retryDecoded = $this->retryAnthropicCompactJson($baseUrl, $apiKey, $model, $payload);
+            if (is_array($retryDecoded)) {
+                return $retryDecoded;
+            }
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>|null
+     */
+    private function retryAnthropicCompactJson(string $baseUrl, string $apiKey, string $model, array $payload): ?array
+    {
+        $response = Http::timeout((int) config('openai.request_timeout', 30))
+            ->retry(0, 0)
+            ->withHeaders([
+                'x-api-key' => $apiKey,
+                'anthropic-version' => '2023-06-01',
+                'content-type' => 'application/json',
+            ])
+            ->post("{$baseUrl}/messages", [
+                'model' => $model,
+                'max_tokens' => max(220, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                'temperature' => 0.1,
+                'system' => $this->anthropicSystemPrompt(true),
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => "Devuelve JSON compacto para este resumen:\n".json_encode(
+                            $payload,
+                            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                        ),
+                    ],
+                ],
+            ]);
+
+        if (! $response->ok()) {
+            return null;
+        }
+
+        $text = (string) data_get($response->json(), 'content.0.text', '');
+        $decoded = $this->decodeResponsePayload($text);
+
+        if (! is_array($decoded)) {
+            Log::warning('AI recommendations anthropic: compact retry decode failed', [
+                'model' => $model,
+                'text_excerpt' => mb_substr($text, 0, 800),
+            ]);
+        }
+
+        return $decoded;
+    }
+
+    private function anthropicSystemPrompt(bool $compact): string
+    {
+        $base = [
+            'Eres un analista energetico para un dashboard solar en Riohacha.',
+            'Tu tarea es transformar analisis estructurados en texto claro, prudente y accionable.',
+            'No inventes datos, no agregues cifras que no aparezcan en la entrada.',
+            'Si la informacion es insuficiente, dilo de forma explicita.',
+            'Responde unicamente JSON valido con las claves: executive_summary, daily_recommendation, energy_alerts.',
+        ];
+
+        if ($compact) {
+            $base[] = 'Mantener formato compacto: executive_summary max 280 caracteres, daily_recommendation max 220 caracteres, energy_alerts max 3 items y cada item max 120 caracteres.';
+            $base[] = 'No uses markdown, no uses bloques ```json, solo JSON plano.';
+        }
+
+        return implode("\n", $base);
+    }
+
     private function supportsResponsesApi(string $model): bool
     {
         $normalized = strtolower(trim($model));
 
         return str_starts_with($normalized, 'gpt-');
+    }
+
+    private function isAnthropicProvider(): bool
+    {
+        $provider = strtolower((string) config('services.openai_recommendations.provider', 'openai'));
+        $model = strtolower((string) config('services.openai_recommendations.model', ''));
+
+        return $provider === 'anthropic' || str_starts_with($model, 'claude-');
     }
 
     private function providerSource(): string
@@ -355,14 +504,18 @@ class OpenAIRecommendationService
             return null;
         }
 
+        $cleanOutput = trim($output);
+        $cleanOutput = preg_replace('/^```(?:json)?\s*/i', '', $cleanOutput) ?? $cleanOutput;
+        $cleanOutput = preg_replace('/\s*```$/', '', $cleanOutput) ?? $cleanOutput;
+
         /** @var mixed $decoded */
-        $decoded = json_decode($output, true);
+        $decoded = json_decode($cleanOutput, true);
 
         if (is_array($decoded)) {
             return $decoded;
         }
 
-        if (! preg_match('/\{.*\}/s', $output, $matches)) {
+        if (! preg_match('/\{.*\}/s', $cleanOutput, $matches)) {
             return null;
         }
 
