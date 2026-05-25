@@ -94,10 +94,12 @@ class SolarProjectController extends Controller
 
         $solarProject->setRelation('weatherData', $nasaWeatherDataService->dataForProject($solarProject));
         $this->attachWeatherCounts($solarProject);
+        $generateAiRecommendations = $request->boolean('generate_ai');
 
         return view('solar-projects.show', [
             'solarProject' => $solarProject,
-            ...$projectDashboardService->build($solarProject),
+            'generateAiRecommendations' => $generateAiRecommendations,
+            ...$projectDashboardService->build($solarProject, $generateAiRecommendations),
         ]);
     }
 

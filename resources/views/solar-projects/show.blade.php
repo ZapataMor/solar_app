@@ -5,6 +5,7 @@
     $activeScaleKey = $timeScales['defaultScale'] ?? 'monthly';
     $activeScale = $timeScales['activeScale'] ?? ($timeScales['scales'][$activeScaleKey] ?? null);
     $dashboard = $dashboard ?? ['executiveSummary' => ['enabled' => false]];
+    $generateAiRecommendations = (bool) ($generateAiRecommendations ?? false);
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
 
@@ -181,7 +182,13 @@
                     <p class="solar-kicker">Recomendaciones IA</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Resumen ejecutivo inteligente</h2>
                 </div>
-                <span class="solar-pill">Fuente {{ strtoupper((string) ($dashboard['executiveSummary']['source'] ?? 'ia')) }}</span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="solar-pill">Fuente {{ strtoupper((string) ($dashboard['executiveSummary']['source'] ?? 'ia')) }}</span>
+                    <form method="GET" action="{{ route('solar-projects.show', $solarProject) }}">
+                        <input type="hidden" name="generate_ai" value="1" />
+                        <button type="submit" class="solar-button">{{ $generateAiRecommendations ? 'Regenerar recomendaciones IA' : 'Generar recomendaciones con IA' }}</button>
+                    </form>
+                </div>
             </div>
 
             <div class="mt-5 grid gap-4 lg:grid-cols-2">

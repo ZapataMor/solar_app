@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\CalculationResult;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use OpenAI\Laravel\Facades\OpenAI;
+use RuntimeException;
 use Throwable;
 
 class OpenAIRecommendationService
@@ -47,33 +49,41 @@ class OpenAIRecommendationService
         );
 
         $cacheKey = 'openai_recommendations:'.md5(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
-        $ttlMinutes = max(1, (int) config('services.openai_recommendations.cache_ttl_minutes', 30));
 
-        return Cache::remember($cacheKey, now()->addMinutes($ttlMinutes), function () use ($payload) {
-            try {
-                $decoded = $this->requestStructuredRecommendation($payload);
+        /** @var mixed $cached */
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached) && ($cached['enabled'] ?? false) === true) {
+            return $cached;
+        }
 
-                if (! is_array($decoded)) {
-                    return $this->emptyResult('error', 'La IA no devolvio contenido utilizable.');
-                }
+        try {
+            $decoded = $this->requestStructuredRecommendation($payload);
 
-                return [
-                    'enabled' => true,
-                    'source' => $this->providerSource(),
-                    'executive_summary' => $this->stringOrNull($decoded['executive_summary'] ?? null),
-                    'daily_recommendation' => $this->stringOrNull($decoded['daily_recommendation'] ?? null),
-                    'energy_alerts' => collect($decoded['energy_alerts'] ?? [])
-                        ->filter(fn ($item) => is_string($item) && trim($item) !== '')
-                        ->values()
-                        ->all(),
-                    'error' => null,
-                ];
-            } catch (Throwable $exception) {
-                report($exception);
-
-                return $this->emptyResult('error', 'No fue posible generar recomendaciones con IA en este momento.');
+            if (! is_array($decoded)) {
+                return $this->emptyResult('error', 'La IA no devolvio contenido utilizable.');
             }
-        });
+
+            $result = [
+                'enabled' => true,
+                'source' => $this->providerSource(),
+                'executive_summary' => $this->stringOrNull($decoded['executive_summary'] ?? null),
+                'daily_recommendation' => $this->stringOrNull($decoded['daily_recommendation'] ?? null),
+                'energy_alerts' => collect($decoded['energy_alerts'] ?? [])
+                    ->filter(fn ($item) => is_string($item) && trim($item) !== '')
+                    ->values()
+                    ->all(),
+                'error' => null,
+            ];
+
+            $ttlMinutes = max(1, (int) config('services.openai_recommendations.cache_ttl_minutes', 30));
+            Cache::put($cacheKey, $result, now()->addMinutes($ttlMinutes));
+
+            return $result;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->emptyResult('error', $this->humanReadableAiError($exception->getMessage()));
+        }
     }
 
     /**
@@ -82,35 +92,46 @@ class OpenAIRecommendationService
      */
     private function requestStructuredRecommendation(array $payload): ?array
     {
-        try {
-            $response = OpenAI::responses()->create([
-                'model' => (string) config('services.openai_recommendations.model', 'gpt-5-mini'),
-                'input' => $this->buildInput($payload),
-                'max_output_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
-                'temperature' => 0.2,
-                'text' => [
-                    'format' => [
-                        'type' => 'json_schema',
-                        'name' => 'solar_ai_recommendations',
-                        'description' => 'Executive summary, daily recommendation, and energy alerts for a solar dashboard.',
-                        'strict' => true,
-                        'schema' => $this->responseSchema(),
+        $model = (string) config('services.openai_recommendations.model', 'gpt-5-mini');
+        $useResponsesApi = $this->supportsResponsesApi($model);
+        $lastErrorMessage = null;
+
+        if ($useResponsesApi) {
+            try {
+                $response = OpenAI::responses()->create([
+                    'model' => $model,
+                    'input' => $this->buildInput($payload),
+                    'max_output_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                    'temperature' => 0.2,
+                    'text' => [
+                        'format' => [
+                            'type' => 'json_schema',
+                            'name' => 'solar_ai_recommendations',
+                            'description' => 'Executive summary, daily recommendation, and energy alerts for a solar dashboard.',
+                            'strict' => true,
+                            'schema' => $this->responseSchema(),
+                        ],
                     ],
-                ],
-            ]);
+                ]);
 
-            $decoded = $this->decodeResponsePayload($this->extractResponseText($response));
+                $decoded = $this->decodeResponsePayload($this->extractResponseText($response));
 
-            if (is_array($decoded)) {
-                return $decoded;
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            } catch (Throwable $responsesException) {
+                $lastErrorMessage = $responsesException->getMessage();
+                Log::warning('AI recommendations: responses endpoint failed', [
+                    'provider' => $this->providerSource(),
+                    'model' => (string) config('services.openai_recommendations.model', 'gpt-5-mini'),
+                    'message' => $responsesException->getMessage(),
+                ]);
             }
-        } catch (Throwable $responsesException) {
-            // Fallback to chat.completions when responses endpoint is unavailable.
         }
 
         try {
             $chatResponse = OpenAI::chat()->create([
-                'model' => (string) config('services.openai_recommendations.model', 'gpt-5-mini'),
+                'model' => $model,
                 'messages' => $this->buildChatMessages($payload),
                 'temperature' => 0.2,
                 'max_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
@@ -121,8 +142,40 @@ class OpenAIRecommendationService
 
             return $this->decodeResponsePayload($this->extractResponseText($chatResponse));
         } catch (Throwable $chatException) {
-            return null;
+            $lastErrorMessage = $chatException->getMessage();
+            Log::warning('AI recommendations: chat json_object failed', [
+                'provider' => $this->providerSource(),
+                'model' => $model,
+                'message' => $chatException->getMessage(),
+            ]);
         }
+
+        try {
+            $plainChatResponse = OpenAI::chat()->create([
+                'model' => $model,
+                'messages' => $this->buildChatMessages($payload),
+                'temperature' => 0.2,
+                'max_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+            ]);
+
+            return $this->decodeResponsePayload($this->extractResponseText($plainChatResponse));
+        } catch (Throwable $plainChatException) {
+            $lastErrorMessage = $plainChatException->getMessage();
+            Log::error('AI recommendations: all provider calls failed', [
+                'provider' => $this->providerSource(),
+                'model' => (string) config('services.openai_recommendations.model', 'gpt-5-mini'),
+                'message' => $plainChatException->getMessage(),
+            ]);
+        }
+
+        throw new RuntimeException($lastErrorMessage ?: 'No fue posible generar recomendaciones con IA.');
+    }
+
+    private function supportsResponsesApi(string $model): bool
+    {
+        $normalized = strtolower(trim($model));
+
+        return str_starts_with($normalized, 'gpt-');
     }
 
     private function providerSource(): string
@@ -379,5 +432,32 @@ class OpenAIRecommendationService
         $trimmed = trim($value);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    private function humanReadableAiError(string $message): string
+    {
+        $normalized = strtolower(trim($message));
+
+        if ($normalized === '') {
+            return 'No fue posible generar recomendaciones con IA en este momento.';
+        }
+
+        if (str_contains($normalized, 'no payment method')) {
+            return 'IA OpenCode no disponible: la cuenta no tiene metodo de pago habilitado.';
+        }
+
+        if (str_contains($normalized, 'rate limit')) {
+            return 'IA OpenCode temporalmente limitada por cuota (rate limit). Intenta nuevamente en unos minutos.';
+        }
+
+        if (str_contains($normalized, 'not supported') && str_contains($normalized, 'model')) {
+            return 'IA OpenCode: el modelo configurado no es compatible con este endpoint.';
+        }
+
+        if (str_contains($normalized, 'syntax error')) {
+            return 'IA OpenCode devolvio un error de formato en la solicitud.';
+        }
+
+        return "IA OpenCode error: {$message}";
     }
 }

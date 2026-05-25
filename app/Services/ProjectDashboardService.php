@@ -20,7 +20,7 @@ class ProjectDashboardService
     /**
      * @return array<string, mixed>
      */
-    public function build(SolarProject $solarProject): array
+    public function build(SolarProject $solarProject, bool $generateAiRecommendations = false): array
     {
         $monthlyResults = $solarProject->monthlyResults;
         $calculationResult = $solarProject->calculationResult;
@@ -59,13 +59,22 @@ class ProjectDashboardService
             $calculationResult,
             $weatherStationStats,
         );
-        $openAIRecommendation = $this->openAIRecommendationService->generate(
-            $weatherAnalysis,
-            $energyAnalysis,
-            $solarRecommendations,
-            $calculationResult,
-            $weatherAndNasaStats,
-        );
+        $openAIRecommendation = $generateAiRecommendations
+            ? $this->openAIRecommendationService->generate(
+                $weatherAnalysis,
+                $energyAnalysis,
+                $solarRecommendations,
+                $calculationResult,
+                $weatherAndNasaStats,
+            )
+            : [
+                'enabled' => false,
+                'source' => 'manual_trigger_required',
+                'executive_summary' => null,
+                'daily_recommendation' => null,
+                'energy_alerts' => [],
+                'error' => 'Pulsa "Generar recomendaciones con IA" para solicitar el reporte inteligente.',
+            ];
 
         $dashboard = $this->buildDashboardNarrative(
             $energyAnalysis,
