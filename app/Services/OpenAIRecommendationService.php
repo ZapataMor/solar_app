@@ -35,7 +35,7 @@ class OpenAIRecommendationService
         }
 
         if (blank(config('openai.api_key'))) {
-            return $this->emptyResult('missing_api_key', 'Configura OPENAI_API_KEY para habilitar recomendaciones con IA.');
+            return $this->emptyResult('missing_api_key', 'Configura OPENAI_API_KEY u OPENCODE_API_KEY para habilitar recomendaciones con IA.');
         }
 
         $payload = $this->structuredPayload(
@@ -75,7 +75,7 @@ class OpenAIRecommendationService
 
                 return [
                     'enabled' => true,
-                    'source' => 'openai',
+                    'source' => $this->providerSource(),
                     'executive_summary' => $this->stringOrNull($decoded['executive_summary'] ?? null),
                     'daily_recommendation' => $this->stringOrNull($decoded['daily_recommendation'] ?? null),
                     'energy_alerts' => collect($decoded['energy_alerts'] ?? [])
@@ -87,9 +87,16 @@ class OpenAIRecommendationService
             } catch (Throwable $exception) {
                 report($exception);
 
-                return $this->emptyResult('error', 'No fue posible generar recomendaciones con OpenAI en este momento.');
+                return $this->emptyResult('error', 'No fue posible generar recomendaciones con IA en este momento.');
             }
         });
+    }
+
+    private function providerSource(): string
+    {
+        $provider = strtolower((string) config('services.openai_recommendations.provider', 'openai'));
+
+        return $provider !== '' ? $provider : 'openai';
     }
 
     private function isEnabled(): bool

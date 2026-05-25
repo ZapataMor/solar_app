@@ -41,7 +41,7 @@
         $riskTone = 'danger';
     }
 
-    $iaActive = filled(config('services.openai.api_key')) && $calculationResult !== null;
+    $iaActive = filled(config('openai.api_key')) && $calculationResult !== null;
     $typeLabel = filled($solarProject->description) ? 'Escenario personalizado' : 'Proyecto base';
     $badgeClass = fn ($tone) => match ($tone) {
         'success' => 'solar-pill-success',

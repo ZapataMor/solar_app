@@ -28,6 +28,7 @@ class OpenAIRecommendationServiceTest extends TestCase
     {
         config([
             'services.openai_recommendations.enabled' => true,
+            'services.openai_recommendations.provider' => 'openai',
             'services.openai_recommendations.model' => 'gpt-5-mini',
             'services.openai_recommendations.max_output_tokens' => 300,
             'services.openai_recommendations.cache_ttl_minutes' => 30,
@@ -96,6 +97,46 @@ class OpenAIRecommendationServiceTest extends TestCase
         $this->assertSame('Hoy se espera una produccion solar alta y una oportunidad clara de ahorro.', $result['executive_summary']);
         $this->assertSame('Hoy se recomienda desplazar cargas de alto consumo al mediodia para maximizar el ahorro energetico.', $result['daily_recommendation']);
         $this->assertSame(['La cobertura sigue siendo limitada fuera del horario solar.'], $result['energy_alerts']);
+    }
+
+    public function test_it_reports_opencode_as_source_when_provider_is_opencode(): void
+    {
+        config([
+            'services.openai_recommendations.enabled' => true,
+            'services.openai_recommendations.provider' => 'opencode',
+            'services.openai_recommendations.model' => 'gpt-5-mini',
+            'openai.api_key' => 'test-key',
+        ]);
+
+        $json = json_encode([
+            'executive_summary' => 'Resumen.',
+            'daily_recommendation' => 'Recomendacion.',
+            'energy_alerts' => ['Alerta.'],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'output' => [
+                    [
+                        'type' => 'message',
+                        'id' => 'msg_test',
+                        'status' => 'completed',
+                        'role' => 'assistant',
+                        'content' => [
+                            [
+                                'type' => 'output_text',
+                                'text' => $json,
+                                'annotations' => [],
+                            ],
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $result = app(OpenAIRecommendationService::class)->generate([], [], [], $this->calculationResult(), []);
+
+        $this->assertSame('opencode', $result['source']);
     }
 
     private function calculationResult(): CalculationResult

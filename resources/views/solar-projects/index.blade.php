@@ -15,7 +15,7 @@
         : 1;
 
     $projectsWithResults = $projectsOnPage->filter(fn ($project) => $project->calculationResult !== null)->count();
-    $aiReadyProjects = $projectsOnPage->filter(fn ($project) => filled(config('services.openai.api_key')) && $project->calculationResult !== null)->count();
+    $aiReadyProjects = $projectsOnPage->filter(fn ($project) => filled(config('openai.api_key')) && $project->calculationResult !== null)->count();
 
     $formatMoney = fn ($value) => '$ ' . number_format((float) $value, 0, ',', '.') . ' COP';
     $formatDate = fn ($value) => optional($value)->format('d M Y');
