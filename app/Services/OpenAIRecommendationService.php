@@ -33,6 +33,7 @@ class OpenAIRecommendationService
         ?CalculationResult $calculationResult,
         array $weatherStationStats = [],
         ?string $userIntent = null,
+        array $projectContext = [],
     ): array {
         if (! $this->isEnabled()) {
             return $this->emptyResult('disabled');
@@ -49,6 +50,7 @@ class OpenAIRecommendationService
             $calculationResult,
             $weatherStationStats,
             $userIntent,
+            $projectContext,
         );
 
         $cacheKey = 'openai_recommendations:'.md5(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
@@ -62,12 +64,15 @@ class OpenAIRecommendationService
         try {
             $decoded = $this->requestStructuredRecommendation($payload);
 
+            $decoded = $this->sanitizeDecodedRecommendation($decoded);
+
             if (! is_array($decoded)) {
                 Log::warning('AI recommendations: decoded payload is null/non-array', [
                     'provider' => $this->providerSource(),
                     'model' => (string) config('services.openai_recommendations.model', ''),
                 ]);
-                return $this->emptyResult('error', 'La IA no devolvio contenido utilizable.');
+
+                return $this->fallbackResult($payload, 'La IA no devolvio contenido utilizable; se genero una recomendacion local con los datos del proyecto.');
             }
 
             $result = [
@@ -84,6 +89,8 @@ class OpenAIRecommendationService
                     : [],
                 'error' => null,
             ];
+
+            $result = $this->enforceRecommendationSpecificity($result, $payload);
 
             $ttlMinutes = max(1, (int) config('services.openai_recommendations.cache_ttl_minutes', 30));
             Cache::put($cacheKey, $result, now()->addMinutes($ttlMinutes));
@@ -115,7 +122,7 @@ class OpenAIRecommendationService
                 $response = OpenAI::responses()->create([
                     'model' => $model,
                     'input' => $this->buildInput($payload),
-                    'max_output_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                    'max_output_tokens' => max(600, (int) config('services.openai_recommendations.max_output_tokens', 900)),
                     'temperature' => 0.2,
                     'text' => [
                         'format' => [
@@ -148,7 +155,7 @@ class OpenAIRecommendationService
                 'model' => $model,
                 'messages' => $this->buildChatMessages($payload),
                 'temperature' => 0.2,
-                'max_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                'max_tokens' => max(600, (int) config('services.openai_recommendations.max_output_tokens', 900)),
                 'response_format' => [
                     'type' => 'json_object',
                 ],
@@ -169,7 +176,7 @@ class OpenAIRecommendationService
                 'model' => $model,
                 'messages' => $this->buildChatMessages($payload),
                 'temperature' => 0.2,
-                'max_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                'max_tokens' => max(600, (int) config('services.openai_recommendations.max_output_tokens', 900)),
             ]);
 
             return $this->decodeResponsePayload($this->extractResponseText($plainChatResponse));
@@ -208,7 +215,7 @@ class OpenAIRecommendationService
             ])
             ->post("{$baseUrl}/messages", [
                 'model' => $model,
-                'max_tokens' => max(150, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                'max_tokens' => max(600, (int) config('services.openai_recommendations.max_output_tokens', 900)),
                 'temperature' => 0.2,
                 'system' => $this->anthropicSystemPrompt(false),
                 'messages' => [
@@ -229,7 +236,7 @@ class OpenAIRecommendationService
             throw new RuntimeException($message, 0, $exception);
         }
 
-        $text = (string) data_get($response->json(), 'content.0.text', '');
+        $text = $this->extractAnthropicText($response->json());
         if ($text === '') {
             Log::warning('AI recommendations anthropic: empty text payload', [
                 'model' => $model,
@@ -291,7 +298,7 @@ class OpenAIRecommendationService
             return null;
         }
 
-        $text = (string) data_get($response->json(), 'content.0.text', '');
+        $text = $this->extractAnthropicText($response->json());
         $decoded = $this->decodeResponsePayload($text);
 
         if (! is_array($decoded)) {
@@ -319,16 +326,16 @@ class OpenAIRecommendationService
             ])
             ->post("{$baseUrl}/messages", [
                 'model' => $model,
-                'max_tokens' => 260,
+                'max_tokens' => 520,
                 'temperature' => 0.1,
                 'system' => implode("\n", [
                     'Devuelve SOLO JSON plano, sin markdown.',
                     'Claves obligatorias: executive_summary, daily_recommendation, energy_alerts, recommendation_pack.',
-                    'executive_summary max 120 caracteres.',
-                    'daily_recommendation max 120 caracteres.',
-                    'energy_alerts max 2 items, cada item max 80 caracteres.',
+                    'executive_summary max 420 caracteres.',
+                    'daily_recommendation max 520 caracteres.',
+                    'energy_alerts max 4 items, cada item max 180 caracteres.',
                     'recommendation_pack con keys savings, load_shift, risk, maintenance, climate.',
-                    'Cada item de recommendation_pack max 80 caracteres.',
+                    'Cada item de recommendation_pack max 520 caracteres con diagnostico + accion + impacto esperado.',
                 ]),
                 'messages' => [
                     [
@@ -345,7 +352,7 @@ class OpenAIRecommendationService
             return null;
         }
 
-        $text = (string) data_get($response->json(), 'content.0.text', '');
+        $text = $this->extractAnthropicText($response->json());
         $decoded = $this->decodeResponsePayload($text);
 
         if (! is_array($decoded)) {
@@ -365,12 +372,14 @@ class OpenAIRecommendationService
             'Tu tarea es transformar analisis estructurados en texto claro, prudente y accionable.',
             'No inventes datos, no agregues cifras que no aparezcan en la entrada.',
             'Si la informacion es insuficiente, dilo de forma explicita.',
+            'Cada recomendacion debe incluir "Diagnostico:", "Accion:" e "Impacto esperado:" con datos disponibles del proyecto.',
+            'No des recomendaciones genericas; conecta cada accion con cobertura, consumo, balance, radiacion, calidad de datos o ventana solar.',
             'Responde unicamente JSON valido con las claves: executive_summary, daily_recommendation, energy_alerts, recommendation_pack.',
             'recommendation_pack debe incluir exactamente las claves: savings, load_shift, risk, maintenance, climate.',
         ];
 
         if ($compact) {
-            $base[] = 'Mantener formato compacto: executive_summary max 280 caracteres, daily_recommendation max 220 caracteres, energy_alerts max 3 items y cada item max 120 caracteres, y cada item de recommendation_pack max 160 caracteres.';
+            $base[] = 'Mantener formato compacto pero util: executive_summary max 420 caracteres, daily_recommendation max 520 caracteres, energy_alerts max 4 items y cada item max 180 caracteres, y cada item de recommendation_pack max 520 caracteres.';
             $base[] = 'No uses markdown, no uses bloques ```json, solo JSON plano.';
         }
 
@@ -418,6 +427,7 @@ class OpenAIRecommendationService
         ?CalculationResult $calculationResult,
         array $weatherStationStats,
         ?string $userIntent = null,
+        array $projectContext = [],
     ): array {
         $intentMap = [
             'savings' => 'Maximizar ahorro economico',
@@ -427,6 +437,14 @@ class OpenAIRecommendationService
             'climate' => 'Adaptarse a variaciones climaticas',
         ];
 
+        $annualGeneration = $calculationResult ? (float) $calculationResult->estimated_annual_generation_kwh : null;
+        $annualConsumption = $calculationResult ? (float) $calculationResult->annual_consumption_kwh : null;
+        $coverage = $calculationResult ? (float) $calculationResult->coverage_percentage : null;
+        $annualBalance = ($annualGeneration !== null && $annualConsumption !== null)
+            ? $annualGeneration - $annualConsumption
+            : null;
+        $coverageGap = $coverage !== null ? 100 - $coverage : null;
+
         return [
             'user_intent' => [
                 'key' => $userIntent,
@@ -435,10 +453,12 @@ class OpenAIRecommendationService
             'energy_metrics' => [
                 'estimated_daily_generation_kwh' => $calculationResult ? (float) $calculationResult->estimated_daily_generation_kwh : null,
                 'estimated_monthly_generation_kwh' => $calculationResult ? (float) $calculationResult->estimated_monthly_generation_kwh : null,
-                'estimated_annual_generation_kwh' => $calculationResult ? (float) $calculationResult->estimated_annual_generation_kwh : null,
-                'annual_consumption_kwh' => $calculationResult ? (float) $calculationResult->annual_consumption_kwh : null,
-                'coverage_percentage' => $calculationResult ? (float) $calculationResult->coverage_percentage : null,
+                'estimated_annual_generation_kwh' => $annualGeneration,
+                'annual_consumption_kwh' => $annualConsumption,
+                'coverage_percentage' => $coverage,
                 'estimated_annual_savings_cop' => $calculationResult ? (float) $calculationResult->estimated_annual_savings_cop : null,
+                'annual_energy_balance_kwh' => $annualBalance,
+                'coverage_gap_to_100_percent' => $coverageGap,
             ],
             'weather_analysis' => [
                 'current' => collect($weatherAnalysis['current'] ?? [])->pluck('message')->values()->all(),
@@ -470,6 +490,25 @@ class OpenAIRecommendationService
                 'estimated_rows' => isset($weatherStationStats['nasaDataQuality']['estimatedRows']) ? (int) $weatherStationStats['nasaDataQuality']['estimatedRows'] : 0,
                 'estimated_ratio' => isset($weatherStationStats['nasaDataQuality']['estimatedRatio']) ? (float) $weatherStationStats['nasaDataQuality']['estimatedRatio'] : 0.0,
             ],
+            'analysis_depth' => [
+                'required' => 'high',
+                'format' => 'Cada recomendacion debe incluir diagnostico, accion concreta y resultado esperado.',
+                'focus_priority' => $userIntent && isset($intentMap[$userIntent]) ? $intentMap[$userIntent] : 'General',
+            ],
+            'content_contract' => [
+                'avoid' => [
+                    'Consejos genericos no conectados a metricas del proyecto.',
+                    'Rangos horarios amplios si no hay ventana solar calculada.',
+                    'Cifras nuevas no incluidas en el resumen estructurado.',
+                ],
+                'required_sections_per_recommendation' => [
+                    'Diagnostico basado en cobertura, balance, consumo, radiacion, calidad de datos o ventana horaria.',
+                    'Accion concreta ejecutable por el usuario final.',
+                    'Impacto esperado expresado de forma prudente y no inventada.',
+                    'Incertidumbre declarada cuando falten datos o la calidad sea limitada.',
+                ],
+            ],
+            'project_context' => $projectContext,
         ];
     }
 
@@ -492,6 +531,12 @@ class OpenAIRecommendationService
                             'Si la informacion es insuficiente, dilo de forma explicita.',
                             'Si la calidad de radiacion NASA indica estimaciones, evita recomendaciones agresivas y aclara la incertidumbre.',
                             'Enfocate en autoconsumo, horarios de carga, cobertura solar y riesgos operativos.',
+                            'El enfoque seleccionado en user_intent es prioritario: profundiza en esa categoria sin ignorar riesgos transversales.',
+                            'Cada texto debe ser detallado y accionable, incluyendo: diagnostico, accion concreta y efecto esperado.',
+                            'Estructura cada recomendacion con frases claramente identificables: "Diagnostico:", "Accion:" e "Impacto esperado:".',
+                            'Evita recomendaciones obvias o genericas como "8:00 a 16:00" salvo que project_context.solar_window lo sustente.',
+                            'Si project_context.solar_window.best_window existe, usa ese rango como base operativa principal.',
+                            'Declara incertidumbre con lenguaje directo cuando falten lecturas, cobertura, consumo o radiacion confiable.',
                             'Devuelve unicamente JSON valido que siga exactamente el esquema solicitado.',
                         ]),
                     ],
@@ -527,6 +572,10 @@ class OpenAIRecommendationService
                     'No inventes datos, no agregues cifras que no aparezcan en la entrada.',
                     'Si la informacion es insuficiente, dilo de forma explicita.',
                     'Enfocate en autoconsumo, horarios de carga, cobertura solar y riesgos operativos.',
+                    'Prioriza el enfoque user_intent y entrega recomendaciones detalladas con diagnostico, accion concreta y efecto esperado.',
+                    'Estructura cada recomendacion con frases claramente identificables: "Diagnostico:", "Accion:" e "Impacto esperado:".',
+                    'Evita recomendaciones obvias o genericas no sustentadas por project_context.solar_window.',
+                    'Declara incertidumbre cuando falten datos o la calidad de radiacion sea limitada.',
                     'Responde unicamente JSON valido con las claves: executive_summary, daily_recommendation, energy_alerts, recommendation_pack.',
                     'recommendation_pack debe incluir exactamente: savings, load_shift, risk, maintenance, climate.',
                 ]),
@@ -552,28 +601,36 @@ class OpenAIRecommendationService
             'properties' => [
                 'executive_summary' => [
                     'type' => 'string',
-                    'description' => 'Short executive summary in Spanish.',
+                    'description' => 'Executive summary in Spanish with evidence from project metrics.',
+                    'minLength' => 120,
+                    'maxLength' => 420,
                 ],
                 'daily_recommendation' => [
                     'type' => 'string',
-                    'description' => 'Daily recommendation in natural Spanish.',
+                    'description' => 'Detailed daily recommendation in Spanish with explicit Diagnostico, Accion, Impacto esperado, and uncertainty when data is missing.',
+                    'minLength' => 180,
+                    'maxLength' => 520,
                 ],
                 'energy_alerts' => [
                     'type' => 'array',
                     'items' => [
                         'type' => 'string',
+                        'minLength' => 40,
+                        'maxLength' => 180,
                     ],
-                    'description' => 'Short energy alerts in Spanish.',
+                    'minItems' => 2,
+                    'maxItems' => 4,
+                    'description' => 'Energy alerts in Spanish, specific and actionable.',
                 ],
                 'recommendation_pack' => [
                     'type' => 'object',
                     'additionalProperties' => false,
                     'properties' => [
-                        'savings' => ['type' => 'string'],
-                        'load_shift' => ['type' => 'string'],
-                        'risk' => ['type' => 'string'],
-                        'maintenance' => ['type' => 'string'],
-                        'climate' => ['type' => 'string'],
+                        'savings' => ['type' => 'string', 'description' => 'Spanish recommendation with Diagnostico, Accion, Impacto esperado.', 'minLength' => 160, 'maxLength' => 520],
+                        'load_shift' => ['type' => 'string', 'description' => 'Spanish recommendation with Diagnostico, Accion, Impacto esperado.', 'minLength' => 160, 'maxLength' => 520],
+                        'risk' => ['type' => 'string', 'description' => 'Spanish recommendation with Diagnostico, Accion, Impacto esperado.', 'minLength' => 160, 'maxLength' => 520],
+                        'maintenance' => ['type' => 'string', 'description' => 'Spanish recommendation with Diagnostico, Accion, Impacto esperado.', 'minLength' => 160, 'maxLength' => 520],
+                        'climate' => ['type' => 'string', 'description' => 'Spanish recommendation with Diagnostico, Accion, Impacto esperado.', 'minLength' => 160, 'maxLength' => 520],
                     ],
                     'required' => ['savings', 'load_shift', 'risk', 'maintenance', 'climate'],
                 ],
@@ -772,6 +829,178 @@ class OpenAIRecommendationService
         }
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed>|null $response
+     */
+    private function extractAnthropicText(?array $response): string
+    {
+        $blocks = is_array($response['content'] ?? null) ? $response['content'] : [];
+
+        return collect($blocks)
+            ->map(fn ($block) => is_array($block) ? (string) ($block['text'] ?? '') : '')
+            ->map(fn (string $text) => trim($text))
+            ->filter(fn (string $text) => $text !== '')
+            ->implode("\n");
+    }
+
+    /**
+     * @param array<string, mixed>|null $decoded
+     * @return array<string, mixed>|null
+     */
+    private function sanitizeDecodedRecommendation(?array $decoded): ?array
+    {
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $executiveSummary = $this->usableAiText($decoded['executive_summary'] ?? null);
+        $dailyRecommendation = $this->usableAiText($decoded['daily_recommendation'] ?? null);
+
+        $alerts = collect($decoded['energy_alerts'] ?? [])
+            ->map(fn ($item) => $this->usableAiText($item))
+            ->filter()
+            ->values()
+            ->all();
+
+        $pack = [];
+        if (is_array($decoded['recommendation_pack'] ?? null)) {
+            foreach (['savings', 'load_shift', 'risk', 'maintenance', 'climate'] as $key) {
+                $value = $this->usableAiText($decoded['recommendation_pack'][$key] ?? null);
+                if ($value !== null) {
+                    $pack[$key] = $value;
+                }
+            }
+        }
+
+        if ($executiveSummary === null && $dailyRecommendation === null && $pack === []) {
+            return null;
+        }
+
+        return [
+            'executive_summary' => $executiveSummary,
+            'daily_recommendation' => $dailyRecommendation,
+            'energy_alerts' => $alerts,
+            'recommendation_pack' => $pack,
+        ];
+    }
+
+    private function usableAiText(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $normalized = strtolower(str_replace(['-', ' '], '_', $trimmed));
+        $placeholders = [
+            'title',
+            'text',
+            'message',
+            'summary',
+            'date_context',
+            'executive_summary',
+            'daily_recommendation',
+            'energy_alerts',
+            'recommendation_pack',
+            'savings',
+            'load_shift',
+            'risk',
+            'maintenance',
+            'climate',
+        ];
+
+        return in_array($normalized, $placeholders, true) ? null : $trimmed;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function fallbackResult(array $payload, ?string $error = null): array
+    {
+        $coverage = data_get($payload, 'energy_metrics.coverage_percentage');
+        $dailyGeneration = data_get($payload, 'energy_metrics.estimated_daily_generation_kwh');
+        $annualGeneration = data_get($payload, 'energy_metrics.estimated_annual_generation_kwh');
+        $annualConsumption = data_get($payload, 'energy_metrics.annual_consumption_kwh');
+        $annualBalance = data_get($payload, 'energy_metrics.annual_energy_balance_kwh');
+        $savings = data_get($payload, 'energy_metrics.estimated_annual_savings_cop');
+        $bestWindow = trim((string) data_get($payload, 'project_context.solar_window.best_window', ''));
+        $readingCount = (int) data_get($payload, 'weather_station_summary.reading_count', 0);
+        $estimatedRatio = (float) data_get($payload, 'nasa_radiation_quality.estimated_ratio', 0);
+
+        $coverageText = is_numeric($coverage) ? number_format((float) $coverage, 1, ',', '.').'%' : 'sin cobertura calculada';
+        $dailyText = is_numeric($dailyGeneration) ? number_format((float) $dailyGeneration, 1, ',', '.').' kWh/dia' : 'sin generacion diaria calculada';
+        $annualGenerationText = is_numeric($annualGeneration) ? number_format((float) $annualGeneration, 0, ',', '.').' kWh/ano' : 'sin generacion anual calculada';
+        $annualConsumptionText = is_numeric($annualConsumption) ? number_format((float) $annualConsumption, 0, ',', '.').' kWh/ano' : 'sin consumo anual calculado';
+        $balanceText = is_numeric($annualBalance) ? number_format((float) $annualBalance, 0, ',', '.').' kWh/ano' : 'sin balance anual calculado';
+        $savingsText = is_numeric($savings) ? '$'.number_format((float) $savings, 0, ',', '.') : 'sin ahorro anual calculado';
+        $windowText = $bestWindow !== '' ? "la ventana {$bestWindow}" : 'la franja solar con mejor radiacion disponible en las graficas';
+        $qualityText = $readingCount > 0
+            ? "{$readingCount} lecturas locales disponibles"
+            : 'sin lecturas locales recientes';
+
+        if ($estimatedRatio > 0) {
+            $qualityText .= ', con datos NASA parcialmente estimados';
+        }
+
+        $summary = "El proyecto muestra cobertura {$coverageText}, generacion {$annualGenerationText} frente a consumo {$annualConsumptionText} y balance {$balanceText}. Use {$windowText} para decisiones operativas y trate la calidad de datos como {$qualityText}.";
+
+        $dailyRecommendation = "Diagnostico: con cobertura {$coverageText}, generacion diaria {$dailyText} y balance {$balanceText}, el riesgo principal es consumir fuera de la ventana solar y aumentar dependencia de red. Accion: concentre cargas flexibles en {$windowText}, deje cargas criticas priorizadas y revise consumos nocturnos. Impacto esperado: mejor autoconsumo y menor exposicion a compras de energia, sin asumir cifras fuera del proyecto.";
+
+        $pack = [
+            'savings' => "Diagnostico: el ahorro anual estimado es {$savingsText} con cobertura {$coverageText}. Accion: mueva cargas no criticas hacia {$windowText} y compare la factura contra la generacion mensual. Impacto esperado: proteger el ahorro estimado y detectar desviaciones temprano.",
+            'load_shift' => "Diagnostico: la generacion diaria estimada es {$dailyText}, pero el beneficio depende de usar energia cuando el sistema produce. Accion: programe equipos de mayor consumo en {$windowText} y evite arranques simultaneos fuera de esa franja. Impacto esperado: mas autoconsumo y menor presion sobre la red.",
+            'risk' => "Diagnostico: cobertura {$coverageText}, balance {$balanceText} y calidad de datos {$qualityText} elevan el riesgo de decisiones operativas imprecisas. Accion: opere cargas flexibles en {$windowText}, mantenga cargas esenciales con prioridad y valide lecturas antes de ampliar demanda. Impacto esperado: menor riesgo de deficit operativo y decisiones mas estables.",
+            'maintenance' => "Diagnostico: si la produccion real se aleja de {$dailyText} o cae respecto a meses similares, puede haber suciedad, sombra o falla de medicion. Accion: revise inversor, cableado visible y limpieza de modulos antes de cambiar habitos de consumo. Impacto esperado: recuperar rendimiento sin sobredimensionar acciones.",
+            'climate' => "Diagnostico: la operacion depende de radiacion y de la confiabilidad de datos; estado actual: {$qualityText}. Accion: use tendencias mensuales y {$windowText} para programar cargas, y sea conservador cuando haya datos estimados. Impacto esperado: operacion mas prudente ante variacion climatica.",
+        ];
+
+        return [
+            'enabled' => true,
+            'source' => 'local_ai_fallback',
+            'executive_summary' => $summary,
+            'daily_recommendation' => $dailyRecommendation,
+            'energy_alerts' => [
+                "Vigile consumo fuera de {$windowText}; puede reducir la cobertura efectiva del {$coverageText}.",
+                "Calidad de datos: {$qualityText}; confirme lecturas antes de tomar decisiones de alto impacto.",
+            ],
+            'recommendation_pack' => $pack,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function enforceRecommendationSpecificity(array $result, array $payload): array
+    {
+        $daily = mb_strtolower((string) ($result['daily_recommendation'] ?? ''));
+        $hasGenericRange = str_contains($daily, '8:00') && str_contains($daily, '16:00');
+        $bestWindow = (string) data_get($payload, 'project_context.solar_window.best_window', '');
+        $hasProjectWindow = trim($bestWindow) !== '';
+
+        if (! $hasGenericRange) {
+            return $result;
+        }
+
+        $coverage = data_get($payload, 'energy_metrics.coverage_percentage');
+        $coverageText = is_numeric($coverage) ? number_format((float) $coverage, 1, ',', '.') . '%' : 'sin dato';
+
+        $replacement = $hasProjectWindow
+            ? "La recomendacion se ajusta al perfil real del proyecto: concentre cargas flexibles en la ventana {$bestWindow}, donde su historico local muestra mejor captacion. Fuera de esa franja, priorice cargas criticas y evite consumos desplazables. Con cobertura {$coverageText}, esta estrategia reduce compra de red y mejora el aprovechamiento solar sin sobredimensionar operacion."
+            : 'No hay ventana horaria local suficiente para definir un bloque operativo preciso; antes de mover cargas, complete mas lecturas del proyecto para identificar horas pico reales y evitar decisiones basadas en rangos generales.';
+
+        $result['daily_recommendation'] = $replacement;
+
+        return $result;
     }
 
     /**

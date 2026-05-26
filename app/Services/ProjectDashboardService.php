@@ -103,6 +103,7 @@ class ProjectDashboardService
                 $calculationResult,
                 $weatherAndNasaStats,
                 $aiFocus,
+                $this->buildAiProjectContext($solarProject, $calculationResult, $weatherStationReadings),
             )
             : [
                 'enabled' => false,
@@ -194,6 +195,63 @@ class ProjectDashboardService
             'ambientChartData' => $this->ambientWeatherAggregationService->chartData($ambientReadings),
             // Comparison: latest NASA vs latest Ambient radiation reading
             'climateSourceComparison' => $this->buildClimateSourceComparison($projectWeatherData, $ambientStats),
+        ];
+    }
+
+    /**
+     * @param Collection<int, mixed> $weatherStationReadings
+     * @return array<string, mixed>
+     */
+    private function buildAiProjectContext(
+        SolarProject $solarProject,
+        ?CalculationResult $calculationResult,
+        Collection $weatherStationReadings,
+    ): array {
+        $radiationReadings = $weatherStationReadings
+            ->filter(fn ($reading) => $reading !== null && $reading->radiationValue() !== null)
+            ->values();
+
+        $hourlyRadiation = $radiationReadings
+            ->groupBy(fn ($reading) => (int) $reading->measured_at->format('H'))
+            ->map(fn (Collection $rows, int $hour) => [
+                'hour' => $hour,
+                'avg_radiation' => (float) $rows->avg(fn ($row) => (float) $row->radiationValue()),
+                'samples' => $rows->count(),
+            ])
+            ->filter(fn (array $row) => $row['hour'] >= 6 && $row['hour'] <= 18)
+            ->filter(fn (array $row) => $row['samples'] >= 3)
+            ->sortByDesc('avg_radiation')
+            ->values();
+
+        $topHours = $hourlyRadiation->take(3)->sortBy('hour')->values();
+        $windowStart = $topHours->first()['hour'] ?? null;
+        $windowEnd = $topHours->last()['hour'] ?? null;
+        $windowLabel = ($windowStart !== null && $windowEnd !== null)
+            ? sprintf('%02d:00-%02d:59', $windowStart, $windowEnd)
+            : null;
+
+        return [
+            'project_period' => [
+                'start_date' => $solarProject->start_date?->toDateString(),
+                'end_date' => $solarProject->end_date?->toDateString(),
+                'days' => $solarProject->start_date && $solarProject->end_date
+                    ? $solarProject->start_date->diffInDays($solarProject->end_date) + 1
+                    : null,
+            ],
+            'project_energy' => [
+                'monthly_consumption_kwh' => (float) $solarProject->monthlyConsumption(),
+                'annual_consumption_kwh' => (float) $solarProject->annualConsumption(),
+                'coverage_percentage' => $calculationResult ? (float) $calculationResult->coverage_percentage : null,
+            ],
+            'solar_window' => [
+                'source' => $topHours->isNotEmpty() ? 'weather_station' : 'insufficient_hourly_data',
+                'best_window' => $windowLabel,
+                'top_hours' => $topHours->map(fn (array $row) => [
+                    'hour' => $row['hour'],
+                    'avg_radiation' => round((float) $row['avg_radiation'], 2),
+                    'samples' => $row['samples'],
+                ])->all(),
+            ],
         ];
     }
 
