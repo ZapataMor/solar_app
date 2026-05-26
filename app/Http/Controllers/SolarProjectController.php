@@ -603,13 +603,15 @@ class SolarProjectController extends Controller
      */
     private function technicalParameterAttributes(array $validated): array
     {
+        $systemLossesPercentage = (float) $validated['system_losses_percentage'];
+
         return [
             'available_area_m2' => $validated['available_area_m2'],
             'usable_area_percentage' => $validated['usable_area_percentage'],
             'panel_power_w' => $validated['panel_power_w'],
             'panel_area_m2' => $validated['panel_area_m2'],
-            'performance_ratio' => $validated['performance_ratio'],
-            'system_losses_percentage' => $validated['system_losses_percentage'],
+            'performance_ratio' => 1 - ($systemLossesPercentage / 100),
+            'system_losses_percentage' => $systemLossesPercentage,
         ];
     }
 

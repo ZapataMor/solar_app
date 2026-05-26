@@ -54,8 +54,37 @@ class SolarProjectTest extends TestCase
         $this->assertDatabaseHas('technical_parameters', [
             'solar_project_id' => $solarProject->id,
             'available_area_m2' => 120,
-            'performance_ratio' => 0.82,
+            'performance_ratio' => 0.86,
+            'system_losses_percentage' => 14,
         ]);
+    }
+
+    public function test_user_can_create_a_solar_project_without_end_date(): void
+    {
+        $user = User::factory()->create();
+        $payload = $this->validPayload();
+        unset($payload['end_date']);
+
+        $response = $this->actingAs($user)->post(route('solar-projects.store'), $payload);
+
+        $solarProject = SolarProject::query()->first();
+
+        $response->assertRedirect(route('solar-projects.show', $solarProject));
+        $this->assertSame('2017-01-01', $solarProject->end_date->format('Y-m-d'));
+    }
+
+    public function test_user_can_create_a_solar_project_without_required_power_kw(): void
+    {
+        $user = User::factory()->create();
+        $payload = $this->validPayload();
+        unset($payload['required_power_kw']);
+
+        $response = $this->actingAs($user)->post(route('solar-projects.store'), $payload);
+
+        $solarProject = SolarProject::query()->first();
+
+        $response->assertRedirect(route('solar-projects.show', $solarProject));
+        $this->assertSame(13.37, round((float) $solarProject->required_power_kw, 2));
     }
 
     public function test_user_cannot_view_another_users_project(): void
@@ -383,9 +412,12 @@ class SolarProjectTest extends TestCase
      */
     private function validPayload(): array
     {
+        $technicalParameters = $this->technicalParameterAttributes();
+        unset($technicalParameters['performance_ratio']);
+
         return [
             ...$this->projectAttributes(),
-            ...$this->technicalParameterAttributes(),
+            ...$technicalParameters,
             'municipality_id' => $this->seedMunicipalityPrice('Maicao', 'Media Guajira', 'Base urbana', 'urbana', 4000000, 1.00)->id,
             'location_type' => 'urbana',
             'required_power_kw' => 5,
@@ -417,7 +449,7 @@ class SolarProjectTest extends TestCase
             'usable_area_percentage' => 85,
             'panel_power_w' => 550,
             'panel_area_m2' => 2.5,
-            'performance_ratio' => 0.82,
+            'performance_ratio' => 0.86,
             'system_losses_percentage' => 14,
         ];
     }

@@ -43,7 +43,7 @@ class UserSolarProjectSeeder extends Seeder
                     'panel_area_m2' => 2.58,
 
                     // Rendimiento realista residencial
-                    'performance_ratio' => 0.78,
+                    'performance_ratio' => 0.85,
 
                     // Pérdidas normales
                     'system_losses_percentage' => 15,
@@ -77,7 +77,7 @@ class UserSolarProjectSeeder extends Seeder
                     'panel_area_m2' => 2.58,
 
                     // Sistema más optimizado
-                    'performance_ratio' => 0.82,
+                    'performance_ratio' => 0.88,
 
                     // Menores pérdidas por mejor instalación
                     'system_losses_percentage' => 12,
@@ -111,7 +111,7 @@ class UserSolarProjectSeeder extends Seeder
                     'panel_area_m2' => 2.65,
 
                     // Rendimiento estándar institucional
-                    'performance_ratio' => 0.80,
+                    'performance_ratio' => 0.85,
 
                     // Pérdidas típicas
                     'system_losses_percentage' => 15,

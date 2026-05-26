@@ -41,6 +41,21 @@ class ClimateSourceFallbackTest extends TestCase
         $this->assertEquals(ClimateSourceFallbackService::SOURCE_LOCAL, $source);
     }
 
+    public function test_resolves_ambient_when_both_ambient_and_local_are_fresh(): void
+    {
+        WeatherStationReading::factory()->create([
+            'measured_at' => Carbon::now()->subMinutes(5),
+        ]);
+
+        AmbientWeatherReading::factory()->create([
+            'recorded_at' => Carbon::now()->subMinutes(5),
+        ]);
+
+        $source = $this->makeService()->resolveActiveSource();
+
+        $this->assertEquals(ClimateSourceFallbackService::SOURCE_AMBIENT, $source);
+    }
+
     public function test_resolves_ambient_when_local_stale_but_ambient_fresh(): void
     {
         // Local station reading is too old
@@ -109,10 +124,10 @@ class ClimateSourceFallbackTest extends TestCase
         $this->assertArrayHasKey('fallbackReason', $descriptor);
     }
 
-    public function test_descriptor_fallback_used_is_false_when_local_is_active(): void
+    public function test_descriptor_fallback_used_is_false_when_ambient_is_active(): void
     {
-        WeatherStationReading::factory()->create([
-            'measured_at' => Carbon::now()->subMinutes(5),
+        AmbientWeatherReading::factory()->create([
+            'recorded_at' => Carbon::now()->subMinutes(5),
         ]);
 
         $descriptor = $this->makeService()->resolveActiveSourceDescriptor();
@@ -135,7 +150,7 @@ class ClimateSourceFallbackTest extends TestCase
     // selectDailyClimateRows()
     // -----------------------------------------------------------------------
 
-    public function test_select_prefers_nasa_rows(): void
+    public function test_select_prefers_ambient_rows(): void
     {
         $nasa    = collect([['date_time' => now(), 'source' => 'nasa']]);
         $local   = collect([['date_time' => now(), 'source' => 'local']]);
@@ -145,33 +160,33 @@ class ClimateSourceFallbackTest extends TestCase
             $nasa, $local, $ambient
         );
 
-        $this->assertEquals('nasa', $rows->first()['source']);
-        $this->assertEquals(ClimateSourceFallbackService::SOURCE_NASA, $source);
+        $this->assertEquals('ambient', $rows->first()['source']);
+        $this->assertEquals(ClimateSourceFallbackService::SOURCE_AMBIENT, $source);
     }
 
-    public function test_select_falls_back_to_local_when_nasa_empty(): void
+    public function test_select_falls_back_to_local_when_ambient_empty(): void
     {
+        $nasa    = collect([['date_time' => now(), 'source' => 'nasa']]);
         $local   = collect([['date_time' => now(), 'source' => 'local']]);
-        $ambient = collect([['date_time' => now(), 'source' => 'ambient']]);
 
         ['rows' => $rows, 'source' => $source] = $this->makeService()->selectDailyClimateRows(
-            collect(), $local, $ambient
+            $nasa, $local, collect()
         );
 
         $this->assertEquals('local', $rows->first()['source']);
         $this->assertEquals(ClimateSourceFallbackService::SOURCE_LOCAL, $source);
     }
 
-    public function test_select_falls_back_to_ambient_when_nasa_and_local_empty(): void
+    public function test_select_falls_back_to_nasa_when_ambient_and_local_empty(): void
     {
-        $ambient = collect([['date_time' => now(), 'source' => 'ambient']]);
+        $nasa = collect([['date_time' => now(), 'source' => 'nasa']]);
 
         ['rows' => $rows, 'source' => $source] = $this->makeService()->selectDailyClimateRows(
-            collect(), collect(), $ambient
+            $nasa, collect(), collect()
         );
 
-        $this->assertEquals('ambient', $rows->first()['source']);
-        $this->assertEquals(ClimateSourceFallbackService::SOURCE_AMBIENT, $source);
+        $this->assertEquals('nasa', $rows->first()['source']);
+        $this->assertEquals(ClimateSourceFallbackService::SOURCE_NASA, $source);
     }
 
     public function test_select_returns_empty_collection_when_all_sources_empty(): void

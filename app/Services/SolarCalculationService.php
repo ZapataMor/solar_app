@@ -179,7 +179,6 @@ class SolarCalculationService
     {
         $technicalParameter = $solarProject->technicalParameter;
         $performanceRatio = (float) $technicalParameter->performance_ratio;
-        $lossFactor = 1 - ((float) $technicalParameter->system_losses_percentage / 100);
         $monthlyConsumption = $solarProject->monthlyConsumption();
         $energyRate = (float) $solarProject->energy_rate_cop_kwh;
 
@@ -190,7 +189,6 @@ class SolarCalculationService
             ->map(function (Collection $monthData, int|string $monthNumber) use (
                 $installedCapacityKwp,
                 $performanceRatio,
-                $lossFactor,
                 $monthlyConsumption,
                 $energyRate,
             ) {
@@ -200,7 +198,7 @@ class SolarCalculationService
 
                 $daysInMonth = $dailyRadiation->count();
                 $averageDailyRadiation = $daysInMonth > 0 ? $dailyRadiation->average() : 0;
-                $estimatedGeneration = $installedCapacityKwp * $averageDailyRadiation * $performanceRatio * $lossFactor * $daysInMonth;
+                $estimatedGeneration = $installedCapacityKwp * $averageDailyRadiation * $performanceRatio * $daysInMonth;
 
                 return [
                     'month_number' => (int) $monthNumber,

@@ -64,15 +64,15 @@ class SolarCalculationTest extends TestCase
         $this->assertSame(40, $calculationResult->number_of_panels);
         $this->assertEqualsWithDelta(102, (float) $calculationResult->usable_area_m2, 0.0001);
         $this->assertEqualsWithDelta(22, (float) $calculationResult->installed_capacity_kwp, 0.0001);
-        $this->assertEqualsWithDelta(12458.06, (float) $calculationResult->estimated_annual_generation_kwh, 0.1);
-        $this->assertEqualsWithDelta(34.1317, (float) $calculationResult->estimated_daily_generation_kwh, 0.001);
+        $this->assertEqualsWithDelta(15192.76, (float) $calculationResult->estimated_annual_generation_kwh, 0.1);
+        $this->assertEqualsWithDelta(41.624, (float) $calculationResult->estimated_daily_generation_kwh, 0.001);
         $this->assertEqualsWithDelta(24500, (float) $calculationResult->annual_consumption_kwh, 0.1);
-        $this->assertEqualsWithDelta(10215611.81, (float) $calculationResult->estimated_annual_savings_cop, 5);
+        $this->assertEqualsWithDelta(12458061.46, (float) $calculationResult->estimated_annual_savings_cop, 5);
 
         $this->assertSame(1, $monthlyResult->month_number);
         $this->assertSame(2, $monthlyResult->days_in_month);
         $this->assertEqualsWithDelta(2.2, (float) $monthlyResult->average_daily_solar_radiation, 0.0001);
-        $this->assertEqualsWithDelta(68.2634, (float) $monthlyResult->estimated_generation_kwh, 0.001);
+        $this->assertEqualsWithDelta(83.248, (float) $monthlyResult->estimated_generation_kwh, 0.001);
         $this->assertEqualsWithDelta(24500 / 12, (float) $monthlyResult->estimated_consumption_kwh, 0.01);
     }
 
@@ -139,7 +139,7 @@ class SolarCalculationTest extends TestCase
             'usable_area_percentage' => 85,
             'panel_power_w' => 550,
             'panel_area_m2' => 2.5,
-            'performance_ratio' => 0.82,
+            'performance_ratio' => 0.86,
             'system_losses_percentage' => 14,
         ];
     }

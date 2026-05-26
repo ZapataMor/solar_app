@@ -451,7 +451,7 @@ class SolarDashboardTest extends TestCase
             'usable_area_percentage' => 85,
             'panel_power_w' => 550,
             'panel_area_m2' => 2.5,
-            'performance_ratio' => 0.82,
+            'performance_ratio' => 0.86,
             'system_losses_percentage' => 14,
         ];
     }

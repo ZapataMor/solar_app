@@ -30,6 +30,7 @@
     $selectedMunicipalityId = old('municipality_id', $solarProject?->municipality_id);
     $selectedLocationType = old('location_type', $solarProject?->location_type ?? 'urbana');
     $selectedRequiredPower = old('required_power_kw', $solarProject?->required_power_kw);
+    $isCreating = strtoupper($method) === 'POST';
     $solarPriceUrlTemplate = route('municipalities.solar-price', ['municipality' => '__MUNICIPALITY__']);
 @endphp
 
@@ -54,7 +55,7 @@
             <div>
                 <p class="solar-kicker">Base del proyecto</p>
                 <h2 class="text-2xl text-[color:var(--solar-text)]">Informacion del proyecto</h2>
-                <p class="solar-subtitle mt-2">Riohacha se mantiene como ubicacion fija para asegurar coherencia geografica y comparabilidad de los escenarios.</p>
+                <p class="solar-subtitle mt-2">Riohacha es el punto de referencia principal, pero pronto podrás seleccionar cualquier municipio de La Guajira.</p>
             </div>
             <span class="solar-pill">Contexto local permanente</span>
         </div>
@@ -99,16 +100,18 @@
                 >
             </label>
 
-            <label class="solar-field">
-                <span class="solar-field-label">Fecha final</span>
-                <input
-                    type="date"
-                    name="end_date"
-                    value="{{ old('end_date', $solarProject?->end_date?->format('Y-m-d')) }}"
-                    required
-                    class="solar-input"
-                >
-            </label>
+            @unless ($isCreating)
+                <label class="solar-field">
+                    <span class="solar-field-label">Fecha final</span>
+                    <input
+                        type="date"
+                        name="end_date"
+                        value="{{ old('end_date', $solarProject?->end_date?->format('Y-m-d')) }}"
+                        required
+                        class="solar-input"
+                    >
+                </label>
+            @endunless
 
             <label class="solar-field">
                 <span class="solar-field-label">Consumo mensual en kWh</span>
@@ -237,10 +240,7 @@
                 <input type="number" step="0.000001" name="longitude" value="{{ old('longitude', $solarProject?->longitude) }}" class="solar-input" data-location-longitude>
             </label>
 
-            <label class="solar-field md:col-span-2">
-                <span class="solar-field-label">Potencia requerida del sistema en kW</span>
-                <input type="number" step="0.01" min="0.01" name="required_power_kw" value="{{ $selectedRequiredPower }}" required class="solar-input" data-required-power>
-            </label>
+            <input type="hidden" name="required_power_kw" value="{{ $selectedRequiredPower }}" data-required-power>
         </div>
 
         <div class="solar-location-layout">
@@ -318,20 +318,6 @@
                     min="0.01"
                     name="panel_area_m2"
                     value="{{ old('panel_area_m2', $technicalParameter?->panel_area_m2) }}"
-                    required
-                    class="solar-input"
-                >
-            </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Performance ratio</span>
-                <input
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    max="1"
-                    name="performance_ratio"
-                    value="{{ old('performance_ratio', $technicalParameter?->performance_ratio) }}"
                     required
                     class="solar-input"
                 >
@@ -490,8 +476,8 @@
         usableAreaPct: form.querySelector('[name="usable_area_percentage"]'),
         panelPower: form.querySelector('[name="panel_power_w"]'),
         panelArea: form.querySelector('[name="panel_area_m2"]'),
-        performanceRatio: form.querySelector('[name="performance_ratio"]'),
         systemLossesPct: form.querySelector('[name="system_losses_percentage"]'),
+        requiredPower: form.querySelector('[name="required_power_kw"]'),
     };
 
     const out = {
@@ -509,11 +495,38 @@
         payback: form.querySelector('[data-sim-payback]'),
         status: form.querySelector('[data-sim-status]'),
         radiationContext: form.querySelector('[data-sim-radiation-context]'),
+        requiredPowerHint: form.querySelector('[data-required-power-hint]'),
     };
 
     const scaleButtons = Array.from(form.querySelectorAll('[data-sim-scale-btn]'));
+    let requiredPowerManuallyEdited = fields.requiredPower?.type !== 'hidden' && Boolean(fields.requiredPower?.value);
 
     const sourceCopy = () => `${ambientSourceLabel}: ${numberFormatter.format(ambientDailyHsp)} HSP/dia. Sin degradacion anual ni costos O&M.`;
+
+    const syncRequiredPowerSuggestion = (monthlyConsumption, performanceRatio) => {
+        if (!fields.requiredPower || !monthlyConsumption || performanceRatio <= 0 || ambientDailyHsp <= 0) {
+            return;
+        }
+
+        if (fields.requiredPower.type !== 'hidden' && requiredPowerManuallyEdited && toNumber(fields.requiredPower.value) > 0) {
+            return;
+        }
+
+        const recommendedPowerKw = monthlyConsumption / (ambientDailyHsp * 30 * performanceRatio);
+
+        if (!Number.isFinite(recommendedPowerKw) || recommendedPowerKw <= 0) {
+            return;
+        }
+
+        fields.requiredPower.dataset.autoUpdating = 'true';
+        fields.requiredPower.value = recommendedPowerKw.toFixed(2);
+        fields.requiredPower.dispatchEvent(new Event('input', { bubbles: true }));
+        delete fields.requiredPower.dataset.autoUpdating;
+
+        if (out.requiredPowerHint) {
+            out.requiredPowerHint.textContent = `Sugerencia automatica: ${numberFormatter.format(recommendedPowerKw)} kW para cubrir aproximadamente el consumo mensual registrado. Puedes ajustarla si quieres simular otra meta.`;
+        }
+    };
 
     const setDefaultState = () => {
         out.capacity.textContent = '—';
@@ -557,7 +570,7 @@
 
     const fetchAmbientContext = async () => {
         const startDate = fields.startDate?.value;
-        const endDate = fields.endDate?.value;
+        const endDate = fields.endDate?.value || startDate;
 
         if (!startDate || !endDate) {
             ambientDailyHsp = defaultDailyHsp;
@@ -603,10 +616,14 @@
         const usableAreaPct = toNumber(fields.usableAreaPct?.value);
         const panelPowerW = toNumber(fields.panelPower?.value);
         const panelArea = toNumber(fields.panelArea?.value);
-        const performanceRatio = toNumber(fields.performanceRatio?.value);
         const systemLossesPct = toNumber(fields.systemLossesPct?.value);
+        const performanceRatio = systemLossesPct >= 0 && systemLossesPct <= 100
+            ? 1 - (systemLossesPct / 100)
+            : 0;
 
-        if (!monthlyConsumption || !energyRate || !availableArea || !usableAreaPct || !panelPowerW || !panelArea || !performanceRatio) {
+        syncRequiredPowerSuggestion(monthlyConsumption, performanceRatio);
+
+        if (!monthlyConsumption || !energyRate || !availableArea || !usableAreaPct || !panelPowerW || !panelArea || systemLossesPct < 0 || systemLossesPct > 100) {
             setDefaultState();
             return;
         }
@@ -614,8 +631,7 @@
         const usableArea = availableArea * (usableAreaPct / 100);
         const panels = panelArea > 0 ? Math.floor(usableArea / panelArea) : 0;
         const capacityKwp = (panels * panelPowerW) / 1000;
-        const lossFactor = 1 - (systemLossesPct / 100);
-        const monthlyGeneration = capacityKwp * ambientDailyHsp * 30 * performanceRatio * lossFactor;
+        const monthlyGeneration = capacityKwp * ambientDailyHsp * 30 * performanceRatio;
         const annualGeneration = monthlyGeneration * 12;
         const annualSavings = annualGeneration * energyRate;
         const monthlySavings = annualSavings / 12;
@@ -663,11 +679,25 @@
             : (paybackYears <= 10 ? 'Retorno moderado; revisa eficiencia y costos.' : 'Retorno largo; conviene optimizar dimensionamiento o tarifa.');
     };
 
-    Object.values(fields).forEach((field) => {
+    Object.entries(fields).forEach(([name, field]) => {
+        if (name === 'requiredPower') {
+            return;
+        }
+
         if (field) {
             field.addEventListener('input', update);
         }
     });
+
+    if (fields.requiredPower) {
+        fields.requiredPower.addEventListener('input', () => {
+            if (fields.requiredPower.dataset.autoUpdating === 'true') {
+                return;
+            }
+
+            requiredPowerManuallyEdited = fields.requiredPower.type !== 'hidden' && toNumber(fields.requiredPower.value) > 0;
+        });
+    }
 
     if (fields.startDate) {
         fields.startDate.addEventListener('change', fetchAmbientContext);

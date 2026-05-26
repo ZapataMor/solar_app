@@ -65,8 +65,8 @@ class ProjectDashboardService
         // Determine which climate source is currently active (for dashboard indicator)
         $activeClimateSource = $this->climateSourceFallbackService->resolveActiveSourceDescriptor();
 
-        // Build daily rows using the fallback hierarchy:
-        //   NASA (modelled, complete history) → local station → Ambient → empty
+        // Build daily rows using the fallback hierarchy: Ambient first,
+        // meteorological station second, satellite source last.
         $localDailyRows   = $weatherStationReadings->isNotEmpty()
             ? $this->weatherStationAggregationService->dailyRows($weatherStationReadings)
             : collect();

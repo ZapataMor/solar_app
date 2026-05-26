@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Log;
  * to select climate data with automatic fallback.
  *
  * Priority (highest → lowest):
- *   1. Local weather station  (WeatherStationReading — real hardware on-site)
- *   2. Ambient Weather        (AmbientWeatherReading — third-party IoT station)
+ *   1. Ambient Weather        (AmbientWeatherReading - estacion IoT principal)
+ *   2. Local weather station  (WeatherStationReading - centro meteorologico local)
  *   3. NASA POWER             (ApiWeatherData       — satellite-modelled)
  *
  * A source is considered "online" when it has at least one reading within the
@@ -59,12 +59,12 @@ class ClimateSourceFallbackService
     {
         $threshold = $this->threshold();
 
-        if ($this->localStationIsOnline($threshold)) {
-            return self::SOURCE_LOCAL;
-        }
-
         if ($this->ambientIsOnline($threshold)) {
             return self::SOURCE_AMBIENT;
+        }
+
+        if ($this->localStationIsOnline($threshold)) {
+            return self::SOURCE_LOCAL;
         }
 
         return self::SOURCE_NASA;
@@ -82,19 +82,19 @@ class ClimateSourceFallbackService
         $ambientOnline = $this->ambientIsOnline($threshold);
 
         $source = match (true) {
-            $localOnline   => self::SOURCE_LOCAL,
             $ambientOnline => self::SOURCE_AMBIENT,
+            $localOnline   => self::SOURCE_LOCAL,
             default        => self::SOURCE_NASA,
         };
 
         $fallbackReason = match ($source) {
             self::SOURCE_NASA => match (true) {
-                ! $localOnline && ! $ambientOnline => 'Estación local y Ambient Weather sin datos recientes.',
-                ! $localOnline                     => 'Estación local sin datos recientes.',
+                ! $ambientOnline && ! $localOnline => 'Ambient Weather y estacion local sin datos recientes.',
+                ! $ambientOnline                   => 'Ambient Weather sin datos recientes.',
                 default                            => null,
             },
-            self::SOURCE_AMBIENT => 'Estación local sin datos recientes.',
-            default              => null,
+            self::SOURCE_LOCAL => 'Ambient Weather sin datos recientes.',
+            default            => null,
         };
 
         if ($fallbackReason !== null) {
@@ -107,7 +107,7 @@ class ClimateSourceFallbackService
             'source'        => $source,
             'label'         => self::SOURCE_LABELS[$source],
             'online'        => $source !== self::SOURCE_NASA,
-            'fallbackUsed'  => $source !== self::SOURCE_LOCAL,
+            'fallbackUsed'  => $source !== self::SOURCE_AMBIENT,
             'fallbackReason'=> $fallbackReason,
         ];
     }
@@ -115,11 +115,7 @@ class ClimateSourceFallbackService
     /**
      * Choose the best daily-row collection for solar calculations, applying
      * the fallback hierarchy:
-     *   NASA rows → local station rows → Ambient rows → empty collection
-     *
-     * The NASA rows are still preferred for calculations (modelled, complete
-     * historical coverage), but Ambient and local fill gaps when NASA has no data.
-     *
+     *   Ambient rows -> local station rows -> NASA rows -> empty collection
      * @param  Collection<int, mixed>  $nasaRows
      * @param  Collection<int, mixed>  $localRows
      * @param  Collection<int, mixed>  $ambientRows
@@ -130,16 +126,16 @@ class ClimateSourceFallbackService
         Collection $localRows,
         Collection $ambientRows,
     ): array {
-        if ($nasaRows->isNotEmpty()) {
-            return ['rows' => $nasaRows, 'source' => self::SOURCE_NASA];
+        if ($ambientRows->isNotEmpty()) {
+            return ['rows' => $ambientRows, 'source' => self::SOURCE_AMBIENT];
         }
 
         if ($localRows->isNotEmpty()) {
             return ['rows' => $localRows, 'source' => self::SOURCE_LOCAL];
         }
 
-        if ($ambientRows->isNotEmpty()) {
-            return ['rows' => $ambientRows, 'source' => self::SOURCE_AMBIENT];
+        if ($nasaRows->isNotEmpty()) {
+            return ['rows' => $nasaRows, 'source' => self::SOURCE_NASA];
         }
 
         return ['rows' => collect(), 'source' => self::SOURCE_NASA];
