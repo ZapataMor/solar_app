@@ -31,7 +31,171 @@
 @endphp
 
 <x-layouts::app :title="__('Datos APIs')">
-    <div class="solar-page">
+    <style>
+        .solar-api-page {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .solar-api-page .solar-page-header,
+        .solar-api-page .solar-api-section-header {
+            min-width: 0;
+        }
+
+        .solar-api-page .solar-api-chart-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: minmax(0, 1fr) minmax(13rem, 16.25rem);
+        }
+
+        .solar-api-page .solar-api-chart-frame {
+            height: clamp(16rem, 34vw, 20rem);
+        }
+
+        .solar-api-page .solar-api-table-scroll {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .solar-api-page .solar-api-table {
+            width: max(100%, var(--api-table-min, 56rem));
+            min-width: var(--api-table-min, 56rem);
+        }
+
+        .solar-api-page .solar-api-actions {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .solar-api-page .solar-api-actions > *,
+        .solar-api-page .solar-api-actions form {
+            min-width: 0;
+        }
+
+        .solar-api-page .solar-api-actions .solar-pill,
+        .solar-api-page .solar-api-actions form,
+        .solar-api-page .solar-api-actions button {
+            width: 100%;
+        }
+
+        .solar-api-page .solar-api-actions button {
+            justify-content: center;
+        }
+
+        .solar-api-page .solar-pagination {
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .solar-api-page .solar-pagination nav {
+            display: grid;
+            gap: .75rem;
+            min-width: 0;
+        }
+
+        .solar-api-page .solar-pagination nav > div:first-child {
+            min-width: 0;
+        }
+
+        .solar-api-page .solar-pagination nav > div:last-child {
+            display: grid;
+            gap: .75rem;
+            min-width: 0;
+        }
+
+        .solar-api-page .solar-pagination nav > div:last-child > div:last-child {
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: .25rem;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 1024px) {
+            .solar-api-page .solar-api-chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .solar-api-page .solar-api-actions {
+                width: 100%;
+                justify-content: stretch;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .solar-api-page {
+                gap: 1rem;
+            }
+
+            .solar-api-page .solar-hero,
+            .solar-api-page .solar-card {
+                padding: 1rem;
+                border-radius: 1rem;
+            }
+
+            .solar-api-page .solar-page-header,
+            .solar-api-page .solar-api-section-header {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .solar-api-page .solar-title {
+                font-size: clamp(2rem, 12vw, 2.65rem);
+                line-height: 1;
+            }
+
+            .solar-api-page h2 {
+                font-size: 1.35rem;
+                line-height: 1.15;
+            }
+
+            .solar-api-page .solar-subtitle {
+                font-size: .95rem;
+            }
+
+            .solar-api-page .solar-api-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .solar-api-page .solar-api-actions .solar-pill,
+            .solar-api-page .solar-api-actions form,
+            .solar-api-page .solar-api-actions button,
+            .solar-api-page .solar-page-header > .solar-pill {
+                width: 100%;
+            }
+
+            .solar-api-page .solar-api-chart-frame {
+                height: 18rem;
+            }
+
+            .solar-api-page .solar-table-shell {
+                border-radius: .95rem;
+            }
+
+            .solar-api-page .solar-table th,
+            .solar-api-page .solar-table td {
+                padding: .75rem;
+                white-space: nowrap;
+            }
+
+            .solar-api-page .solar-pagination nav,
+            .solar-api-page .solar-pagination nav > div:last-child {
+                gap: .55rem;
+            }
+
+            .solar-api-page .solar-pagination nav > div:last-child > div:first-child {
+                font-size: .75rem;
+                line-height: 1.35;
+            }
+        }
+    </style>
+
+    <div class="solar-page solar-api-page">
         <section class="solar-hero">
             <div class="solar-page-header">
                 <div>
@@ -113,9 +277,9 @@
 
             <script id="ambient-realtime-chart-data" type="application/json">@json($ambientChartRows)</script>
 
-            <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+            <div class="mt-6 solar-api-chart-grid">
                 <div class="solar-table-shell p-4">
-                    <div class="h-[320px]">
+                    <div class="solar-api-chart-frame">
                         <canvas id="ambient-realtime-chart" aria-label="Radiacion solar y temperatura Ambient Weather" role="img"></canvas>
                     </div>
                 </div>
@@ -131,8 +295,8 @@
             </div>
 
             <div class="solar-table-shell mt-6">
-                <div class="overflow-x-auto">
-                    <table class="solar-table min-w-[900px]">
+                <div class="solar-api-table-scroll">
+                    <table class="solar-table solar-api-table" style="--api-table-min: 56rem;">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -202,9 +366,9 @@
 
             <script id="weather-station-realtime-chart-data" type="application/json">@json($weatherStationChartRows)</script>
 
-            <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+            <div class="mt-6 solar-api-chart-grid">
                 <div class="solar-table-shell p-4">
-                    <div class="h-[320px]">
+                    <div class="solar-api-chart-frame">
                         <canvas id="weather-station-realtime-chart" aria-label="Radiacion, UVA, UVB e IUV en tiempo real" role="img"></canvas>
                     </div>
                 </div>
@@ -220,8 +384,8 @@
             </div>
 
             <div class="solar-table-shell mt-6">
-                <div class="overflow-x-auto">
-                    <table class="solar-table min-w-[1240px]">
+                <div class="solar-api-table-scroll">
+                    <table class="solar-table solar-api-table" style="--api-table-min: 76rem;">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -281,7 +445,7 @@
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Fuente satelital</h2>
                     <p class="solar-subtitle mt-2">Datos climaticos sincronizados desde NASA POWER con una lectura tabular mas clara.</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="solar-api-actions">
                     <span class="solar-pill">{{ number_format($nasaCount, 0, ',', '.') }} registros</span>
                     <form method="POST" action="{{ route('api-data.fetch-nasa-data') }}">
                         @csrf
@@ -291,8 +455,8 @@
             </div>
 
             <div class="solar-table-shell mt-6">
-                <div class="solar-table-scroll">
-                    <table class="solar-table">
+                <div class="solar-api-table-scroll">
+                    <table class="solar-table solar-api-table" style="--api-table-min: 58rem;">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
