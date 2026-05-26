@@ -4,12 +4,21 @@ namespace Tests\Unit;
 
 use App\Models\CalculationResult;
 use App\Services\OpenAIRecommendationService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Responses\CreateResponse;
 use Tests\TestCase;
 
 class OpenAIRecommendationServiceTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Cache::flush();
+    }
+
     public function test_it_returns_disabled_result_when_feature_is_off(): void
     {
         config([
@@ -137,6 +146,62 @@ class OpenAIRecommendationServiceTest extends TestCase
         $result = app(OpenAIRecommendationService::class)->generate([], [], [], $this->calculationResult(), []);
 
         $this->assertSame('opencode', $result['source']);
+    }
+
+    public function test_it_rejects_anthropic_placeholder_payloads_and_uses_project_data_fallback(): void
+    {
+        config([
+            'services.openai_recommendations.enabled' => true,
+            'services.openai_recommendations.provider' => 'anthropic',
+            'services.openai_recommendations.model' => 'claude-haiku-4-5',
+            'services.openai_recommendations.cache_ttl_minutes' => 30,
+            'openai.api_key' => 'test-key',
+            'openai.base_uri' => 'https://api.anthropic.com/v1',
+        ]);
+
+        Http::fake([
+            'api.anthropic.com/v1/messages' => Http::response([
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'text' => json_encode([
+                            'executive_summary' => 'title',
+                            'daily_recommendation' => 'date_context',
+                            'energy_alerts' => [],
+                            'recommendation_pack' => [
+                                'risk' => 'message',
+                            ],
+                        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    ],
+                ],
+            ]),
+        ]);
+
+        $result = app(OpenAIRecommendationService::class)->generate(
+            [],
+            [],
+            [],
+            $this->calculationResult(),
+            [
+                'total' => 0,
+                'nasaDataQuality' => [
+                    'estimatedRatio' => 0.25,
+                ],
+            ],
+            'risk',
+            [
+                'solar_window' => [
+                    'best_window' => '11:00 AM - 2:00 PM',
+                ],
+            ],
+        );
+
+        $this->assertTrue($result['enabled']);
+        $this->assertSame('local_ai_fallback', $result['source']);
+        $this->assertStringContainsString('cobertura 75,0%', $result['executive_summary']);
+        $this->assertStringContainsString('Diagnostico:', $result['recommendation_pack']['risk']);
+        $this->assertStringNotContainsString('date_context', $result['daily_recommendation']);
+        $this->assertStringNotContainsString('title', $result['executive_summary']);
     }
 
     private function calculationResult(): CalculationResult

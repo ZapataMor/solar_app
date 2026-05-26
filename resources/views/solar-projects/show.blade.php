@@ -16,6 +16,22 @@
         'climate'     => 'Adaptacion climatica',
     ];
     $aiSelectedPackItem     = collect($dashboard['executiveSummary']['recommendationPack'] ?? [])->firstWhere('key', $aiFocus);
+    $dailyRecommendationText = trim((string) ($dashboard['executiveSummary']['dailyRecommendation'] ?? ''));
+    $selectedPackMessageText = trim((string) ($aiSelectedPackItem['message'] ?? ''));
+    $showAiSelectedPackItem  = $aiSelectedPackItem
+        && $selectedPackMessageText !== ''
+        && mb_strtolower($selectedPackMessageText) !== mb_strtolower($dailyRecommendationText);
+    $initialAiChatMessage = $showAiSelectedPackItem ? $selectedPackMessageText : $dailyRecommendationText;
+    $solarAiConfig = [
+        'endpoint' => route('solar-projects.ai-recommendations', $solarProject),
+        'csrfToken' => csrf_token(),
+        'initialFocus' => $aiFocus,
+        'focusOptions' => $aiFocusOptions,
+        'provider' => strtoupper((string) config('services.openai_recommendations.provider', 'openai')),
+        'generated' => $generateAiRecommendations,
+        'initialMessage' => $initialAiChatMessage,
+        'initialError' => $dashboard['executiveSummary']['error'] ?? null,
+    ];
     $weatherStationStats    = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
     $analysisClimateSource = $analysisClimateSource ?? 'nasa_power';
@@ -289,6 +305,10 @@
     text-decoration: none;
 }
 .sdash-btn:hover { opacity: .85; }
+.sdash-btn:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
 .sdash-btn--primary {
     background: var(--solar-sun);
     color: #fff;
@@ -754,6 +774,154 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
     color: var(--solar-text);
     font-size: .78rem;
     cursor: pointer;
+}
+.sdash-ai-select:focus {
+    outline: 2px solid color-mix(in srgb, var(--solar-sun) 62%, transparent);
+    outline-offset: 2px;
+}
+
+/* ── AI chat recommendations ───────────────────────────────── */
+.sdash-ai-panel {
+    border-color: color-mix(in srgb, var(--solar-sun) 28%, var(--solar-border));
+}
+.sdash-ai-shell {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem clamp(1rem, 2vw, 1.35rem) 1.25rem;
+}
+.sdash-ai-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+}
+.sdash-ai-meta {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    flex-wrap: wrap;
+}
+.sdash-ai-chat {
+    min-height: 18rem;
+    max-height: 31rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    padding: 1rem;
+    border: 1px solid var(--solar-border);
+    border-radius: 12px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-muted) 60%, transparent), transparent 42%),
+        var(--solar-surface-strong);
+    scroll-behavior: smooth;
+}
+.dark .sdash-ai-chat {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-muted) 50%, transparent), transparent 42%),
+        var(--solar-surface-elevated);
+}
+.sdash-ai-empty {
+    margin: auto;
+    max-width: 34rem;
+    text-align: center;
+    color: var(--solar-text-muted);
+    font-size: .86rem;
+    line-height: 1.55;
+}
+.sdash-ai-message {
+    display: grid;
+    gap: .35rem;
+    max-width: min(44rem, 94%);
+    animation: sdashFadeSlide 180ms ease both;
+}
+.sdash-ai-message--user {
+    align-self: flex-end;
+}
+.sdash-ai-message--assistant {
+    align-self: flex-start;
+}
+.sdash-ai-message__label {
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--solar-text-muted);
+}
+.sdash-ai-message--user .sdash-ai-message__label {
+    text-align: right;
+}
+.sdash-ai-bubble {
+    white-space: pre-line;
+    line-height: 1.58;
+    font-size: .9rem;
+    border-radius: 12px;
+    padding: .9rem 1rem;
+    border: 1px solid var(--solar-border);
+    color: var(--solar-text);
+    overflow-wrap: anywhere;
+}
+.sdash-ai-message--user .sdash-ai-bubble {
+    background: var(--solar-sun);
+    border-color: var(--solar-sun);
+    color: #fff;
+}
+.sdash-ai-message--assistant .sdash-ai-bubble {
+    background: var(--solar-surface-muted);
+}
+.sdash-ai-cursor {
+    display: inline-block;
+    width: .5rem;
+    color: var(--solar-sun);
+    animation: sdashBlink 900ms steps(2, start) infinite;
+}
+.sdash-ai-skeleton {
+    display: grid;
+    gap: .55rem;
+    width: min(34rem, 92%);
+}
+.sdash-ai-skeleton span {
+    height: .8rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--solar-surface-muted), color-mix(in srgb, var(--solar-sun) 20%, var(--solar-surface-muted)), var(--solar-surface-muted));
+    background-size: 220% 100%;
+    animation: sdashShimmer 1.1s ease-in-out infinite;
+}
+.sdash-ai-skeleton span:nth-child(2) { width: 86%; }
+.sdash-ai-skeleton span:nth-child(3) { width: 64%; }
+.sdash-ai-composer {
+    display: grid;
+    gap: .75rem;
+    align-items: center;
+}
+@media (min-width: 760px) {
+    .sdash-ai-composer {
+        grid-template-columns: minmax(14rem, 18rem) 1fr auto auto;
+    }
+}
+.sdash-ai-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+    padding: .8rem .95rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--solar-danger) 30%, transparent);
+    background: var(--solar-danger-bg);
+    color: var(--solar-danger);
+    font-size: .82rem;
+}
+@keyframes sdashFadeSlide {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sdashBlink {
+    50% { opacity: 0; }
+}
+@keyframes sdashShimmer {
+    to { background-position: -220% 0; }
 }
 
 /* ── Table modal ────────────────────────────────────────────── */
@@ -1372,51 +1540,318 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
         </div>
     </div>
 
+    <script>
+        window.solarAiRecommendations = window.solarAiRecommendations || function solarAiRecommendations(config) {
+            if (config instanceof HTMLElement) {
+                const configElement = document.getElementById(config.dataset.aiConfig || '');
+                const parsedConfig = configElement ? JSON.parse(configElement.textContent || '{}') : {};
+
+                config = {
+                    ...parsedConfig,
+                    endpoint: config.dataset.aiEndpoint || parsedConfig.endpoint,
+                    csrfToken: config.dataset.aiCsrf || parsedConfig.csrfToken,
+                    initialFocus: config.dataset.aiFocus || parsedConfig.initialFocus || 'savings',
+                    provider: config.dataset.aiProvider || parsedConfig.provider || 'IA',
+                    generated: config.dataset.aiGenerated === '1' || parsedConfig.generated === true,
+                };
+            }
+
+            if (typeof config === 'string') {
+                const configElement = document.getElementById(config);
+                config = configElement ? JSON.parse(configElement.textContent || '{}') : {};
+            }
+
+            return {
+                endpoint: config.endpoint,
+                csrfToken: config.csrfToken,
+                focus: config.initialFocus || 'savings',
+                focusOptions: config.focusOptions || {},
+                provider: config.provider || 'IA',
+                state: 'idle',
+                errorMessage: '',
+                messages: [],
+                abortController: null,
+                streamTimer: null,
+                get isBusy() {
+                    return ['loading', 'streaming'].includes(this.state);
+                },
+                get stateLabel() {
+                    return {
+                        idle: 'Listo',
+                        loading: 'Analizando datos',
+                        streaming: 'Escribiendo',
+                        done: 'Completado',
+                        error: 'Revisar error',
+                    }[this.state] || 'Listo';
+                },
+                get composerHint() {
+                    const selectedOption = document.getElementById('ai-focus')?.selectedOptions?.[0]?.textContent;
+                    const label = this.focusOptions[this.focus] || selectedOption || 'el enfoque seleccionado';
+                    return `Generar enfoque ${label}. Se cancela cualquier solicitud activa antes de iniciar otra.`;
+                },
+                init() {
+                    if (config.generated && config.initialMessage) {
+                        this.messages.push({
+                            id: this.createId(),
+                            role: 'assistant',
+                            content: config.initialMessage,
+                            streaming: false,
+                        });
+                        this.state = 'done';
+                    }
+
+                    if (config.generated && config.initialError) {
+                        this.errorMessage = config.initialError;
+                        this.state = 'error';
+                    }
+                },
+                createId() {
+                    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                },
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        if (this.$refs.chat) {
+                            this.$refs.chat.scrollTop = this.$refs.chat.scrollHeight;
+                        }
+                    });
+                },
+                clearHistory() {
+                    if (this.isBusy) {
+                        this.stop();
+                    }
+                    this.messages = [];
+                    this.errorMessage = '';
+                    this.state = 'idle';
+                },
+                stop() {
+                    if (this.abortController) {
+                        this.abortController.abort();
+                    }
+                    if (this.streamTimer) {
+                        clearInterval(this.streamTimer);
+                        this.streamTimer = null;
+                    }
+                    const streamingMessage = this.messages.find((message) => message.streaming);
+                    if (streamingMessage) {
+                        streamingMessage.streaming = false;
+                    }
+                    this.state = this.messages.length > 0 ? 'done' : 'idle';
+                },
+                async generate(isRegeneration = false) {
+                    if (this.isBusy) {
+                        this.stop();
+                    }
+
+                    this.errorMessage = '';
+                    this.state = 'loading';
+                    this.abortController = new AbortController();
+
+                    this.messages.push({
+                        id: this.createId(),
+                        role: 'user',
+                        content: `${isRegeneration ? 'Regenerar' : 'Generar'} enfoque ${this.focusOptions[this.focus] || document.getElementById('ai-focus')?.selectedOptions?.[0]?.textContent || this.focus}`,
+                        streaming: false,
+                    });
+                    this.scrollToBottom();
+
+                    try {
+                        const response = await fetch(this.endpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': this.csrfToken,
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: JSON.stringify({ ai_focus: this.focus }),
+                            signal: this.abortController.signal,
+                        });
+
+                        const payload = await response.json().catch(() => ({}));
+                        if (!response.ok) {
+                            throw new Error(payload.message || 'No fue posible generar la recomendacion.');
+                        }
+
+                        this.provider = String(payload.source || this.provider).toUpperCase();
+                        this.typewrite(this.buildAssistantText(payload));
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            return;
+                        }
+
+                        this.errorMessage = error.message || 'Ocurrio un error inesperado al generar la recomendacion.';
+                        this.state = 'error';
+                    } finally {
+                        this.abortController = null;
+                    }
+                },
+                buildAssistantText(payload) {
+                    const parts = [];
+
+                    if (payload.focus_label) {
+                        parts.push(`Enfoque: ${payload.focus_label}`);
+                    }
+
+                    if (payload.message) {
+                        parts.push(payload.message);
+                    }
+
+                    if (Array.isArray(payload.alerts) && payload.alerts.length > 0) {
+                        parts.push(`Alertas a vigilar:\n${payload.alerts.slice(0, 3).map((alert) => `- ${alert}`).join('\n')}`);
+                    }
+
+                    if (payload.error) {
+                        parts.push(`Nota de disponibilidad: ${payload.error}`);
+                    }
+
+                    return parts.filter(Boolean).join('\n\n').trim() || 'La IA no devolvio contenido para mostrar.';
+                },
+                typewrite(fullText) {
+                    fullText = String(fullText || '').trim() || 'No se genero contenido utilizable. Reintenta o cambia el enfoque.';
+
+                    const messageIndex = this.messages.push({
+                        id: this.createId(),
+                        role: 'assistant',
+                        content: '',
+                        streaming: true,
+                    }) - 1;
+                    let index = 0;
+                    const step = Math.max(4, Math.ceil(fullText.length / 120));
+
+                    this.state = 'streaming';
+                    this.scrollToBottom();
+
+                    this.streamTimer = setInterval(() => {
+                        index = Math.min(fullText.length, index + step);
+                        this.messages[messageIndex].content = fullText.slice(0, index);
+                        this.scrollToBottom();
+
+                        if (index >= fullText.length) {
+                            clearInterval(this.streamTimer);
+                            this.streamTimer = null;
+                            this.messages[messageIndex].streaming = false;
+                            this.state = 'done';
+                        }
+                    }, 26);
+                },
+            };
+        };
+    </script>
+
+    <script type="application/json" id="solar-ai-config-{{ $solarProject->id }}">@json($solarAiConfig)</script>
+
     {{-- ── 5. IA — Recomendaciones ──────────────────────────── --}}
-    <div class="sdash-card">
+    <div
+        class="sdash-card sdash-ai-panel"
+        data-ai-config="solar-ai-config-{{ $solarProject->id }}"
+        data-ai-endpoint="{{ route('solar-projects.ai-recommendations', ['solarProject' => $solarProject->id]) }}"
+        data-ai-csrf="{{ csrf_token() }}"
+        data-ai-focus="{{ $aiFocus ?: 'savings' }}"
+        data-ai-provider="{{ strtoupper((string) config('services.openai_recommendations.provider', 'openai')) }}"
+        data-ai-generated="{{ $generateAiRecommendations ? '1' : '0' }}"
+        x-data="solarAiRecommendations($el)"
+        x-init="init()"
+    >
         <div class="sdash-section-head">
             <div>
                 <h2 class="sdash-section-head__title">Recomendaciones con IA</h2>
-                <p class="sdash-section-head__sub">Enfoque: {{ $aiFocusOptions[$aiFocus] ?? 'General' }}</p>
+                <p class="sdash-section-head__sub">Chat operativo con recomendaciones basadas en datos del proyecto.</p>
             </div>
-            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
-                <span class="sdash-badge">
-                    Fuente {{ strtoupper((string) ($dashboard['executiveSummary']['source'] ?? 'ia')) }}
-                </span>
-                <form method="GET" action="{{ route('solar-projects.show', $solarProject) }}" style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;">
-                    <input type="hidden" name="generate_ai" value="1" />
-                    <select name="ai_focus" class="sdash-ai-select">
-                        @foreach ($aiFocusOptions as $fk => $fl)
-                            <option value="{{ $fk }}" @selected($aiFocus === $fk)>{{ $fl }}</option>
-                        @endforeach
-                    </select>
-                    <button type="submit" class="sdash-btn sdash-btn--primary" style="font-size:.75rem;padding:.35rem .8rem;">
-                        {{ $generateAiRecommendations ? '↺ Regenerar' : '✦ Generar IA' }}
-                    </button>
-                </form>
+            <div class="sdash-ai-meta">
+                <span class="sdash-badge" x-text="`Fuente ${provider}`"></span>
+                <span class="sdash-badge sdash-badge--warn" x-text="`Enfoque ${focusOptions[focus] ?? 'General'}`"></span>
+                <span class="sdash-badge" x-text="stateLabel"></span>
             </div>
         </div>
 
-        <div class="sdash-rec-grid" style="padding-top:1rem;">
-            <div class="sdash-rec sdash-rec--ai">
-                <p class="sdash-rec__label">Resumen ejecutivo</p>
-                <p class="sdash-rec__text">{{ $dashboard['executiveSummary']['text'] ?? 'Sin resumen disponible. Genera recomendaciones con IA.' }}</p>
-            </div>
-            <div class="sdash-rec sdash-rec--ai">
-                <p class="sdash-rec__label">Recomendacion inteligente del dia</p>
-                <p class="sdash-rec__text">{{ $dashboard['executiveSummary']['dailyRecommendation'] ?? 'Sin recomendacion disponible.' }}</p>
-                @if (!empty($dashboard['executiveSummary']['error']))
-                    <p style="font-size:.72rem;color:var(--solar-danger);margin-top:.5rem;">
-                        {{ $dashboard['executiveSummary']['error'] }}
-                    </p>
-                @endif
-            </div>
-            @if ($aiSelectedPackItem)
-                <div class="sdash-rec sdash-rec--ai" style="border-color:color-mix(in srgb,var(--solar-sun) 50%,transparent);background:var(--solar-warning-bg);">
-                    <p class="sdash-rec__label">{{ $aiSelectedPackItem['title'] ?? ($aiFocusOptions[$aiFocus] ?? 'Enfoque') }}</p>
-                    <p class="sdash-rec__text">{{ $aiSelectedPackItem['message'] ?? 'Sin recomendacion para este enfoque.' }}</p>
+        <div class="sdash-ai-shell">
+            <div class="sdash-ai-toolbar">
+                <div style="color:var(--solar-text-muted);font-size:.82rem;line-height:1.45;">
+                    Prioriza diagnostico, accion concreta e impacto esperado. No recarga la pagina.
                 </div>
-            @endif
+                <button
+                    type="button"
+                    class="sdash-btn sdash-btn--ghost"
+                    x-show="messages.length > 0"
+                    @click="clearHistory()"
+                >
+                    Limpiar historial
+                </button>
+            </div>
+
+            <div
+                class="sdash-ai-chat"
+                x-ref="chat"
+                aria-live="polite"
+                aria-relevant="additions text"
+            >
+                <template x-if="messages.length === 0 && state === 'idle'">
+                    <p class="sdash-ai-empty">
+                        Selecciona un enfoque y genera una recomendacion. El resultado aparecera aqui como conversacion local.
+                    </p>
+                </template>
+
+                <template x-for="message in messages" :key="message.id">
+                    <article
+                        class="sdash-ai-message"
+                        :class="message.role === 'user' ? 'sdash-ai-message--user' : 'sdash-ai-message--assistant'"
+                    >
+                        <span class="sdash-ai-message__label" x-text="message.role === 'user' ? 'Usuario' : 'Asistente IA'"></span>
+                        <div class="sdash-ai-bubble">
+                            <span x-text="message.content"></span><span x-show="message.streaming" class="sdash-ai-cursor">|</span>
+                        </div>
+                    </article>
+                </template>
+
+                <template x-if="state === 'loading'">
+                    <div class="sdash-ai-skeleton" aria-label="Generando recomendacion">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </template>
+            </div>
+
+            <template x-if="errorMessage">
+                <div class="sdash-ai-error" role="alert">
+                    <span x-text="errorMessage"></span>
+                    <button type="button" class="sdash-btn sdash-btn--danger" @click="generate(true)">Reintentar</button>
+                </div>
+            </template>
+
+            <div class="sdash-ai-composer">
+                <label class="sr-only" for="ai-focus">Enfoque de recomendacion</label>
+                <select
+                    id="ai-focus"
+                    x-model="focus"
+                    class="sdash-ai-select"
+                    :disabled="isBusy"
+                    @keydown.enter.prevent="generate(false)"
+                >
+                    @foreach ($aiFocusOptions as $focusKey => $focusLabel)
+                        <option value="{{ $focusKey }}">{{ $focusLabel }}</option>
+                    @endforeach
+                </select>
+
+                <div style="color:var(--solar-text-muted);font-size:.78rem;line-height:1.4;" x-text="composerHint"></div>
+
+                <button
+                    type="button"
+                    class="sdash-btn sdash-btn--ghost"
+                    x-show="isBusy"
+                    @click="stop()"
+                >
+                    Detener generacion
+                </button>
+
+                <button
+                    type="button"
+                    class="sdash-btn sdash-btn--primary"
+                    :disabled="state === 'loading'"
+                    @click="generate(messages.length > 0)"
+                    x-text="messages.length > 0 ? 'Regenerar' : 'Generar IA'"
+                ></button>
+            </div>
         </div>
     </div>
 

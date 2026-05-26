@@ -217,6 +217,53 @@ class SolarProjectController extends Controller
             ->with('status', 'Proyecto solar actualizado correctamente.');
     }
 
+    public function aiRecommendations(
+        Request $request,
+        SolarProject $solarProject,
+        ProjectDashboardService $projectDashboardService,
+        NasaWeatherDataService $nasaWeatherDataService,
+    ): JsonResponse {
+        $this->authorizeOwner($request, $solarProject);
+
+        $validated = $request->validate([
+            'ai_focus' => ['required', 'string', 'in:savings,load_shift,risk,maintenance,climate'],
+        ]);
+
+        $solarProject->load([
+            'technicalParameter',
+            'calculationResult',
+            'monthlyResults' => fn ($query) => $query->orderBy('month_number'),
+        ]);
+        $solarProject->setRelation('weatherData', $nasaWeatherDataService->dataForProject($solarProject));
+        $this->attachWeatherCounts($solarProject);
+
+        $dashboardPayload = $projectDashboardService->build($solarProject, true, (string) $validated['ai_focus']);
+        $executiveSummary = $dashboardPayload['dashboard']['executiveSummary'] ?? [];
+        $focusRecommendation = collect($executiveSummary['recommendationPack'] ?? [])
+            ->firstWhere('key', (string) $validated['ai_focus']);
+        $dailyRecommendation = trim((string) ($executiveSummary['dailyRecommendation'] ?? ''));
+        $focusMessage = trim((string) ($focusRecommendation['message'] ?? ''));
+        $message = $focusMessage !== '' ? $focusMessage : $dailyRecommendation;
+
+        if ($message === '') {
+            $message = 'No se genero una recomendacion utilizable. Reintenta cuando el proyecto tenga calculos y datos climaticos disponibles.';
+        }
+
+        return response()->json([
+            'source' => (string) ($executiveSummary['source'] ?? 'ia'),
+            'focus' => (string) $validated['ai_focus'],
+            'focus_label' => (string) ($focusRecommendation['title'] ?? $this->aiFocusLabel((string) $validated['ai_focus'])),
+            'summary' => trim((string) ($executiveSummary['text'] ?? '')),
+            'message' => $message,
+            'alerts' => array_values(array_filter(
+                $executiveSummary['alerts'] ?? [],
+                fn ($item) => is_string($item) && trim($item) !== ''
+            )),
+            'error' => $executiveSummary['error'] ?? null,
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
     public function solarPrice(
         Request $request,
         Municipality $municipality,
@@ -246,6 +293,18 @@ class SolarProjectController extends Controller
             'max_price_per_kw' => $cost['max_price_per_kw'],
             'notes' => $cost['notes'],
         ]);
+    }
+
+    private function aiFocusLabel(string $focus): string
+    {
+        return match ($focus) {
+            'savings' => 'Ahorro economico',
+            'load_shift' => 'Traslado de cargas',
+            'risk' => 'Riesgo operativo',
+            'maintenance' => 'Mantenimiento',
+            'climate' => 'Adaptacion climatica',
+            default => 'Enfoque operativo',
+        };
     }
 
     public function destroy(Request $request, SolarProject $solarProject): RedirectResponse
