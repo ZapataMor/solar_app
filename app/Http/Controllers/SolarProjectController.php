@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\WeatherStationReading;
 use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
+use App\Services\AiForecastPredictionService;
 use App\Services\ProjectDashboardService;
 use App\Services\SolarCalculationService;
 use App\Services\SolarInstallationCostService;
@@ -260,6 +261,33 @@ class SolarProjectController extends Controller
                 fn ($item) => is_string($item) && trim($item) !== ''
             )),
             'error' => $executiveSummary['error'] ?? null,
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function aiPrediction(
+        Request $request,
+        SolarProject $solarProject,
+        ProjectDashboardService $projectDashboardService,
+        NasaWeatherDataService $nasaWeatherDataService,
+        AiForecastPredictionService $aiForecastPredictionService,
+    ): JsonResponse {
+        $this->authorizeOwner($request, $solarProject);
+
+        $solarProject->load([
+            'municipality',
+            'technicalParameter',
+            'calculationResult',
+            'monthlyResults' => fn ($query) => $query->orderBy('month_number'),
+        ]);
+        $solarProject->setRelation('weatherData', $nasaWeatherDataService->dataForProject($solarProject));
+        $this->attachWeatherCounts($solarProject);
+
+        $dashboardPayload = $projectDashboardService->build($solarProject, false);
+        $futurePredictions = $dashboardPayload['dashboard']['futurePredictions'] ?? [];
+
+        return response()->json([
+            ...$aiForecastPredictionService->generate($solarProject, $futurePredictions),
             'generated_at' => now()->toIso8601String(),
         ]);
     }

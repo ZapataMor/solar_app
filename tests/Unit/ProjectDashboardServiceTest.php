@@ -5,6 +5,9 @@ namespace Tests\Unit;
 use App\Models\CalculationResult;
 use App\Models\MonthlyResult;
 use App\Models\SolarProject;
+use App\Models\WeatherStationReading;
+use App\Services\AmbientWeatherAggregationService;
+use App\Services\ClimateSourceFallbackService;
 use App\Services\DashboardAiWidgetService;
 use App\Services\DashboardTimeScaleService;
 use App\Services\EnergyAnalysisService;
@@ -65,6 +68,8 @@ class ProjectDashboardServiceTest extends TestCase
         $solarRecommendationService = $this->createMock(SolarRecommendationService::class);
         $openAIRecommendationService = $this->createMock(OpenAIRecommendationService::class);
         $weatherStationAggregationService = $this->createMock(WeatherStationAggregationService::class);
+        $ambientWeatherAggregationService = $this->createMock(AmbientWeatherAggregationService::class);
+        $climateSourceFallbackService = $this->createMock(ClimateSourceFallbackService::class);
         $dashboardAiWidgetService = new DashboardAiWidgetService();
         $readings = collect();
 
@@ -110,8 +115,42 @@ class ProjectDashboardServiceTest extends TestCase
 
         $openAIRecommendationService->expects($this->once())
             ->method('generate')
-            ->with($weatherAnalysis, $energyAnalysis, $solarRecommendations, $calculationResult, $weatherStats)
+            ->with(
+                $weatherAnalysis,
+                $energyAnalysis,
+                $solarRecommendations,
+                $calculationResult,
+                $this->callback(fn (array $stats) => ($stats['total'] ?? null) === 24),
+                null,
+                $this->isType('array')
+            )
             ->willReturn($openAiRecommendation);
+
+        $weatherStationAggregationService->method('dailyRows')
+            ->willReturn(collect());
+
+        $ambientWeatherAggregationService->expects($this->once())
+            ->method('readingsForProject')
+            ->with($project)
+            ->willReturn(collect());
+
+        $ambientWeatherAggregationService->expects($this->once())
+            ->method('stats')
+            ->with(collect())
+            ->willReturn(['total' => 0]);
+
+        $ambientWeatherAggregationService->expects($this->once())
+            ->method('chartData')
+            ->with(collect())
+            ->willReturn(['labels' => [], 'radiation' => []]);
+
+        $climateSourceFallbackService->expects($this->once())
+            ->method('resolveActiveSourceDescriptor')
+            ->willReturn(['source' => 'nasa_power', 'label' => 'NASA POWER']);
+
+        $climateSourceFallbackService->expects($this->once())
+            ->method('selectDailyClimateRows')
+            ->willReturn(['rows' => collect(), 'source' => 'nasa_power']);
 
         $weatherStationAggregationService->expects($this->once())
             ->method('chartData')
@@ -126,9 +165,11 @@ class ProjectDashboardServiceTest extends TestCase
             $solarRecommendationService,
             $weatherAnalysisService,
             $weatherStationAggregationService,
+            $ambientWeatherAggregationService,
+            $climateSourceFallbackService,
         );
 
-        $result = $service->build($project);
+        $result = $service->build($project, true);
 
         $this->assertSame(
             'La generacion estimada tendria una cobertura alta del consumo anual.',
@@ -164,6 +205,97 @@ class ProjectDashboardServiceTest extends TestCase
         );
     }
 
+    public function test_future_predictions_use_recent_week_and_month_records(): void
+    {
+        $service = new ProjectDashboardService(
+            new DashboardAiWidgetService(),
+            new DashboardTimeScaleService(),
+            $this->createMock(EnergyAnalysisService::class),
+            $this->createMock(OpenAIRecommendationService::class),
+            $this->createMock(SolarRecommendationService::class),
+            $this->createMock(WeatherAnalysisService::class),
+            $this->createMock(WeatherStationAggregationService::class),
+            $this->createMock(AmbientWeatherAggregationService::class),
+            $this->createMock(ClimateSourceFallbackService::class),
+        );
+
+        $readings = collect();
+        foreach (range(8, 13) as $daysAgo) {
+            foreach ([9, 10, 11, 12, 14] as $hour) {
+                $readings->push($this->weatherReading($daysAgo, $hour, 28.0, $hour >= 10 && $hour <= 12 ? 650 : 300));
+            }
+        }
+        foreach (range(1, 6) as $daysAgo) {
+            foreach ([9, 10, 11, 12, 14] as $hour) {
+                $readings->push($this->weatherReading($daysAgo, $hour, 30.0, $hour >= 10 && $hour <= 12 ? 820 : 360));
+            }
+        }
+
+        $method = new \ReflectionMethod(ProjectDashboardService::class, 'buildFuturePredictions');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(
+            $service,
+            collect(),
+            $readings,
+            collect(),
+            ClimateSourceFallbackService::SOURCE_LOCAL,
+            new SolarProject()
+        );
+
+        $this->assertSame(32.0, $result['temperature']['projected_next_week_c']);
+        $this->assertSame(2.0, $result['temperature']['delta_c']);
+        $this->assertSame(10, $result['radiation_window']['start_hour']);
+        $this->assertSame(12, $result['radiation_window']['end_hour']);
+        $this->assertSame('Centro meteorologico', $result['data_window']['source']);
+        $this->assertStringContainsString('ultimos 7 dias vs semana previa', $result['temperature']['message']);
+    }
+
+    public function test_future_predictions_follow_selected_analysis_source(): void
+    {
+        $service = new ProjectDashboardService(
+            new DashboardAiWidgetService(),
+            new DashboardTimeScaleService(),
+            $this->createMock(EnergyAnalysisService::class),
+            $this->createMock(OpenAIRecommendationService::class),
+            $this->createMock(SolarRecommendationService::class),
+            $this->createMock(WeatherAnalysisService::class),
+            $this->createMock(WeatherStationAggregationService::class),
+            $this->createMock(AmbientWeatherAggregationService::class),
+            $this->createMock(ClimateSourceFallbackService::class),
+        );
+
+        $localReadings = collect([
+            $this->weatherReading(1, 14, 39.0, 900),
+            $this->weatherReading(2, 14, 39.0, 900),
+        ]);
+
+        $nasaRows = collect();
+        foreach (range(1, 8) as $daysAgo) {
+            $nasaRows->push((object) [
+                'date_time' => now()->subDays($daysAgo)->setTime(12, 0),
+                't2m' => 29.0,
+                'allsky_sfc_sw_dwn' => 520.0,
+            ]);
+        }
+
+        $method = new \ReflectionMethod(ProjectDashboardService::class, 'buildFuturePredictions');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(
+            $service,
+            $nasaRows,
+            $localReadings,
+            collect(),
+            ClimateSourceFallbackService::SOURCE_NASA,
+            new SolarProject()
+        );
+
+        $this->assertSame('NASA POWER', $result['data_window']['source']);
+        $this->assertSame(8, $result['data_window']['sample_count']);
+        $this->assertSame(29.0, $result['temperature']['last_7_avg_c']);
+    }
+
     private function calculationResult(): CalculationResult
     {
         $result = new CalculationResult();
@@ -180,5 +312,17 @@ class ProjectDashboardServiceTest extends TestCase
         ]);
 
         return $result;
+    }
+
+    private function weatherReading(int $daysAgo, int $hour, float $temperature, float $radiation): WeatherStationReading
+    {
+        $reading = new WeatherStationReading();
+        $reading->forceFill([
+            'measured_at' => now()->subDays($daysAgo)->setTime($hour, 0),
+            'temperature' => $temperature,
+            'solar_radiation' => $radiation,
+        ]);
+
+        return $reading;
     }
 }

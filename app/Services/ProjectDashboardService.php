@@ -128,6 +128,8 @@ class ProjectDashboardService
         $dashboard['futurePredictions'] = $this->buildFuturePredictions(
             $projectWeatherData,
             $weatherStationReadings,
+            $ambientReadings,
+            $analysisClimateSource,
             $solarProject
         );
         $timeScales = $this->dashboardTimeScaleService->build(
@@ -326,66 +328,163 @@ class ProjectDashboardService
      * @param  Collection<int, mixed>  $weatherStationReadings
      * @return array<string, mixed>
      */
-    private function buildFuturePredictions(Collection $projectWeatherData, Collection $weatherStationReadings, SolarProject $solarProject): array
+    private function buildFuturePredictions(
+        Collection $projectWeatherData,
+        Collection $weatherStationReadings,
+        Collection $ambientReadings,
+        string $analysisClimateSource,
+        SolarProject $solarProject
+    ): array
     {
-        $nasaTempSeries = $projectWeatherData
-            ->filter(fn ($row) => isset($row->date_time) && $row->t2m !== null)
-            ->sortBy('date_time')
+        $observations = $this->recentForecastObservations(
+            $projectWeatherData,
+            $weatherStationReadings,
+            $ambientReadings,
+            $analysisClimateSource,
+        );
+        $now = Carbon::now();
+        $last7Start = $now->copy()->subDays(7);
+        $prev7Start = $now->copy()->subDays(14);
+        $last30Start = $now->copy()->subDays(30);
+
+        $recentWindow = $observations
+            ->filter(fn (array $row) => $row['date']->greaterThanOrEqualTo($last30Start))
+            ->values();
+        $last7Rows = $recentWindow
+            ->filter(fn (array $row) => $row['date']->greaterThanOrEqualTo($last7Start))
+            ->values();
+        $prev7Rows = $recentWindow
+            ->filter(fn (array $row) => $row['date']->betweenIncluded($prev7Start, $last7Start))
             ->values();
 
-        $latestTemp = $nasaTempSeries->last();
-        $last7Start = Carbon::now()->subDays(7);
-        $prev7Start = Carbon::now()->subDays(14);
+        $last7TempAvg = $last7Rows->avg(fn (array $row) => $row['temperature']);
+        $prev7TempAvg = $prev7Rows->avg(fn (array $row) => $row['temperature']);
+        $monthTempAvg = $recentWindow->avg(fn (array $row) => $row['temperature']);
+        $tempDelta = null;
+        $projectionBasis = 'sin base suficiente';
 
-        $last7Avg = $nasaTempSeries
-            ->filter(fn ($row) => Carbon::parse($row->date_time)->greaterThanOrEqualTo($last7Start))
-            ->avg(fn ($row) => (float) $row->t2m);
-        $prev7Avg = $nasaTempSeries
-            ->filter(fn ($row) => Carbon::parse($row->date_time)->betweenIncluded($prev7Start, $last7Start))
-            ->avg(fn ($row) => (float) $row->t2m);
+        if ($last7TempAvg !== null && $prev7TempAvg !== null && $prev7Rows->count() >= 3) {
+            $tempDelta = (float) $last7TempAvg - (float) $prev7TempAvg;
+            $nextWeekTemp = (float) $last7TempAvg + $tempDelta;
+            $projectionBasis = 'ultimos 7 dias vs semana previa';
+        } elseif ($last7TempAvg !== null && $monthTempAvg !== null && $recentWindow->count() >= 7) {
+            $tempDelta = (float) $last7TempAvg - (float) $monthTempAvg;
+            $nextWeekTemp = (float) $last7TempAvg + ($tempDelta * 0.5);
+            $projectionBasis = 'ultimos 7 dias vs promedio mensual';
+        } else {
+            $nextWeekTemp = null;
+        }
 
-        $tempDelta = ($last7Avg !== null && $prev7Avg !== null) ? ($last7Avg - $prev7Avg) : null;
-        $nextWeekTemp = ($latestTemp && $tempDelta !== null) ? ((float) $latestTemp->t2m + $tempDelta) : null;
-
-        $nasaRadiationRows = $projectWeatherData
-            ->filter(fn ($row) => isset($row->date_time) && $row->allsky_sfc_sw_dwn !== null)
-            ->filter(fn ($row) => Carbon::parse($row->date_time)->gte(Carbon::now()->subDays(30)));
-
-        $hourlyNasa = $nasaRadiationRows
-            ->groupBy(fn ($row) => Carbon::parse($row->date_time)->format('H'))
-            ->map(fn ($rows, $hour) => [
+        $radiationRows = $recentWindow
+            ->filter(fn (array $row) => $row['radiation'] !== null)
+            ->values();
+        $hourlyRadiation = $radiationRows
+            ->groupBy(fn (array $row) => $row['date']->format('H'))
+            ->map(fn (Collection $rows, string $hour) => [
                 'hour' => (int) $hour,
-                'avg_radiation' => collect($rows)->avg(fn ($row) => (float) $row->allsky_sfc_sw_dwn),
+                'avg_radiation' => (float) $rows->avg(fn (array $row) => (float) $row['radiation']),
+                'samples' => $rows->count(),
             ])
             ->filter(fn (array $row) => $row['hour'] >= 6 && $row['hour'] <= 18)
-            ->sortByDesc('avg_radiation')
-            ->values();
+            ->filter(fn (array $row) => $row['samples'] >= 2 || $radiationRows->count() < 12)
+            ->keyBy('hour');
 
-        $topHours = $hourlyNasa->take(3)->sortBy('hour')->values();
-        $windowStart = $topHours->first()['hour'] ?? null;
-        $windowEnd = $topHours->last()['hour'] ?? null;
+        $bestWindow = collect(range(6, 16))
+            ->map(function (int $startHour) use ($hourlyRadiation): ?array {
+                $hours = collect([$startHour, $startHour + 1, $startHour + 2])
+                    ->map(fn (int $hour) => $hourlyRadiation->get($hour))
+                    ->filter()
+                    ->values();
+
+                if ($hours->count() < 2) {
+                    return null;
+                }
+
+                return [
+                    'start_hour' => $startHour,
+                    'end_hour' => $startHour + 2,
+                    'avg_radiation' => (float) $hours->avg('avg_radiation'),
+                    'samples' => (int) $hours->sum('samples'),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('avg_radiation')
+            ->first();
+
+        $windowStart = $bestWindow['start_hour'] ?? null;
+        $windowEnd = $bestWindow['end_hour'] ?? null;
+        $avgWindowRadiation = $bestWindow['avg_radiation'] ?? null;
+        $sourceCounts = $recentWindow->countBy('source')->all();
+        $dominantSource = collect($sourceCounts)->sortDesc()->keys()->first();
+        $sourceLabel = $this->forecastSourceLabel(is_string($dominantSource) ? $dominantSource : null);
+        $sampleCount = $recentWindow->count();
+        $daysCovered = $recentWindow
+            ->map(fn (array $row) => $row['date']->toDateString())
+            ->unique()
+            ->count();
 
         $recommendedLoadShift = ($windowStart !== null && $windowEnd !== null)
-            ? "Se proyecta mejor captacion solar entre {$windowStart}:00 y {$windowEnd}:59. Conviene mover cargas altas (bombeo, climatizacion, procesos pesados) a esa ventana."
-            : 'No hay suficiente historial horario para definir una ventana solar optima.';
+            ? sprintf(
+                'Con %d registros recientes (%d dias, fuente principal: %s), la mejor ventana proyectada para la proxima semana es %02d:00-%02d:59. Conviene mover cargas altas a esa franja porque el promedio historico reciente de radiacion en esa ventana es %s W/m2.',
+                $sampleCount,
+                $daysCovered,
+                $sourceLabel,
+                $windowStart,
+                $windowEnd,
+                $avgWindowRadiation !== null ? number_format((float) $avgWindowRadiation, 0, ',', '.') : 'N/D'
+            )
+            : 'No hay suficientes registros horarios de la ultima semana o del ultimo mes para proyectar una ventana solar confiable.';
 
         $tempMessage = match (true) {
             $nextWeekTemp === null => 'No hay suficiente informacion para proyectar la temperatura de la proxima semana.',
-            $tempDelta !== null && $tempDelta >= 1.5 => 'Se proyecta incremento termico para la proxima semana. Recomendado reforzar ventilacion y anticipar leve perdida de eficiencia en paneles por calor.',
-            $tempDelta !== null && $tempDelta <= -1.5 => 'Se proyecta descenso termico para la proxima semana. Puede mejorar ligeramente la eficiencia del sistema.',
-            default => 'Se proyecta estabilidad termica para la proxima semana, sin cambios fuertes esperados.',
+            $tempDelta !== null && $tempDelta >= 1.5 => "Se proyecta incremento termico para la proxima semana con base en {$projectionBasis}. Recomendado reforzar ventilacion y anticipar leve perdida de eficiencia en paneles por calor.",
+            $tempDelta !== null && $tempDelta <= -1.5 => "Se proyecta descenso termico para la proxima semana con base en {$projectionBasis}. Puede mejorar ligeramente la eficiencia del sistema.",
+            default => "Se proyecta estabilidad termica para la proxima semana con base en {$projectionBasis}; no se esperan cambios fuertes.",
         };
 
         return [
             'temperature' => [
                 'projected_next_week_c' => $nextWeekTemp !== null ? round((float) $nextWeekTemp, 2) : null,
                 'delta_c' => $tempDelta !== null ? round((float) $tempDelta, 2) : null,
+                'last_7_avg_c' => $last7TempAvg !== null ? round((float) $last7TempAvg, 2) : null,
+                'previous_7_avg_c' => $prev7TempAvg !== null ? round((float) $prev7TempAvg, 2) : null,
+                'last_30_avg_c' => $monthTempAvg !== null ? round((float) $monthTempAvg, 2) : null,
+                'basis' => $projectionBasis,
                 'message' => $tempMessage,
             ],
             'radiation_window' => [
                 'start_hour' => $windowStart,
                 'end_hour' => $windowEnd,
+                'avg_radiation' => $avgWindowRadiation !== null ? round((float) $avgWindowRadiation, 2) : null,
                 'message' => $recommendedLoadShift,
+            ],
+            'data_window' => [
+                'days' => $daysCovered,
+                'sample_count' => $sampleCount,
+                'source' => $sourceLabel,
+                'source_counts' => $sourceCounts,
+            ],
+            'ai_context' => [
+                'daily_series' => $recentWindow
+                    ->groupBy(fn (array $row) => $row['date']->toDateString())
+                    ->map(fn (Collection $rows, string $date) => [
+                        'date' => $date,
+                        'avg_temperature_c' => $rows->avg('temperature') !== null ? round((float) $rows->avg('temperature'), 2) : null,
+                        'avg_radiation_wm2' => $rows->avg('radiation') !== null ? round((float) $rows->avg('radiation'), 2) : null,
+                        'samples' => $rows->count(),
+                    ])
+                    ->values()
+                    ->take(30)
+                    ->all(),
+                'hourly_radiation_profile' => $hourlyRadiation
+                    ->sortKeys()
+                    ->values()
+                    ->map(fn (array $row) => [
+                        'hour' => $row['hour'],
+                        'avg_radiation_wm2' => round((float) $row['avg_radiation'], 2),
+                        'samples' => $row['samples'],
+                    ])
+                    ->all(),
             ],
             'operational_recommendations' => [
                 $recommendedLoadShift,
@@ -393,6 +492,96 @@ class ProjectDashboardService
                 'Monitorear tendencia semanal de temperatura para ajustar estrategia de consumo en horas de mayor estres termico.',
             ],
         ];
+    }
+
+    /**
+     * @return Collection<int, array{date: Carbon, temperature: float|null, radiation: float|null, source: string}>
+     */
+    private function recentForecastObservations(
+        Collection $projectWeatherData,
+        Collection $weatherStationReadings,
+        Collection $ambientReadings,
+        string $analysisClimateSource,
+    ): Collection {
+        $localRows = $weatherStationReadings
+            ->map(function ($row): ?array {
+                $date = data_get($row, 'measured_at');
+                if ($date === null) {
+                    return null;
+                }
+
+                return [
+                    'date' => Carbon::parse($date),
+                    'temperature' => data_get($row, 'temperature') !== null ? (float) data_get($row, 'temperature') : null,
+                    'radiation' => method_exists($row, 'radiationValue') && $row->radiationValue() !== null
+                        ? (float) $row->radiationValue()
+                        : null,
+                    'source' => 'local',
+                ];
+            })
+            ->filter();
+
+        $ambientRows = $ambientReadings
+            ->map(function ($row): ?array {
+                $date = data_get($row, 'recorded_at');
+                if ($date === null) {
+                    return null;
+                }
+
+                return [
+                    'date' => Carbon::parse($date),
+                    'temperature' => data_get($row, 'temperature') !== null ? (float) data_get($row, 'temperature') : null,
+                    'radiation' => method_exists($row, 'radiationValue') && $row->radiationValue() !== null
+                        ? (float) $row->radiationValue()
+                        : null,
+                    'source' => 'ambient',
+                ];
+            })
+            ->filter();
+
+        $nasaRows = $projectWeatherData
+            ->map(function ($row): ?array {
+                $date = data_get($row, 'date_time');
+                if ($date === null) {
+                    return null;
+                }
+
+                return [
+                    'date' => Carbon::parse($date),
+                    'temperature' => data_get($row, 't2m') !== null ? (float) data_get($row, 't2m') : null,
+                    'radiation' => data_get($row, 'allsky_sfc_sw_dwn') !== null ? (float) data_get($row, 'allsky_sfc_sw_dwn') : null,
+                    'source' => 'nasa_power',
+                ];
+            })
+            ->filter();
+
+        $preferredRows = match ($analysisClimateSource) {
+            ClimateSourceFallbackService::SOURCE_LOCAL => $localRows,
+            ClimateSourceFallbackService::SOURCE_AMBIENT => $ambientRows,
+            ClimateSourceFallbackService::SOURCE_NASA => $nasaRows,
+            default => collect(),
+        };
+
+        if ($preferredRows->isEmpty()) {
+            $preferredRows = $localRows->isNotEmpty()
+                ? $localRows
+                : ($ambientRows->isNotEmpty() ? $ambientRows : $nasaRows);
+        }
+
+        return $preferredRows
+            ->filter(fn (array $row) => $row['temperature'] !== null || $row['radiation'] !== null)
+            ->sortBy('date')
+            ->values();
+    }
+
+    private function forecastSourceLabel(?string $source): string
+    {
+        return match ($source) {
+            'local' => 'Centro meteorologico',
+            'ambient' => 'Ambient Weather',
+            'nasa_power' => 'NASA POWER',
+            default => 'historico disponible',
+        };
     }
 
     /**

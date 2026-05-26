@@ -32,6 +32,11 @@
         'initialMessage' => $initialAiChatMessage,
         'initialError' => $dashboard['executiveSummary']['error'] ?? null,
     ];
+    $solarAiPredictionConfig = [
+        'endpoint' => route('solar-projects.ai-prediction', $solarProject),
+        'csrfToken' => csrf_token(),
+        'provider' => 'CLAUDE',
+    ];
     $weatherStationStats    = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
     $analysisClimateSource = $analysisClimateSource ?? 'nasa_power';
@@ -802,6 +807,122 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
     gap: .45rem;
     flex-wrap: wrap;
 }
+.sdash-prediction-panel {
+    overflow: hidden;
+}
+.sdash-prediction-head {
+    align-items: flex-start;
+    padding-bottom: 1rem;
+}
+.sdash-prediction-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .65rem;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+.sdash-prediction-body {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem clamp(1rem, 2vw, 1.35rem) 1.25rem;
+}
+.sdash-prediction-result {
+    display: grid;
+    gap: 1rem;
+    padding: 1.05rem;
+    border: 1px solid color-mix(in srgb, var(--solar-sun) 24%, var(--solar-border));
+    border-radius: 12px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-muted) 62%, transparent), transparent 60%),
+        var(--solar-surface-strong);
+}
+.dark .sdash-prediction-result {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-muted) 44%, transparent), transparent 62%),
+        var(--solar-surface-elevated);
+}
+.sdash-prediction-title {
+    margin: 0;
+    color: var(--solar-sun);
+    font-size: .76rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    line-height: 1.35;
+    text-transform: uppercase;
+}
+.sdash-prediction-grid {
+    display: grid;
+    gap: .85rem;
+}
+@media (min-width: 900px) {
+    .sdash-prediction-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.sdash-prediction-section {
+    min-width: 0;
+    padding: .85rem .95rem;
+    border: 1px solid var(--solar-border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--solar-surface-muted) 56%, transparent);
+}
+.sdash-prediction-section--wide {
+    grid-column: 1 / -1;
+}
+.sdash-prediction-label {
+    margin: 0 0 .35rem;
+    color: var(--solar-text-muted);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.sdash-prediction-text {
+    max-width: 78rem;
+    margin: 0;
+    color: var(--solar-text);
+    font-size: .9rem;
+    line-height: 1.62;
+}
+.sdash-prediction-actions-list {
+    display: grid;
+    gap: .45rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.sdash-prediction-actions-list li {
+    position: relative;
+    padding-left: 1.05rem;
+    color: var(--solar-text);
+    font-size: .86rem;
+    line-height: 1.5;
+}
+.sdash-prediction-actions-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .62em;
+    width: .35rem;
+    height: .35rem;
+    border-radius: 999px;
+    background: var(--solar-sun);
+}
+.sdash-prediction-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+    padding-top: .1rem;
+}
+.sdash-prediction-note {
+    margin: 0;
+    color: var(--solar-text-muted);
+    font-size: .76rem;
+    line-height: 1.45;
+}
 .sdash-ai-chat {
     min-height: 18rem;
     max-height: 31rem;
@@ -1005,15 +1126,29 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 .sdash-divider { height: 1px; background: var(--solar-border); margin: 0 1.5rem; }
 </style>
 
+<script type="application/json" id="solar-dashboard-scales-{{ $solarProject->id }}">@json($timeScales['scales'] ?? [])</script>
+<script>
+    window.solarDashboard = window.solarDashboard || function solarDashboard(element) {
+        const configElement = document.getElementById(element.dataset.scaleConfig || '');
+        const scales = configElement ? JSON.parse(configElement.textContent || '{}') : {};
+
+        return {
+            showModal: false,
+            filter: '',
+            activeScale: element.dataset.activeScale || 'monthly',
+            scales,
+            get scale() {
+                return this.scales[this.activeScale] ?? null;
+            },
+        };
+    };
+</script>
+
 <div
     class="sdash"
-    x-data="{
-        showModal: false,
-        filter: '',
-        activeScale: '{{ $activeScaleKey }}',
-        scales: @json($timeScales['scales'] ?? []),
-        get scale() { return this.scales[this.activeScale] ?? null; },
-    }"
+    data-scale-config="solar-dashboard-scales-{{ $solarProject->id }}"
+    data-active-scale="{{ $activeScaleKey }}"
+    x-data="solarDashboard($el)"
 >
 
     {{-- ── Alerts ──────────────────────────────────────────── --}}
@@ -1736,9 +1871,86 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                 },
             };
         };
+
+        window.solarAiPrediction = window.solarAiPrediction || function solarAiPrediction(config) {
+            if (config instanceof HTMLElement) {
+                const configElement = document.getElementById(config.dataset.predictionConfig || '');
+                const parsedConfig = configElement ? JSON.parse(configElement.textContent || '{}') : {};
+
+                config = {
+                    ...parsedConfig,
+                    endpoint: config.dataset.predictionEndpoint || parsedConfig.endpoint,
+                    csrfToken: config.dataset.predictionCsrf || parsedConfig.csrfToken,
+                    provider: config.dataset.predictionProvider || parsedConfig.provider || 'CLAUDE',
+                };
+            }
+
+            return {
+                endpoint: config.endpoint,
+                csrfToken: config.csrfToken,
+                provider: config.provider || 'CLAUDE',
+                state: 'idle',
+                errorMessage: '',
+                result: null,
+                abortController: null,
+                get isBusy() {
+                    return this.state === 'loading';
+                },
+                get stateLabel() {
+                    return {
+                        idle: 'Pendiente',
+                        loading: 'Generando con IA',
+                        done: 'Completado',
+                        error: 'Revisar error',
+                    }[this.state] || 'Pendiente';
+                },
+                async generate() {
+                    if (this.abortController) {
+                        this.abortController.abort();
+                    }
+
+                    this.errorMessage = '';
+                    this.state = 'loading';
+                    this.abortController = new AbortController();
+
+                    try {
+                        const response = await fetch(this.endpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': this.csrfToken,
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: JSON.stringify({ horizon: 'next_week' }),
+                            signal: this.abortController.signal,
+                        });
+
+                        const payload = await response.json().catch(() => ({}));
+                        if (!response.ok) {
+                            throw new Error(payload.message || 'No fue posible generar la prediccion IA.');
+                        }
+
+                        this.provider = String(payload.source || this.provider).toUpperCase();
+                        this.result = payload;
+                        this.state = 'done';
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            return;
+                        }
+
+                        this.errorMessage = error.message || 'Ocurrio un error inesperado al generar la prediccion.';
+                        this.state = 'error';
+                    } finally {
+                        this.abortController = null;
+                    }
+                },
+            };
+        };
     </script>
 
     <script type="application/json" id="solar-ai-config-{{ $solarProject->id }}">@json($solarAiConfig)</script>
+    <script type="application/json" id="solar-ai-prediction-config-{{ $solarProject->id }}">@json($solarAiPredictionConfig)</script>
 
     {{-- ── 5. IA — Recomendaciones ──────────────────────────── --}}
     <div
@@ -1856,26 +2068,108 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
     </div>
 
     {{-- ── 6. Predicciones ──────────────────────────────────── --}}
-    <div class="sdash-card">
-        <div class="sdash-section-head">
-            <h2 class="sdash-section-head__title">Prediccion proxima semana</h2>
-            <span class="sdash-badge">Basado en historico</span>
+    <div
+        class="sdash-card sdash-prediction-panel"
+        data-prediction-config="solar-ai-prediction-config-{{ $solarProject->id }}"
+        data-prediction-endpoint="{{ route('solar-projects.ai-prediction', ['solarProject' => $solarProject->id]) }}"
+        data-prediction-csrf="{{ csrf_token() }}"
+        data-prediction-provider="CLAUDE"
+        x-data="solarAiPrediction($el)"
+    >
+        <div class="sdash-section-head sdash-prediction-head">
+            <div>
+                <h2 class="sdash-section-head__title">Prediccion proxima semana</h2>
+                <p class="sdash-section-head__sub">
+                    Basado en {{ $futurePredictions['data_window']['sample_count'] ?? 0 }} registros de los ultimos
+                    {{ $futurePredictions['data_window']['days'] ?? 0 }} dias · {{ $futurePredictions['data_window']['source'] ?? 'historico disponible' }}
+                </p>
+            </div>
+            <div class="sdash-prediction-actions">
+                <div class="sdash-ai-meta">
+                    <span class="sdash-badge" x-text="`Fuente ${provider}`"></span>
+                    <span class="sdash-badge" x-text="stateLabel"></span>
+                </div>
+                <button
+                    type="button"
+                    class="sdash-btn sdash-btn--primary"
+                    :disabled="isBusy"
+                    @click="generate()"
+                    x-text="result ? 'Regenerar prediccion IA' : 'Generar prediccion IA'"
+                ></button>
+            </div>
         </div>
-        <div class="sdash-rec-grid" style="padding-top:1rem;">
-            <div class="sdash-rec">
-                <p class="sdash-rec__label">Tendencia de temperatura</p>
-                <p class="sdash-rec__text">{{ $futurePredictions['temperature']['message'] ?? 'Sin prediccion termica disponible.' }}</p>
-                @if (isset($futurePredictions['temperature']['projected_next_week_c']))
-                    <p style="font-size:.78rem;color:var(--solar-sun);margin-top:.5rem;">
-                        Proyeccion: {{ number_format((float) $futurePredictions['temperature']['projected_next_week_c'], 2, ',', '.') }} °C
-                        (Δ {{ number_format((float) ($futurePredictions['temperature']['delta_c'] ?? 0), 2, ',', '.') }} °C semanal)
+
+        <div class="sdash-prediction-body">
+            <template x-if="errorMessage">
+                <div class="sdash-ai-error" role="alert">
+                    <span x-text="errorMessage"></span>
+                </div>
+            </template>
+            <template x-if="state === 'loading'">
+                <div class="sdash-ai-skeleton" aria-label="Generando prediccion IA">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </template>
+            <template x-if="result">
+                <article class="sdash-prediction-result">
+                    <header class="sdash-prediction-foot">
+                        <p class="sdash-prediction-title" x-text="result.title || 'Prediccion IA proxima semana'"></p>
+                        <span class="sdash-badge sdash-badge--warn" x-text="`Confianza ${result.confidence || 'media'}`"></span>
+                    </header>
+
+                    <div class="sdash-prediction-grid">
+                        <section class="sdash-prediction-section sdash-prediction-section--wide">
+                            <p class="sdash-prediction-label">Lectura operacional</p>
+                            <p class="sdash-prediction-text" x-text="result.prediction"></p>
+                        </section>
+                        <section class="sdash-prediction-section">
+                            <p class="sdash-prediction-label">Temperatura</p>
+                            <p class="sdash-prediction-text" x-text="result.temperature_outlook"></p>
+                        </section>
+                        <section class="sdash-prediction-section">
+                            <p class="sdash-prediction-label">Ventana solar</p>
+                            <p class="sdash-prediction-text" x-text="result.solar_window"></p>
+                        </section>
+                        <section class="sdash-prediction-section sdash-prediction-section--wide" x-show="Array.isArray(result.actions) && result.actions.length > 0">
+                            <p class="sdash-prediction-label">Acciones recomendadas</p>
+                            <ul class="sdash-prediction-actions-list">
+                                <template x-for="action in result.actions" :key="action">
+                                    <li x-text="action"></li>
+                                </template>
+                            </ul>
+                        </section>
+                    </div>
+
+                    <footer class="sdash-prediction-foot">
+                        <p class="sdash-prediction-note">
+                            Base enviada a Claude: temperatura 7 dias
+                            {{ isset($futurePredictions['temperature']['last_7_avg_c']) ? number_format((float) $futurePredictions['temperature']['last_7_avg_c'], 2, ',', '.') . ' °C' : 'N/D' }},
+                            semana previa
+                            {{ isset($futurePredictions['temperature']['previous_7_avg_c']) ? number_format((float) $futurePredictions['temperature']['previous_7_avg_c'], 2, ',', '.') . ' °C' : 'N/D' }},
+                            ventana historica
+                            {{ isset($futurePredictions['radiation_window']['start_hour'], $futurePredictions['radiation_window']['end_hour']) ? sprintf('%02d:00-%02d:59', (int) $futurePredictions['radiation_window']['start_hour'], (int) $futurePredictions['radiation_window']['end_hour']) : 'N/D' }}.
+                        </p>
+                        <template x-if="result.error">
+                            <p class="sdash-prediction-note" x-text="result.error"></p>
+                        </template>
+                    </footer>
+                </article>
+            </template>
+            <template x-if="!result && state !== 'loading'">
+                <div class="sdash-prediction-result">
+                    <p class="sdash-prediction-title">Prediccion IA pendiente</p>
+                    <p class="sdash-prediction-note">
+                        Base lista para Claude: temperatura 7 dias
+                        {{ isset($futurePredictions['temperature']['last_7_avg_c']) ? number_format((float) $futurePredictions['temperature']['last_7_avg_c'], 2, ',', '.') . ' °C' : 'N/D' }},
+                        semana previa
+                        {{ isset($futurePredictions['temperature']['previous_7_avg_c']) ? number_format((float) $futurePredictions['temperature']['previous_7_avg_c'], 2, ',', '.') . ' °C' : 'N/D' }},
+                        ventana historica
+                        {{ isset($futurePredictions['radiation_window']['start_hour'], $futurePredictions['radiation_window']['end_hour']) ? sprintf('%02d:00-%02d:59', (int) $futurePredictions['radiation_window']['start_hour'], (int) $futurePredictions['radiation_window']['end_hour']) : 'N/D' }}.
                     </p>
-                @endif
-            </div>
-            <div class="sdash-rec">
-                <p class="sdash-rec__label">Ventana solar recomendada</p>
-                <p class="sdash-rec__text">{{ $futurePredictions['radiation_window']['message'] ?? 'Sin ventana solar identificada.' }}</p>
-            </div>
+                </div>
+            </template>
         </div>
     </div>
 
