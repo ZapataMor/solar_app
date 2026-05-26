@@ -428,6 +428,25 @@
     border-radius: calc(var(--sdash-radius) - 4px);
     margin: 0;
 }
+html:not(.dark) .sdash-hero-stage .solar-live-dashboard {
+    background: transparent;
+    box-shadow: none;
+    color: var(--solar-text);
+    padding: 0;
+}
+html:not(.dark) .sdash-hero-stage .solar-live-kicker,
+html:not(.dark) .sdash-hero-stage .solar-live-meta,
+html:not(.dark) .sdash-hero-stage .solar-live-footer {
+    color: var(--solar-text-muted);
+}
+html:not(.dark) .sdash-hero-stage .solar-live-control {
+    background: var(--solar-surface-muted);
+    border-color: var(--solar-border);
+    color: var(--solar-text-muted);
+}
+html:not(.dark) .sdash-hero-stage .solar-live-panel {
+    box-shadow: none;
+}
 .sdash-hero-stage .solar-live-panel,
 .sdash-hero-stage .solar-live-sky {
     min-height: clamp(320px, 40vh, 460px);
