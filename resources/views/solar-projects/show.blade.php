@@ -8,6 +8,8 @@
     $futurePredictions  = $dashboard['futurePredictions'] ?? [];
     $generateAiRecommendations = (bool) ($generateAiRecommendations ?? false);
     $aiFocus            = (string) ($aiFocus ?? 'savings');
+    $aiRecommendationHistory = $aiRecommendationHistory ?? [];
+    $aiPredictionHistory = $aiPredictionHistory ?? [];
     $aiFocusOptions     = [
         'savings'     => 'Ahorro economico',
         'load_shift'  => 'Traslado de cargas',
@@ -31,11 +33,13 @@
         'generated' => $generateAiRecommendations,
         'initialMessage' => $initialAiChatMessage,
         'initialError' => $dashboard['executiveSummary']['error'] ?? null,
+        'history' => $aiRecommendationHistory,
     ];
     $solarAiPredictionConfig = [
         'endpoint' => route('solar-projects.ai-prediction', $solarProject),
         'csrfToken' => csrf_token(),
         'provider' => 'CLAUDE',
+        'history' => $aiPredictionHistory,
     ];
     $weatherStationStats    = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
@@ -1704,7 +1708,13 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                 provider: config.provider || 'IA',
                 state: 'idle',
                 errorMessage: '',
-                messages: [],
+                messages: Array.isArray(config.history) ? config.history.map((message) => ({
+                    id: message.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                    role: message.role || 'assistant',
+                    content: message.content || '',
+                    streaming: false,
+                    createdLabel: message.created_label || '',
+                })) : [],
                 abortController: null,
                 streamTimer: null,
                 get isBusy() {
@@ -1725,12 +1735,19 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                     return `Generar enfoque ${label}. Se cancela cualquier solicitud activa antes de iniciar otra.`;
                 },
                 init() {
+                    if (this.messages.length > 0) {
+                        this.state = 'done';
+                        this.scrollToBottom();
+                        return;
+                    }
+
                     if (config.generated && config.initialMessage) {
                         this.messages.push({
                             id: this.createId(),
                             role: 'assistant',
                             content: config.initialMessage,
                             streaming: false,
+                            createdLabel: '',
                         });
                         this.state = 'done';
                     }
@@ -1786,6 +1803,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                         role: 'user',
                         content: `${isRegeneration ? 'Regenerar' : 'Generar'} enfoque ${this.focusOptions[this.focus] || document.getElementById('ai-focus')?.selectedOptions?.[0]?.textContent || this.focus}`,
                         streaming: false,
+                        createdLabel: '',
                     });
                     this.scrollToBottom();
 
@@ -1808,7 +1826,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                         }
 
                         this.provider = String(payload.source || this.provider).toUpperCase();
-                        this.typewrite(this.buildAssistantText(payload));
+                        this.typewrite(this.buildAssistantText(payload), payload.history_message?.created_label || '');
                     } catch (error) {
                         if (error.name === 'AbortError') {
                             return;
@@ -1841,7 +1859,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 
                     return parts.filter(Boolean).join('\n\n').trim() || 'La IA no devolvio contenido para mostrar.';
                 },
-                typewrite(fullText) {
+                typewrite(fullText, createdLabel = '') {
                     fullText = String(fullText || '').trim() || 'No se genero contenido utilizable. Reintenta o cambia el enfoque.';
 
                     const messageIndex = this.messages.push({
@@ -1849,6 +1867,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                         role: 'assistant',
                         content: '',
                         streaming: true,
+                        createdLabel,
                     }) - 1;
                     let index = 0;
                     const step = Math.max(4, Math.ceil(fullText.length / 120));
@@ -1891,7 +1910,10 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                 provider: config.provider || 'CLAUDE',
                 state: 'idle',
                 errorMessage: '',
-                result: null,
+                history: Array.isArray(config.history) ? config.history : [],
+                result: Array.isArray(config.history) && config.history.length > 0
+                    ? config.history[config.history.length - 1]
+                    : null,
                 abortController: null,
                 get isBusy() {
                     return this.state === 'loading';
@@ -1932,7 +1954,8 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                         }
 
                         this.provider = String(payload.source || this.provider).toUpperCase();
-                        this.result = payload;
+                        this.result = payload.history_message || payload;
+                        this.history.push(this.result);
                         this.state = 'done';
                     } catch (error) {
                         if (error.name === 'AbortError') {
@@ -1987,7 +2010,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                     x-show="messages.length > 0"
                     @click="clearHistory()"
                 >
-                    Limpiar historial
+                    Ocultar historial
                 </button>
             </div>
 
@@ -2011,6 +2034,11 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                         <span class="sdash-ai-message__label" x-text="message.role === 'user' ? 'Usuario' : 'Asistente IA'"></span>
                         <div class="sdash-ai-bubble">
                             <span x-text="message.content"></span><span x-show="message.streaming" class="sdash-ai-cursor">|</span>
+                            <small
+                                x-show="message.createdLabel"
+                                x-text="message.createdLabel"
+                                style="display:block;margin-top:.55rem;color:var(--solar-text-muted);font-size:.68rem;"
+                            ></small>
                         </div>
                     </article>
                 </template>
@@ -2144,6 +2172,8 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 
                     <footer class="sdash-prediction-foot">
                         <p class="sdash-prediction-note">
+                            <span x-show="result.generated_label" x-text="`Generada: ${result.generated_label}`"></span>
+                            <span x-show="result.generated_label"> · </span>
                             Base enviada a Claude: temperatura 7 dias
                             {{ isset($futurePredictions['temperature']['last_7_avg_c']) ? number_format((float) $futurePredictions['temperature']['last_7_avg_c'], 2, ',', '.') . ' °C' : 'N/D' }},
                             semana previa
@@ -2169,6 +2199,20 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                         {{ isset($futurePredictions['radiation_window']['start_hour'], $futurePredictions['radiation_window']['end_hour']) ? sprintf('%02d:00-%02d:59', (int) $futurePredictions['radiation_window']['start_hour'], (int) $futurePredictions['radiation_window']['end_hour']) : 'N/D' }}.
                     </p>
                 </div>
+            </template>
+            <template x-if="history.length > 1">
+                <section class="sdash-prediction-section">
+                    <p class="sdash-prediction-label">Historial de predicciones</p>
+                    <ul class="sdash-prediction-actions-list">
+                        <template x-for="item in history.slice().reverse().slice(1, 6)" :key="item.id || item.generated_at">
+                            <li>
+                                <span x-text="item.generated_label || item.generated_at || 'Fecha no disponible'"></span>
+                                <span> - </span>
+                                <span x-text="item.title || 'Prediccion IA'"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </section>
             </template>
         </div>
     </div>

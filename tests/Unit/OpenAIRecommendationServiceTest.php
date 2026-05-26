@@ -204,6 +204,55 @@ class OpenAIRecommendationServiceTest extends TestCase
         $this->assertStringNotContainsString('title', $result['executive_summary']);
     }
 
+    public function test_it_normalizes_anthropic_nested_recommendations_and_alert_objects(): void
+    {
+        config([
+            'services.openai_recommendations.enabled' => true,
+            'services.openai_recommendations.provider' => 'anthropic',
+            'services.openai_recommendations.model' => 'claude-haiku-4-5',
+            'openai.api_key' => 'test-key',
+            'openai.base_uri' => 'https://api.anthropic.com/v1',
+        ]);
+
+        Http::fake([
+            'api.anthropic.com/v1/messages' => Http::response([
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'text' => json_encode([
+                            'executive_summary' => 'status',
+                            'daily_recommendation' => 'diagnostic',
+                            'alerts' => [
+                                [
+                                    'severity' => 'Medio',
+                                    'type' => 'Volatilidad mensual critica',
+                                    'description' => 'Mayo presenta cobertura baja y requiere plan de mantenimiento antes del mes critico.',
+                                    'data_source' => 'Analisis mensual',
+                                ],
+                            ],
+                            'recommendation_pack' => [
+                                'maintenance' => [
+                                    'diagnostic' => 'La produccion puede caer si no se revisan paneles, inversor y ventilacion antes del periodo de mayor carga.',
+                                    'action' => 'Programar limpieza, inspeccion de conexiones y validacion de temperatura de inversores durante la ventana solar.',
+                                    'impact' => 'Reducir perdidas operativas y sostener la cobertura disponible sin inventar nueva capacidad.',
+                                ],
+                            ],
+                        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    ],
+                ],
+            ]),
+        ]);
+
+        $result = app(OpenAIRecommendationService::class)->generate([], [], [], $this->calculationResult(), [], 'maintenance');
+
+        $this->assertSame('anthropic', $result['source']);
+        $this->assertStringContainsString('Diagnostico:', $result['recommendation_pack']['maintenance']);
+        $this->assertStringContainsString('Accion:', $result['recommendation_pack']['maintenance']);
+        $this->assertSame(['Mayo presenta cobertura baja y requiere plan de mantenimiento antes del mes critico.'], $result['energy_alerts']);
+        $this->assertNotContains('severity', $result['energy_alerts']);
+        $this->assertNotSame('diagnostic', $result['daily_recommendation']);
+    }
+
     private function calculationResult(): CalculationResult
     {
         $result = new CalculationResult();
