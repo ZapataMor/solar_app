@@ -61,14 +61,14 @@
             <p class="solar-project-card__type">{{ $typeLabel }}</p>
         </div>
 
-        <span class="solar-pill {{ $badgeClass($statusTone) }}">
+        {{-- <span class="solar-pill {{ $badgeClass($statusTone) }}">
             {{ $statusLabel }}
-        </span>
+        </span> --}}
     </div>
 
     <p class="solar-project-card__summary">{{ $description }}</p>
 
-    <dl class="solar-project-card__meta">
+    {{-- <dl class="solar-project-card__meta">
         <div>
             <dt>Ubicacion</dt>
             <dd>{{ $solarProject->location_name }}</dd>
@@ -85,18 +85,18 @@
             <dt>Ultima actualizacion</dt>
             <dd>{{ $solarProject->updated_at?->format('d M Y') }}</dd>
         </div>
-    </dl>
+    </dl> --}}
 
     <div class="solar-project-card__badges">
-        <span class="solar-pill {{ $badgeClass($coverageTone) }}">
+        {{-- <span class="solar-pill {{ $badgeClass($coverageTone) }}">
             Cobertura {{ $coverageLabel }}
         </span>
         <span class="solar-pill {{ $badgeClass($riskTone) }}">
             Riesgo {{ $riskLabel }}
-        </span>
-        <span class="solar-pill {{ $badgeClass($iaActive ? 'success' : 'warn') }}">
+        </span> --}}
+        {{-- <span class="solar-pill {{ $badgeClass($iaActive ? 'success' : 'warn') }}">
             IA {{ $iaActive ? 'Activa' : 'Inactiva' }}
-        </span>
+        </span> --}}
     </div>
 
     <div class="solar-project-card__actions">
