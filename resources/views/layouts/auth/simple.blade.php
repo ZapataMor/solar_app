@@ -38,7 +38,7 @@
                         <p>Plataforma de monitoreo solar y meteorol&oacute;gico para Riohacha y La Guajira. Genera, mide y comparte el pulso energ&eacute;tico de tu territorio.</p>
 
                         <div class="login-stats">
-                            <div class="login-stat">
+                            {{-- <div class="login-stat">
                                 <div class="login-stat-value">187<span>MWh</span></div>
                                 <div class="login-stat-label">Generaci&oacute;n / mes</div>
                             </div>
@@ -49,7 +49,7 @@
                             <div class="login-stat">
                                 <div class="login-stat-value">98.7<span>%</span></div>
                                 <div class="login-stat-label">Uptime de red</div>
-                            </div>
+                            </div> --}}
                         </div>
                     </section>
 
