@@ -20,10 +20,6 @@
 
             <flux:spacer />
 
-            <flux:navbar class="me-1.5 space-x-0.5 rtl:space-x-reverse py-0!">
-                <flux:navbar.item class="solar-header-item" icon="sparkles" :href="route('solar-projects.create')" :label="__('Nuevo proyecto')" wire:navigate />
-            </flux:navbar>
-
             <x-desktop-user-menu />
         </flux:header>
 
@@ -49,13 +45,6 @@
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
-            <flux:spacer />
-
-            <flux:sidebar.nav>
-                <flux:sidebar.item class="solar-nav-item" icon="sparkles" :href="route('solar-projects.create')" wire:navigate>
-                    {{ __('Nuevo proyecto') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
         </flux:sidebar>
 
         <main class="solar-shell-main">

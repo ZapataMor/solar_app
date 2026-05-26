@@ -28,12 +28,6 @@
 
             <flux:spacer />
 
-            <flux:sidebar.nav>
-                <flux:sidebar.item class="solar-nav-item" icon="sparkles" :href="route('solar-projects.create')" wire:navigate>
-                    {{ __('Nuevo proyecto') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
-
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
