@@ -10,6 +10,7 @@ use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
 use App\Services\ProjectDashboardService;
 use App\Services\SolarCalculationService;
+use App\Services\AmbientWeatherAggregationService;
 use App\Services\WeatherStationAggregationService;
 use App\Services\WeatherStationImportService;
 use Illuminate\Http\RedirectResponse;
@@ -215,11 +216,25 @@ class SolarProjectController extends Controller
         );
     }
 
+    /**
+     * Auto-calculate solar metrics choosing the highest-quality data source available.
+     *
+     * Priority order:
+     *   1. Ambient Weather  — direct high-frequency sensor, temperature-derated irradiance
+     *   2. Weather Station  — local sensor, temperature-derated irradiance
+     *   3. NASA POWER       — satellite daily averages (fallback when no local data exists)
+     *
+     * Each source applies source-appropriate radiation normalization inside its
+     * dailyRows() method so the shared SolarCalculationService always receives
+     * a correctly normalized 24h-average irradiance (W/m²).
+     */
     public function calculate(
         Request $request,
         SolarProject $solarProject,
         SolarCalculationService $solarCalculationService,
         NasaWeatherDataService $nasaWeatherDataService,
+        AmbientWeatherAggregationService $ambientAgg,
+        WeatherStationAggregationService $stationAgg,
     ): RedirectResponse {
         $this->authorizeOwner($request, $solarProject);
 
@@ -229,9 +244,73 @@ class SolarProjectController extends Controller
             ]);
         }
 
+        // ── Prioridad 1: Ambient Weather ─────────────────────────────────────
+        $ambientReadings = $ambientAgg->readingsForProject($solarProject);
+
+        if ($ambientReadings->isNotEmpty()) {
+            $ambientDailyRows = $ambientAgg->dailyRows($ambientReadings);
+
+            if ($ambientDailyRows->isNotEmpty()) {
+                try {
+                    $solarCalculationService->calculate(
+                        $solarProject,
+                        $solarCalculationService->weatherDataFromRows($ambientDailyRows),
+                    );
+                } catch (Throwable $exception) {
+                    report($exception);
+
+                    return back()->withErrors([
+                        'solar_calculation' => 'No fue posible ejecutar los calculos con datos de Ambient Weather: ' . $exception->getMessage(),
+                    ]);
+                }
+
+                $avgCorrection = round(
+                    $ambientDailyRows->avg(fn ($r) => $r['temp_correction'] ?? 1.0) * 100,
+                    1
+                );
+
+                return back()->with(
+                    'status',
+                    "✓ Calculos ejecutados con datos de Ambient Weather (prioridad 1). "
+                    . "Dias procesados: {$ambientDailyRows->count()}. "
+                    . "Correccion termica promedio: {$avgCorrection}%.",
+                );
+            }
+        }
+
+        // ── Prioridad 2: Centro meteorologico ────────────────────────────────
+        $stationReadings = $stationAgg->readingsForProject($solarProject);
+
+        if ($stationReadings->isNotEmpty()) {
+            $stationDailyRows = $stationAgg->dailyRows($stationReadings);
+
+            if ($stationDailyRows->isNotEmpty()) {
+                try {
+                    $solarCalculationService->calculate(
+                        $solarProject,
+                        $solarCalculationService->weatherDataFromRows($stationDailyRows),
+                    );
+                } catch (Throwable $exception) {
+                    report($exception);
+
+                    return back()->withErrors([
+                        'solar_calculation' => 'No fue posible ejecutar los calculos con datos de la estacion: ' . $exception->getMessage(),
+                    ]);
+                }
+
+                return back()->with(
+                    'status',
+                    "✓ Calculos ejecutados con datos del centro meteorologico (prioridad 2 — sin datos Ambient en el rango). "
+                    . "Dias procesados: {$stationDailyRows->count()}.",
+                );
+            }
+        }
+
+        // ── Prioridad 3: NASA POWER ───────────────────────────────────────────
         if ($nasaWeatherDataService->countForProject($solarProject) === 0) {
             return back()->withErrors([
-                'solar_calculation' => 'No es posible ejecutar calculos solares sin datos climaticos de NASA POWER.',
+                'solar_calculation' => 'No hay datos climaticos disponibles para este proyecto. '
+                    . 'Sincroniza al menos una fuente: Ambient Weather, centro meteorologico o NASA POWER.',
             ]);
         }
 
@@ -241,11 +320,14 @@ class SolarProjectController extends Controller
             report($exception);
 
             return back()->withErrors([
-                'solar_calculation' => 'No fue posible ejecutar los calculos solares. Revise los datos del proyecto e intente nuevamente.',
+                'solar_calculation' => 'No fue posible ejecutar los calculos con NASA POWER: ' . $exception->getMessage(),
             ]);
         }
 
-        return back()->with('status', 'Calculos solares ejecutados correctamente.');
+        return back()->with(
+            'status',
+            '✓ Calculos ejecutados con datos NASA POWER (prioridad 3 — fallback satelital, sin datos locales en el rango del proyecto).',
+        );
     }
 
     public function calculateWithWeatherStation(
@@ -286,6 +368,46 @@ class SolarProjectController extends Controller
         }
 
         return back()->with('status', 'Calculos solares ejecutados correctamente con datos de la estacion meteorologica.');
+    }
+
+    public function calculateWithAmbientWeather(
+        Request $request,
+        SolarProject $solarProject,
+        SolarCalculationService $solarCalculationService,
+        AmbientWeatherAggregationService $ambientWeatherAggregationService,
+    ): RedirectResponse {
+        $this->authorizeOwner($request, $solarProject);
+
+        if ($solarProject->technicalParameter()->doesntExist()) {
+            return back()->withErrors([
+                'solar_calculation' => 'No es posible ejecutar calculos solares sin parametros tecnicos.',
+            ]);
+        }
+
+        $dailyReadings = $ambientWeatherAggregationService->dailyRows(
+            $ambientWeatherAggregationService->readingsForProject($solarProject)
+        );
+
+        if ($dailyReadings->isEmpty()) {
+            return back()->withErrors([
+                'solar_calculation' => 'No hay datos de Ambient Weather almacenados para el rango del proyecto. Sincroniza primero desde "Datos APIs".',
+            ]);
+        }
+
+        try {
+            $solarCalculationService->calculate(
+                $solarProject,
+                $solarCalculationService->weatherDataFromRows($dailyReadings),
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'solar_calculation' => 'No fue posible ejecutar los calculos solares con datos de Ambient Weather. Revise los datos del proyecto e intente nuevamente.',
+            ]);
+        }
+
+        return back()->with('status', 'Calculos solares ejecutados correctamente con datos de la estacion Ambient Weather.');
     }
 
     /**
