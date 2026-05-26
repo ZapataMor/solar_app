@@ -7,6 +7,16 @@
     $dashboard = $dashboard ?? ['executiveSummary' => ['enabled' => false]];
     $futurePredictions = $dashboard['futurePredictions'] ?? [];
     $generateAiRecommendations = (bool) ($generateAiRecommendations ?? false);
+    $aiFocus = (string) ($aiFocus ?? 'savings');
+    $aiFocusOptions = [
+        'savings' => 'Ahorro economico',
+        'load_shift' => 'Traslado de cargas',
+        'risk' => 'Riesgo operativo',
+        'maintenance' => 'Mantenimiento',
+        'climate' => 'Adaptacion climatica',
+    ];
+    $aiSelectedPackItem = collect($dashboard['executiveSummary']['recommendationPack'] ?? [])
+        ->firstWhere('key', $aiFocus);
     $weatherStationStats = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
 
@@ -383,27 +393,33 @@
             @endif
         </section>
 
-        <section class="solar-card mt-6">
+        <section class="solar-card solar-ai-zone mt-6">
             <div class="solar-page-header">
                 <div>
                     <p class="solar-kicker">Recomendaciones IA</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Resumen ejecutivo inteligente</h2>
+                    <p class="solar-subtitle mt-2">Enfoque activo: {{ $aiFocusOptions[$aiFocus] ?? 'General' }}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="solar-pill">Fuente {{ strtoupper((string) ($dashboard['executiveSummary']['source'] ?? 'ia')) }}</span>
+                    <span class="solar-pill solar-ai-pill">Fuente {{ strtoupper((string) ($dashboard['executiveSummary']['source'] ?? 'ia')) }}</span>
                     <form method="GET" action="{{ route('solar-projects.show', $solarProject) }}">
                         <input type="hidden" name="generate_ai" value="1" />
+                        <select name="ai_focus" class="solar-ai-select">
+                            @foreach ($aiFocusOptions as $focusKey => $focusLabel)
+                                <option value="{{ $focusKey }}" @selected($aiFocus === $focusKey)>{{ $focusLabel }}</option>
+                            @endforeach
+                        </select>
                         <button type="submit" class="solar-button">{{ $generateAiRecommendations ? 'Regenerar recomendaciones IA' : 'Generar recomendaciones con IA' }}</button>
                     </form>
                 </div>
             </div>
 
             <div class="mt-5 grid gap-4 lg:grid-cols-2">
-                <article class="solar-recommendation-card">
+                <article class="solar-recommendation-card solar-ai-summary-card">
                     <div class="solar-recommendation-card-head"><p class="solar-recommendation-card-title">Resumen ejecutivo</p></div>
                     <p class="solar-recommendation-card-copy">{{ $dashboard['executiveSummary']['text'] ?? 'Sin resumen IA disponible.' }}</p>
                 </article>
-                <article class="solar-recommendation-card">
+                <article class="solar-recommendation-card solar-ai-summary-card">
                     <div class="solar-recommendation-card-head"><p class="solar-recommendation-card-title">Recomendacion inteligente</p></div>
                     <p class="solar-recommendation-card-copy">{{ $dashboard['executiveSummary']['dailyRecommendation'] ?? 'Sin recomendacion IA disponible.' }}</p>
                     @if (! empty($dashboard['executiveSummary']['error'] ?? null))
@@ -412,19 +428,15 @@
                 </article>
             </div>
 
-            <div class="mt-4 grid gap-3 lg:grid-cols-3" data-scale-recommendations>
-                @forelse ($activeScale['recommendations'] ?? [] as $recommendation)
-                    <article class="solar-recommendation-card">
-                        <div class="solar-recommendation-card-head">
-                            <p class="solar-recommendation-card-title">{{ ucfirst($recommendation['type'] ?? 'accion') }}</p>
-                            <span class="solar-pill">{{ $recommendation['priority'] ?? 'media' }}</span>
-                        </div>
-                        <p class="solar-recommendation-card-copy">{{ $recommendation['message'] ?? '' }}</p>
-                    </article>
-                @empty
-                    <div class="solar-alert solar-alert-warning">Sin recomendaciones adicionales para la escala activa.</div>
-                @endforelse
+            <div class="mt-4">
+                <article class="solar-recommendation-card solar-ai-focus-card">
+                    <div class="solar-recommendation-card-head">
+                        <p class="solar-recommendation-card-title">{{ $aiSelectedPackItem['title'] ?? ($aiFocusOptions[$aiFocus] ?? 'Recomendacion') }}</p>
+                    </div>
+                    <p class="solar-recommendation-card-copy">{{ $aiSelectedPackItem['message'] ?? 'Sin recomendacion disponible para el enfoque seleccionado.' }}</p>
+                </article>
             </div>
+
         </section>
 
         <section class="solar-card mt-6">

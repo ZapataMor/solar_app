@@ -32,6 +32,7 @@ class OpenAIRecommendationService
         array $solarRecommendations,
         ?CalculationResult $calculationResult,
         array $weatherStationStats = [],
+        ?string $userIntent = null,
     ): array {
         if (! $this->isEnabled()) {
             return $this->emptyResult('disabled');
@@ -47,6 +48,7 @@ class OpenAIRecommendationService
             $solarRecommendations,
             $calculationResult,
             $weatherStationStats,
+            $userIntent,
         );
 
         $cacheKey = 'openai_recommendations:'.md5(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
@@ -77,6 +79,9 @@ class OpenAIRecommendationService
                     ->filter(fn ($item) => is_string($item) && trim($item) !== '')
                     ->values()
                     ->all(),
+                'recommendation_pack' => is_array($decoded['recommendation_pack'] ?? null)
+                    ? $decoded['recommendation_pack']
+                    : [],
                 'error' => null,
             ];
 
@@ -243,6 +248,11 @@ class OpenAIRecommendationService
             if (is_array($retryDecoded)) {
                 return $retryDecoded;
             }
+
+            $minimalRetryDecoded = $this->retryAnthropicMinimalJson($baseUrl, $apiKey, $model, $payload);
+            if (is_array($minimalRetryDecoded)) {
+                return $minimalRetryDecoded;
+            }
         }
 
         return $decoded;
@@ -294,6 +304,60 @@ class OpenAIRecommendationService
         return $decoded;
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>|null
+     */
+    private function retryAnthropicMinimalJson(string $baseUrl, string $apiKey, string $model, array $payload): ?array
+    {
+        $response = Http::timeout((int) config('openai.request_timeout', 30))
+            ->retry(0, 0)
+            ->withHeaders([
+                'x-api-key' => $apiKey,
+                'anthropic-version' => '2023-06-01',
+                'content-type' => 'application/json',
+            ])
+            ->post("{$baseUrl}/messages", [
+                'model' => $model,
+                'max_tokens' => 260,
+                'temperature' => 0.1,
+                'system' => implode("\n", [
+                    'Devuelve SOLO JSON plano, sin markdown.',
+                    'Claves obligatorias: executive_summary, daily_recommendation, energy_alerts, recommendation_pack.',
+                    'executive_summary max 120 caracteres.',
+                    'daily_recommendation max 120 caracteres.',
+                    'energy_alerts max 2 items, cada item max 80 caracteres.',
+                    'recommendation_pack con keys savings, load_shift, risk, maintenance, climate.',
+                    'Cada item de recommendation_pack max 80 caracteres.',
+                ]),
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => "JSON minimo y corto para este resumen:\n".json_encode(
+                            $payload,
+                            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                        ),
+                    ],
+                ],
+            ]);
+
+        if (! $response->ok()) {
+            return null;
+        }
+
+        $text = (string) data_get($response->json(), 'content.0.text', '');
+        $decoded = $this->decodeResponsePayload($text);
+
+        if (! is_array($decoded)) {
+            Log::warning('AI recommendations anthropic: minimal retry decode failed', [
+                'model' => $model,
+                'text_excerpt' => mb_substr($text, 0, 800),
+            ]);
+        }
+
+        return $decoded;
+    }
+
     private function anthropicSystemPrompt(bool $compact): string
     {
         $base = [
@@ -301,11 +365,12 @@ class OpenAIRecommendationService
             'Tu tarea es transformar analisis estructurados en texto claro, prudente y accionable.',
             'No inventes datos, no agregues cifras que no aparezcan en la entrada.',
             'Si la informacion es insuficiente, dilo de forma explicita.',
-            'Responde unicamente JSON valido con las claves: executive_summary, daily_recommendation, energy_alerts.',
+            'Responde unicamente JSON valido con las claves: executive_summary, daily_recommendation, energy_alerts, recommendation_pack.',
+            'recommendation_pack debe incluir exactamente las claves: savings, load_shift, risk, maintenance, climate.',
         ];
 
         if ($compact) {
-            $base[] = 'Mantener formato compacto: executive_summary max 280 caracteres, daily_recommendation max 220 caracteres, energy_alerts max 3 items y cada item max 120 caracteres.';
+            $base[] = 'Mantener formato compacto: executive_summary max 280 caracteres, daily_recommendation max 220 caracteres, energy_alerts max 3 items y cada item max 120 caracteres, y cada item de recommendation_pack max 160 caracteres.';
             $base[] = 'No uses markdown, no uses bloques ```json, solo JSON plano.';
         }
 
@@ -352,8 +417,21 @@ class OpenAIRecommendationService
         array $solarRecommendations,
         ?CalculationResult $calculationResult,
         array $weatherStationStats,
+        ?string $userIntent = null,
     ): array {
+        $intentMap = [
+            'savings' => 'Maximizar ahorro economico',
+            'load_shift' => 'Desplazar cargas a horas solares',
+            'risk' => 'Reducir riesgo operativo',
+            'maintenance' => 'Planificar mantenimiento preventivo',
+            'climate' => 'Adaptarse a variaciones climaticas',
+        ];
+
         return [
+            'user_intent' => [
+                'key' => $userIntent,
+                'label' => $intentMap[$userIntent ?? ''] ?? 'General',
+            ],
             'energy_metrics' => [
                 'estimated_daily_generation_kwh' => $calculationResult ? (float) $calculationResult->estimated_daily_generation_kwh : null,
                 'estimated_monthly_generation_kwh' => $calculationResult ? (float) $calculationResult->estimated_monthly_generation_kwh : null,
@@ -449,7 +527,8 @@ class OpenAIRecommendationService
                     'No inventes datos, no agregues cifras que no aparezcan en la entrada.',
                     'Si la informacion es insuficiente, dilo de forma explicita.',
                     'Enfocate en autoconsumo, horarios de carga, cobertura solar y riesgos operativos.',
-                    'Responde unicamente JSON valido con las claves: executive_summary, daily_recommendation, energy_alerts.',
+                    'Responde unicamente JSON valido con las claves: executive_summary, daily_recommendation, energy_alerts, recommendation_pack.',
+                    'recommendation_pack debe incluir exactamente: savings, load_shift, risk, maintenance, climate.',
                 ]),
             ],
             [
@@ -486,11 +565,24 @@ class OpenAIRecommendationService
                     ],
                     'description' => 'Short energy alerts in Spanish.',
                 ],
+                'recommendation_pack' => [
+                    'type' => 'object',
+                    'additionalProperties' => false,
+                    'properties' => [
+                        'savings' => ['type' => 'string'],
+                        'load_shift' => ['type' => 'string'],
+                        'risk' => ['type' => 'string'],
+                        'maintenance' => ['type' => 'string'],
+                        'climate' => ['type' => 'string'],
+                    ],
+                    'required' => ['savings', 'load_shift', 'risk', 'maintenance', 'climate'],
+                ],
             ],
             'required' => [
                 'executive_summary',
                 'daily_recommendation',
                 'energy_alerts',
+                'recommendation_pack',
             ],
         ];
     }
@@ -515,6 +607,11 @@ class OpenAIRecommendationService
             return $decoded;
         }
 
+        $partialDecoded = $this->parsePartialRecommendationPayload($cleanOutput);
+        if (is_array($partialDecoded)) {
+            return $partialDecoded;
+        }
+
         if (! preg_match('/\{.*\}/s', $cleanOutput, $matches)) {
             return null;
         }
@@ -522,7 +619,130 @@ class OpenAIRecommendationService
         /** @var mixed $fallbackDecoded */
         $fallbackDecoded = json_decode($matches[0], true);
 
-        return is_array($fallbackDecoded) ? $fallbackDecoded : null;
+        if (is_array($fallbackDecoded)) {
+            return $fallbackDecoded;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Best-effort parser for truncated model outputs.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function parsePartialRecommendationPayload(string $text): ?array
+    {
+        $normalizedText = trim($text);
+        if (str_contains($normalizedText, '\\"')) {
+            $normalizedText = str_replace(['\\"', '\\n', '\\t', '\\r'], ['"', "\n", "\t", "\r"], $normalizedText);
+        }
+
+        $extractQuotedValue = function (string $source, string $key): ?string {
+            $needle = "\"{$key}\"";
+            $keyPos = strpos($source, $needle);
+            if ($keyPos === false) {
+                return null;
+            }
+
+            $colonPos = strpos($source, ':', $keyPos + strlen($needle));
+            if ($colonPos === false) {
+                return null;
+            }
+
+            $firstQuotePos = strpos($source, '"', $colonPos + 1);
+            if ($firstQuotePos === false) {
+                return null;
+            }
+
+            $buffer = '';
+            $escaped = false;
+            $len = strlen($source);
+
+            for ($i = $firstQuotePos + 1; $i < $len; $i++) {
+                $char = $source[$i];
+
+                if ($escaped) {
+                    $buffer .= $char;
+                    $escaped = false;
+                    continue;
+                }
+
+                if ($char === '\\') {
+                    $escaped = true;
+                    continue;
+                }
+
+                if ($char === '"') {
+                    $value = trim(stripcslashes($buffer));
+                    return $value !== '' ? $value : null;
+                }
+
+                $buffer .= $char;
+            }
+
+            return null;
+        };
+
+        $extractAlerts = function (string $source): array {
+            $needle = '"energy_alerts"';
+            $pos = strpos($source, $needle);
+            if ($pos === false) {
+                return [];
+            }
+
+            $open = strpos($source, '[', $pos);
+            if ($open === false) {
+                return [];
+            }
+
+            $close = strpos($source, ']', $open);
+            if ($close === false) {
+                return [];
+            }
+
+            $slice = substr($source, $open + 1, $close - $open - 1);
+            preg_match_all('/"((?:[^"\\\\]|\\\\.)*)"/s', $slice, $matches);
+
+            return collect($matches[1] ?? [])
+                ->map(fn ($raw) => trim(stripcslashes((string) $raw)))
+                ->filter(fn ($value) => $value !== '')
+                ->values()
+                ->all();
+        };
+
+        $executiveSummary = $extractQuotedValue($normalizedText, 'executive_summary');
+        $dailyRecommendation = $extractQuotedValue($normalizedText, 'daily_recommendation');
+        $alerts = $extractAlerts($normalizedText);
+
+        $pack = [];
+        foreach (['savings', 'load_shift', 'risk', 'maintenance', 'climate'] as $packKey) {
+            $value = $extractQuotedValue($normalizedText, $packKey);
+            if ($value !== null) {
+                $pack[$packKey] = $value;
+            }
+        }
+
+        if ($executiveSummary === null && $dailyRecommendation === null) {
+            return null;
+        }
+
+        if ($pack === []) {
+            $pack = [
+                'savings' => $dailyRecommendation ?? $executiveSummary,
+                'load_shift' => $dailyRecommendation ?? $executiveSummary,
+                'risk' => $dailyRecommendation ?? $executiveSummary,
+                'maintenance' => $dailyRecommendation ?? $executiveSummary,
+                'climate' => $dailyRecommendation ?? $executiveSummary,
+            ];
+        }
+
+        return [
+            'executive_summary' => $executiveSummary,
+            'daily_recommendation' => $dailyRecommendation,
+            'energy_alerts' => $alerts,
+            'recommendation_pack' => $pack,
+        ];
     }
 
     private function extractResponseText(mixed $response): ?string
@@ -572,6 +792,7 @@ class OpenAIRecommendationService
             'executive_summary' => null,
             'daily_recommendation' => null,
             'energy_alerts' => [],
+            'recommendation_pack' => [],
             'error' => $error,
         ];
     }

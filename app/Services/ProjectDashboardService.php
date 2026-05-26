@@ -22,7 +22,11 @@ class ProjectDashboardService
     /**
      * @return array<string, mixed>
      */
-    public function build(SolarProject $solarProject, bool $generateAiRecommendations = false): array
+    public function build(
+        SolarProject $solarProject,
+        bool $generateAiRecommendations = false,
+        ?string $aiFocus = null
+    ): array
     {
         $monthlyResults = $solarProject->monthlyResults;
         $calculationResult = $solarProject->calculationResult;
@@ -68,6 +72,7 @@ class ProjectDashboardService
                 $solarRecommendations,
                 $calculationResult,
                 $weatherAndNasaStats,
+                $aiFocus,
             )
             : [
                 'enabled' => false,
@@ -75,6 +80,7 @@ class ProjectDashboardService
                 'executive_summary' => null,
                 'daily_recommendation' => null,
                 'energy_alerts' => [],
+                'recommendation_pack' => [],
                 'error' => 'Pulsa "Generar recomendaciones con IA" para solicitar el reporte inteligente.',
             ];
 
@@ -263,13 +269,13 @@ class ProjectDashboardService
         $stateSummary = $energyAnalysis['coverageInterpretation']
             ?? 'Aun no hay suficientes datos para determinar el estado energetico general.';
 
-        $executiveSummaryText = $this->stringValue($openAIRecommendation['executive_summary'] ?? null)
-            ?? $this->fallbackExecutiveSummary(
-                $stateSummary,
-                $recommendationItems,
-                $weatherCurrent,
-                $annualSavings,
-            );
+        $executiveSummaryText = $this->stringValue($openAIRecommendation['executive_summary'] ?? null);
+        $aiPack = $this->buildAiRecommendationPack(
+            is_array($openAIRecommendation['recommendation_pack'] ?? null)
+                ? $openAIRecommendation['recommendation_pack']
+                : [],
+            $recommendationItems
+        );
 
         return [
             'state' => [
@@ -321,8 +327,33 @@ class ProjectDashboardService
                 'error' => $openAIRecommendation['error'] ?? null,
                 'enabled' => (bool) ($openAIRecommendation['enabled'] ?? false),
                 'ai' => $openAIRecommendation,
+                'recommendationPack' => $aiPack,
             ],
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $pack
+     * @param array<int, array<string, string>> $fallbackItems
+     * @return array<int, array{key: string, title: string, message: string}>
+     */
+    private function buildAiRecommendationPack(array $pack, array $fallbackItems): array
+    {
+        $map = [
+            'savings' => 'Ahorro economico',
+            'load_shift' => 'Traslado de cargas',
+            'risk' => 'Riesgo operativo',
+            'maintenance' => 'Mantenimiento',
+            'climate' => 'Adaptacion climatica',
+        ];
+
+        return collect($map)->map(
+            fn (string $title, string $key) => [
+                'key' => $key,
+                'title' => $title,
+                'message' => $this->stringValue($pack[$key] ?? null) ?? 'Sin recomendacion IA disponible para este enfoque.',
+            ]
+        )->values()->all();
     }
 
     /**

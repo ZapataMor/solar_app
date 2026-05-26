@@ -2477,6 +2477,45 @@ select:focus[data-flux-control] {
         line-height: 1.55;
     }
 
+    .solar-ai-zone {
+        position: relative;
+        border: 1px solid rgba(20, 184, 166, 0.24);
+        background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.18), transparent 45%),
+            linear-gradient(140deg, rgba(8, 28, 34, 0.9), rgba(10, 22, 28, 0.96));
+    }
+
+    .solar-ai-zone .solar-kicker {
+        color: rgba(153, 246, 228, 0.92);
+    }
+
+    .solar-ai-pill {
+        border-color: rgba(45, 212, 191, 0.45);
+        background: rgba(13, 148, 136, 0.24);
+        color: #d1fae5;
+    }
+
+    .solar-ai-select {
+        border: 1px solid rgba(45, 212, 191, 0.35);
+        border-radius: 0.75rem;
+        background: rgba(8, 31, 38, 0.9);
+        color: #d1fae5;
+        font-size: 0.88rem;
+        line-height: 1.2;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .solar-ai-summary-card {
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        background: linear-gradient(160deg, rgba(10, 40, 50, 0.88), rgba(8, 28, 37, 0.96));
+    }
+
+    .solar-ai-focus-card {
+        border: 1px solid rgba(45, 212, 191, 0.46);
+        background: linear-gradient(165deg, rgba(13, 148, 136, 0.28), rgba(9, 34, 42, 0.95));
+        box-shadow: 0 16px 30px -22px rgba(45, 212, 191, 0.55);
+    }
+
     .solar-insight-card-success {
         border-color: color-mix(in srgb, var(--solar-success) 28%, transparent);
         background: var(--solar-success-bg);
