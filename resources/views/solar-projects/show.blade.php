@@ -454,6 +454,167 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 .sdash-hero-stage .solar-live-curve span {
     background: linear-gradient(180deg, color-mix(in srgb, var(--chart-color, #ff9f0a) 90%, white 10%), color-mix(in srgb, var(--chart-color, #ff9f0a) 12%, transparent));
 }
+.sdash-hero-stage .solar-live-curve {
+    position: relative;
+    display: block;
+    overflow: visible;
+    height: 5.25rem;
+    border-radius: 0;
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--chart-color, #ff9f0a) 34%, transparent));
+}
+.sdash-hero-stage .solar-live-curve span {
+    display: none;
+}
+.sdash-hero-stage .solar-live-curve::before,
+.sdash-hero-stage .solar-live-curve::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--chart-color, #ff9f0a);
+    pointer-events: none;
+    mask-repeat: no-repeat;
+    mask-size: 100% 100%;
+    mask-position: center;
+}
+.sdash-hero-stage .solar-live-curve::before {
+    opacity: .95;
+    mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1000 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 135 C150 130 260 86 382 55 C520 18 655 32 782 83 C865 116 925 133 980 136' fill='none' stroke='white' stroke-width='8' stroke-linecap='round'/%3E%3C/svg%3E");
+    animation: solarCurveTrace 2.9s ease-in-out infinite;
+}
+.sdash-hero-stage .solar-live-curve::after {
+    opacity: .22;
+    mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1000 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 145 C150 138 260 92 382 62 C520 24 655 38 782 90 C865 122 925 138 980 142 L980 160 L20 160 Z' fill='white'/%3E%3C/svg%3E");
+    animation: solarCurveGlow 3.4s ease-in-out infinite;
+}
+.sdash-hero-stage .solar-live-sky::before {
+    content: '';
+    position: absolute;
+    inset: -18% -28%;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at 18% 42%, rgba(234, 246, 255, .34) 0%, rgba(234, 246, 255, .12) 24%, transparent 46%),
+        linear-gradient(115deg, transparent 18%, rgba(255, 255, 255, .16) 42%, transparent 66%);
+    mix-blend-mode: screen;
+    opacity: .64;
+    animation: solarSkySweep 8s ease-in-out infinite;
+}
+.sdash-hero-stage .solar-live-sky::after {
+    animation: solarSkyBreath 6s ease-in-out infinite;
+}
+.sdash-hero-stage .solar-hero-cloud {
+    border-radius: 999px;
+    background: rgba(226, 238, 248, .38);
+    filter: blur(42px);
+    transform: none;
+    animation: solarMistDrift 9s ease-in-out infinite;
+}
+.sdash-hero-stage .solar-hero-cloud::before,
+.sdash-hero-stage .solar-hero-cloud::after {
+    display: none;
+}
+.sdash-hero-stage .solar-hero-cloud-a {
+    top: 18%;
+    left: 6%;
+    width: 24rem;
+    height: 9rem;
+    opacity: .42;
+}
+.sdash-hero-stage .solar-hero-cloud-b {
+    top: 34%;
+    left: 18%;
+    width: 36rem;
+    height: 12rem;
+    opacity: .32;
+    animation-duration: 12s;
+    animation-delay: -4s;
+}
+.sdash-hero-stage .solar-hero-cloud-c {
+    top: 10%;
+    right: 10%;
+    left: auto;
+    width: 18rem;
+    height: 8rem;
+    opacity: .22;
+    animation-duration: 10s;
+    animation-delay: -7s;
+}
+.sdash-hero-stage .solar-hero-scene-high .solar-hero-cloud {
+    opacity: .14;
+}
+.sdash-hero-stage .solar-hero-scene-low .solar-hero-cloud {
+    opacity: .36;
+}
+.sdash-hero-stage .solar-hero-rain {
+    opacity: 0 !important;
+}
+.sdash-hero-stage .solar-hero-particles {
+    opacity: 1;
+    z-index: 2;
+}
+.sdash-hero-stage .solar-hero-particles span {
+    width: .28rem;
+    height: .28rem;
+    background: color-mix(in srgb, var(--scene-color, #ffc20a) 78%, white 22%);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--scene-color, #ffc20a) 70%, transparent);
+    animation: solarParticleFloat 4.8s ease-in-out infinite;
+}
+.sdash-hero-stage .solar-hero-particles span:nth-child(1) { left: 12%; bottom: 58%; animation-delay: 0s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(2) { left: 22%; bottom: 70%; animation-delay: -.8s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(3) { left: 31%; bottom: 48%; animation-delay: -1.6s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(4) { left: 42%; bottom: 64%; animation-delay: -2.1s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(5) { left: 52%; bottom: 54%; animation-delay: -.4s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(6) { left: 62%; bottom: 72%; animation-delay: -1.2s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(7) { left: 72%; bottom: 46%; animation-delay: -2.6s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(8) { left: 82%; bottom: 66%; animation-delay: -1.8s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(9) { left: 88%; bottom: 36%; animation-delay: -.9s; }
+.sdash-hero-stage .solar-hero-particles span:nth-child(10) { left: 18%; bottom: 34%; animation-delay: -2.9s; }
+.sdash-hero-stage .solar-hero-sun-glow {
+    z-index: 2;
+    animation: solarSoftPulse 3.2s ease-in-out infinite, solarSunDrift 9s ease-in-out infinite;
+}
+.sdash-hero-stage .solar-hero-sun-core {
+    z-index: 3;
+    animation: solarCorePulse 2.8s ease-in-out infinite, solarSunDrift 9s ease-in-out infinite;
+}
+@keyframes solarMistDrift {
+    0%, 100% { transform: translate3d(-2.2rem, .35rem, 0) scale(1); opacity: .24; }
+    50% { transform: translate3d(2.4rem, -.75rem, 0) scale(1.1); opacity: .52; }
+}
+@keyframes solarSoftPulse {
+    0%, 100% { opacity: .56; filter: blur(0); }
+    50% { opacity: 1; filter: blur(1px); }
+}
+@keyframes solarCorePulse {
+    0%, 100% { filter: saturate(1); box-shadow: 0 0 26px color-mix(in srgb, var(--scene-color, #ffc20a) 42%, transparent); }
+    50% { filter: saturate(1.18) brightness(1.08); box-shadow: 0 0 46px color-mix(in srgb, var(--scene-color, #ffc20a) 62%, transparent); }
+}
+@keyframes solarSunDrift {
+    0%, 100% { translate: 0 0; }
+    50% { translate: .75rem -.45rem; }
+}
+@keyframes solarCurveTrace {
+    0%, 100% { opacity: .72; transform: translateY(.16rem) scaleX(.965); }
+    50% { opacity: 1; transform: translateY(-.18rem) scaleX(1.015); }
+}
+@keyframes solarCurveGlow {
+    0%, 100% { opacity: .12; transform: translateY(.35rem) scaleY(.92); }
+    50% { opacity: .26; transform: translateY(-.15rem) scaleY(1.06); }
+}
+@keyframes solarSkySweep {
+    0%, 100% { transform: translate3d(-6%, 2%, 0) scale(1); opacity: .34; }
+    50% { transform: translate3d(8%, -3%, 0) scale(1.08); opacity: .72; }
+}
+@keyframes solarSkyBreath {
+    0%, 100% { opacity: .78; }
+    50% { opacity: 1; }
+}
+@keyframes solarParticleFloat {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(.72); opacity: .18; }
+    35% { opacity: .9; }
+    50% { transform: translate3d(.45rem, -1.6rem, 0) scale(1.08); opacity: .75; }
+    80% { opacity: .34; }
+}
 .sdash-hero-stage .solar-live-efficiency i::before {
     background: linear-gradient(90deg, color-mix(in srgb, var(--scene-color, #ffc20a) 42%, transparent), var(--scene-color, #ffc20a));
 }
