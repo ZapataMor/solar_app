@@ -18,6 +18,8 @@
     $aiSelectedPackItem     = collect($dashboard['executiveSummary']['recommendationPack'] ?? [])->firstWhere('key', $aiFocus);
     $weatherStationStats    = $weatherStationStats ?? [];
     $recentWeatherStationReadings = $recentWeatherStationReadings ?? collect();
+    $analysisClimateSource = $analysisClimateSource ?? 'nasa_power';
+    $analysisClimateRows = collect($analysisClimateRows ?? []);
 
     // Ambient Weather (safe defaults)
     $ambientWeatherStats    = $ambientWeatherStats ?? [];
@@ -33,6 +35,25 @@
     $numPanels     = $calculationResult?->estimated_panels ?? null;
     $installationCost = $calculationResult?->installation_cost_cop !== null ? (float) $calculationResult->installation_cost_cop : null;
     $paybackYears = $calculationResult?->payback_period_years !== null ? (float) $calculationResult->payback_period_years : null;
+    $monthlyConsumptionBase = (float) $solarProject->monthlyConsumption();
+    $annualConsumptionBase = (float) $solarProject->annualConsumption();
+    $monthlySavingsEstimated = $annualSavings !== null ? $annualSavings / 12 : null;
+    $monthlyBalanceEstimated = $monthlyGen !== null ? $monthlyGen - $monthlyConsumptionBase : null;
+    $annualBalanceEstimated = $annualGen !== null ? $annualGen - $annualConsumptionBase : null;
+    $investmentBaseCost = $installationCost ?? ($installedKwp !== null ? $installedKwp * 5000000 : null);
+    $paybackStatusText = $paybackYears === null
+        ? 'No es posible calcular la recuperacion de la inversion porque no hay ahorro anual estimado.'
+        : ($paybackYears <= 6
+            ? 'Retorno atractivo en el escenario actual.'
+            : ($paybackYears <= 10
+                ? 'Retorno moderado; revisa eficiencia y costos.'
+                : 'Retorno largo; conviene optimizar dimensionamiento o tarifa.'));
+    $ambientDailyHsp = !empty($ambientWeatherStats['averageRadiation'])
+        ? ((float) $ambientWeatherStats['averageRadiation'] * 24 / 1000)
+        : null;
+    $ambientContextText = $ambientDailyHsp !== null
+        ? 'Ambient Weather (rango del proyecto): ' . number_format($ambientDailyHsp, 2, ',', '.') . ' HSP/dia. Sin degradacion anual ni costos O&M.'
+        : 'Ambient Weather (rango del proyecto): sin lecturas suficientes para estimar HSP/dia.';
 
     $coverageTone  = $coverage === null ? 'warn' : ($coverage >= 100 ? 'success' : ($coverage >= 70 ? 'warn' : 'danger'));
     $coverageLabel = $coverage === null ? 'Pendiente' : number_format($coverage, 1, ',', '.') . '%';
@@ -116,18 +137,12 @@
         ? $fmt($calculationResult->usable_area_m2) . ' m²'
         : ($technicalParameter?->available_area_m2 ? $fmt($technicalParameter->available_area_m2) . ' m²' : 'Pendiente');
 
-    $tableRows = $recentWeatherStationReadings->sortByDesc('measured_at')->values()->map(fn ($r) => [
-        'fecha'       => $r->measured_at?->format('Y-m-d H:i') ?? 'N/A',
-        'radiacion'   => $r->radiationValue() !== null ? number_format((float) $r->radiationValue(), 2, '.', '') : null,
-        'uva'         => $r->uva !== null ? number_format((float) $r->uva, 3, '.', '') : null,
-        'uvb'         => $r->uvb !== null ? number_format((float) $r->uvb, 3, '.', '') : null,
-        'iuv'         => $r->uv_index !== null ? number_format((float) $r->uv_index, 3, '.', '') : null,
-        'temperature' => $r->temperature !== null ? number_format((float) $r->temperature, 2, '.', '') : null,
-        'humidity'    => $r->humidity !== null ? number_format((float) $r->humidity, 2, '.', '') : null,
-        'co2'         => $r->co2,
-        'pm25'        => $r->pm25 !== null ? number_format((float) $r->pm25, 2, '.', '') : null,
-        'pm10'        => $r->pm10 !== null ? number_format((float) $r->pm10, 2, '.', '') : null,
-    ])->all();
+    $analysisSourceLabel = match ($analysisClimateSource) {
+        'ambient' => 'Ambient Weather',
+        'local' => 'Centro meteorologico',
+        default => 'NASA POWER',
+    };
+    $tableRows = $analysisClimateRows->values()->all();
 
     $badgeClass = fn ($tone) => match ($tone) {
         'success' => 'sdash-badge--success',
@@ -823,10 +838,10 @@
                         🌡 Estacion
                     </button>
                 </form>
-                <form method="POST" action="{{ route('solar-projects.fetch-weather-data', $solarProject) }}">
+                <form method="POST" action="{{ route('solar-projects.calculate-nasa', $solarProject) }}">
                     @csrf
-                    <button class="sdash-btn sdash-btn--ghost" type="submit" title="Descargar datos NASA POWER">
-                        🛰 NASA
+                    <button class="sdash-btn sdash-btn--ghost" type="submit" title="Forzar calculo solo con NASA POWER">
+                        ☄️ Calcular NASA
                     </button>
                 </form>
 
@@ -953,33 +968,62 @@
         </div>
     </div>
 
-    <div class="sdash-card">
+    <div class="sdash-card" x-data="{ investmentScale: 'monthly' }">
         <div class="sdash-section-head">
             <div>
                 <h2 class="sdash-section-head__title">Recuperacion de la inversion</h2>
                 <p class="sdash-section-head__sub">Costo total de instalacion / Ahorro anual estimado</p>
             </div>
-        </div>
-        <div class="sdash-rec-grid" style="grid-template-columns:1fr;padding:.875rem 1.25rem;">
-            <div class="sdash-rec">
-                <p class="sdash-rec__label">Formula aplicada</p>
-                <p class="sdash-rec__text">Recuperacion = Costo total del sistema ÷ Ahorro anual generado.</p>
-            </div>
-            <div class="sdash-rec">
-                <p class="sdash-rec__label">Resultado</p>
-                @if ($paybackYears !== null)
-                    <p class="sdash-rec__text">
-                        Inversion estimada: {{ $installationCost !== null ? $fmtCop($installationCost) : 'N/A' }}.
-                        Ahorro anual estimado: {{ $annualSavings !== null ? $fmtCop($annualSavings) : 'N/A' }}.
-                        Tiempo aproximado de recuperacion: <strong>{{ $fmt($paybackYears, 2) }} anos</strong>.
-                    </p>
-                @else
-                    <p class="sdash-rec__text">
-                        No es posible calcular la recuperacion de la inversion porque no hay ahorro anual estimado.
-                    </p>
-                @endif
+            <div class="sdash-scale-tabs">
+                <button
+                    type="button"
+                    class="sdash-scale-tab"
+                    :class="{ 'is-active': investmentScale === 'monthly' }"
+                    @click="investmentScale = 'monthly'"
+                >Mensual</button>
+                <button
+                    type="button"
+                    class="sdash-scale-tab"
+                    :class="{ 'is-active': investmentScale === 'annual' }"
+                    @click="investmentScale = 'annual'"
+                >Anual</button>
             </div>
         </div>
+        <div class="sdash-kpis" style="padding-top:.5rem;">
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Capacidad instalada estimada</span>
+                <span class="sdash-kpi__value">{{ $installedKwp !== null ? $fmt($installedKwp, 2) . ' kWp' : '—' }}</span>
+                <span class="sdash-kpi__sub">Paneles estimados: {{ $numPanels ?? '—' }}</span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label" x-text="investmentScale === 'monthly' ? 'Generacion mensual estimada' : 'Generacion anual estimada'"></span>
+                <span class="sdash-kpi__value" x-text="investmentScale === 'monthly' ? '{{ $monthlyGen !== null ? $fmt($monthlyGen, 1) . ' kWh' : '—' }}' : '{{ $annualGen !== null ? $fmt($annualGen, 2) . ' kWh' : '—' }}'"></span>
+                <span class="sdash-kpi__sub" x-text="investmentScale === 'monthly' ? 'Equivalente anual: {{ $annualGen !== null ? $fmt($annualGen, 2) . ' kWh' : '—' }}' : 'Equivalente mensual: {{ $monthlyGen !== null ? $fmt($monthlyGen, 1) . ' kWh' : '—' }}'"></span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Cobertura estimada</span>
+                <span class="sdash-kpi__value">{{ $coverageLabel }}</span>
+                <span class="sdash-kpi__sub" x-text="investmentScale === 'monthly' ? 'Balance mensual: {{ $monthlyBalanceEstimated !== null ? $fmt($monthlyBalanceEstimated, 1) . ' kWh' : '—' }}' : 'Balance anual: {{ $annualBalanceEstimated !== null ? $fmt($annualBalanceEstimated, 2) . ' kWh' : '—' }}'"></span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Inversion estimada</span>
+                <span class="sdash-kpi__value">{{ $investmentBaseCost !== null ? $fmtCop($investmentBaseCost) : '—' }}</span>
+                <span class="sdash-kpi__sub">Base: 5.000.000 COP/kWp</span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label" x-text="investmentScale === 'monthly' ? 'Ahorro mensual estimado' : 'Ahorro anual estimado'"></span>
+                <span class="sdash-kpi__value" x-text="investmentScale === 'monthly' ? '{{ $monthlySavingsEstimated !== null ? $fmtCop($monthlySavingsEstimated) : '—' }}' : '{{ $annualSavings !== null ? $fmtCop($annualSavings) : '—' }}'"></span>
+                <span class="sdash-kpi__sub" x-text="investmentScale === 'monthly' ? 'Equivalente anual: {{ $annualSavings !== null ? $fmtCop($annualSavings) : '—' }}' : 'Equivalente mensual: {{ $monthlySavingsEstimated !== null ? $fmtCop($monthlySavingsEstimated) : '—' }}'"></span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Retorno de inversion</span>
+                <span class="sdash-kpi__value sdash-kpi__value--success">{{ $paybackYears !== null ? $fmt($paybackYears, 2) . ' anos' : 'N/A' }}</span>
+                <span class="sdash-kpi__sub">{{ $paybackStatusText }}</span>
+            </div>
+        </div>
+        <p style="font-size:.78rem;color:var(--solar-text-muted);padding:0 1.5rem 1.25rem;">
+            {{ $ambientContextText }}
+        </p>
     </div>
 
     {{-- ── 3. Charts + Operational summary ─────────────────── --}}
@@ -1174,7 +1218,7 @@
         <div class="sdash-section-head">
             <div>
                 <h2 class="sdash-section-head__title">Explorador de lecturas</h2>
-                <p class="sdash-section-head__sub">Registros del centro meteorologico · {{ count($tableRows) }} ultimas lecturas cargadas</p>
+                <p class="sdash-section-head__sub">Fuente de analisis: {{ $analysisSourceLabel }} · {{ count($tableRows) }} lecturas disponibles</p>
             </div>
             <button type="button" class="sdash-btn sdash-btn--ghost" @click="showModal = true">
                 📋 Ver tabla completa
@@ -1188,30 +1232,24 @@
                     <thead>
                         <tr>
                             <th>Fecha</th>
+                            <th>Fuente</th>
                             <th>Radiacion</th>
                             <th>Temp °C</th>
                             <th>Humedad %</th>
-                            <th>IUV</th>
-                            <th>UVA</th>
-                            <th>UVB</th>
-                            <th>CO₂</th>
-                            <th>PM2.5</th>
-                            <th>PM10</th>
+                            <th>Lluvia (mm)</th>
+                            <th>Viento (m/s)</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (array_slice($tableRows, 0, 5) as $row)
                             <tr>
                                 <td>{{ $row['fecha'] }}</td>
+                                <td>{{ $row['fuente'] ?? 'N/A' }}</td>
                                 <td>{{ $row['radiacion'] !== null ? $row['radiacion'] . ' W/m²' : 'N/A' }}</td>
                                 <td>{{ $row['temperature'] ?? 'N/A' }}</td>
                                 <td>{{ $row['humidity'] ?? 'N/A' }}</td>
-                                <td>{{ $row['iuv'] ?? 'N/A' }}</td>
-                                <td>{{ $row['uva'] ?? 'N/A' }}</td>
-                                <td>{{ $row['uvb'] ?? 'N/A' }}</td>
-                                <td>{{ $row['co2'] ?? 'N/A' }}</td>
-                                <td>{{ $row['pm25'] ?? 'N/A' }}</td>
-                                <td>{{ $row['pm10'] ?? 'N/A' }}</td>
+                                <td>{{ $row['rain'] ?? 'N/A' }}</td>
+                                <td>{{ $row['wind'] ?? 'N/A' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -1236,18 +1274,12 @@
         <div class="sdash-modal" @click.stop>
             <div class="sdash-modal__head">
                 <div>
-                    <h3 class="sdash-modal__title">Lecturas del centro meteorologico</h3>
+                    <h3 class="sdash-modal__title">Lecturas usadas en el analisis ({{ $analysisSourceLabel }})</h3>
                     <p style="font-size:.75rem;color:var(--solar-text-muted);margin:.15rem 0 0;">
-                        {{ count($tableRows) }} registros · Filtra por fecha
+                        {{ count($tableRows) }} registros
                     </p>
                 </div>
                 <div style="display:flex;align-items:center;gap:.5rem;">
-                    <input
-                        type="text"
-                        class="sdash-input"
-                        placeholder="Filtrar por fecha…"
-                        x-model="filter"
-                    />
                     <button type="button" class="sdash-btn sdash-btn--ghost" @click="showModal = false">✕ Cerrar</button>
                 </div>
             </div>
@@ -1259,35 +1291,26 @@
                         <thead>
                             <tr>
                                 <th>Fecha</th>
+                                <th>Fuente</th>
                                 <th>Radiacion (W/m²)</th>
                                 <th>Temp (°C)</th>
                                 <th>Humedad (%)</th>
-                                <th>IUV</th>
-                                <th>UVA</th>
-                                <th>UVB</th>
-                                <th>CO₂</th>
-                                <th>PM2.5</th>
-                                <th>PM10</th>
+                                <th>Lluvia (mm)</th>
+                                <th>Viento (m/s)</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <template
-                                x-for="row in {{ json_encode($tableRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}.filter(r => !filter || (r.fecha || '').toLowerCase().includes(filter.toLowerCase()))"
-                                :key="row.fecha + '-' + (row.co2 ?? 'na')"
-                            >
+                            @foreach ($tableRows as $row)
                                 <tr>
-                                    <td x-text="row.fecha"></td>
-                                    <td x-text="row.radiacion ?? 'N/A'"></td>
-                                    <td x-text="row.temperature ?? 'N/A'"></td>
-                                    <td x-text="row.humidity ?? 'N/A'"></td>
-                                    <td x-text="row.iuv ?? 'N/A'"></td>
-                                    <td x-text="row.uva ?? 'N/A'"></td>
-                                    <td x-text="row.uvb ?? 'N/A'"></td>
-                                    <td x-text="row.co2 ?? 'N/A'"></td>
-                                    <td x-text="row.pm25 ?? 'N/A'"></td>
-                                    <td x-text="row.pm10 ?? 'N/A'"></td>
+                                    <td>{{ $row['fecha'] }}</td>
+                                    <td>{{ $row['fuente'] ?? 'N/A' }}</td>
+                                    <td>{{ $row['radiacion'] ?? 'N/A' }}</td>
+                                    <td>{{ $row['temperature'] ?? 'N/A' }}</td>
+                                    <td>{{ $row['humidity'] ?? 'N/A' }}</td>
+                                    <td>{{ $row['rain'] ?? 'N/A' }}</td>
+                                    <td>{{ $row['wind'] ?? 'N/A' }}</td>
                                 </tr>
-            </template>
+                            @endforeach
                         </tbody>
                     </table>
                 @endif

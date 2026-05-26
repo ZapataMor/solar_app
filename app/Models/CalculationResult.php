@@ -22,6 +22,7 @@ class CalculationResult extends Model
         'estimated_annual_savings_cop',
         'installation_cost_cop',
         'payback_period_years',
+        'climate_source',
     ];
 
     protected function casts(): array
@@ -38,6 +39,7 @@ class CalculationResult extends Model
             'estimated_annual_savings_cop' => 'decimal:4',
             'installation_cost_cop' => 'decimal:4',
             'payback_period_years' => 'decimal:4',
+            'climate_source' => 'string',
         ];
     }
 

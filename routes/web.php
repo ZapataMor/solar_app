@@ -20,6 +20,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('solar-projects.calculate');
     Route::post('solar-projects/{solarProject}/calculate-weather-station', [SolarProjectController::class, 'calculateWithWeatherStation'])
         ->name('solar-projects.calculate-weather-station');
+    Route::post('solar-projects/{solarProject}/calculate-nasa', [SolarProjectController::class, 'calculateWithNasaPower'])
+        ->name('solar-projects.calculate-nasa');
     Route::post('solar-projects/{solarProject}/fetch-weather-data', [SolarProjectController::class, 'fetchWeatherData'])
         ->name('solar-projects.fetch-weather-data');
     Route::post('solar-projects/{solarProject}/fetch-weather-station-data', [SolarProjectController::class, 'fetchWeatherStationData'])

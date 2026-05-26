@@ -74,11 +74,21 @@ class ProjectDashboardService
             ? $this->ambientWeatherAggregationService->dailyRows($ambientReadings)
             : collect();
 
-        ['rows' => $dailyClimateRows] = $this->climateSourceFallbackService->selectDailyClimateRows(
+        ['rows' => $fallbackClimateRows, 'source' => $fallbackClimateSource] = $this->climateSourceFallbackService->selectDailyClimateRows(
             $projectWeatherData,
             $localDailyRows,
             $ambientDailyRows,
         );
+        $preferredClimateSource = (string) ($calculationResult?->climate_source ?? '');
+        [$dailyClimateRows, $analysisClimateSource] = $this->resolveAnalysisRowsBySource(
+            $preferredClimateSource,
+            $projectWeatherData,
+            $localDailyRows,
+            $ambientDailyRows,
+            $fallbackClimateRows,
+            $fallbackClimateSource,
+        );
+        $analysisClimateRows = $this->normalizeAnalysisClimateRows($dailyClimateRows, $analysisClimateSource);
         $solarRecommendations = $this->solarRecommendationService->recommend(
             $weatherAnalysis,
             $energyAnalysis,
@@ -172,6 +182,8 @@ class ProjectDashboardService
             ],
             'weatherStationChartData' => $this->weatherStationAggregationService->chartData($weatherStationReadings),
             'timeScales' => $timeScales,
+            'analysisClimateSource' => $analysisClimateSource,
+            'analysisClimateRows' => $analysisClimateRows,
             // ---- Ambient Weather additions (non-breaking — new keys only) ----
             'activeClimateSource' => $activeClimateSource,
             'ambientWeatherStats' => $ambientStats,
@@ -183,6 +195,72 @@ class ProjectDashboardService
             // Comparison: latest NASA vs latest Ambient radiation reading
             'climateSourceComparison' => $this->buildClimateSourceComparison($projectWeatherData, $ambientStats),
         ];
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $rows
+     * @return array<int, array<string, string|null>>
+     */
+    private function normalizeAnalysisClimateRows(Collection $rows, string $source): array
+    {
+        $sourceLabel = match ($source) {
+            ClimateSourceFallbackService::SOURCE_AMBIENT => 'Ambient Weather',
+            ClimateSourceFallbackService::SOURCE_LOCAL => 'Centro meteorologico',
+            default => 'NASA POWER',
+        };
+
+        return $rows
+            ->sortByDesc(fn ($row) => data_get($row, 'date_time'))
+            ->take(120)
+            ->values()
+            ->map(function ($row) use ($sourceLabel): array {
+                $date = data_get($row, 'date_time');
+                $radiation = data_get($row, 'allsky_sfc_sw_dwn');
+                $temperature = data_get($row, 't2m');
+                $humidity = data_get($row, 'rh2m');
+                $rain = data_get($row, 'prectotcorr');
+                $wind = data_get($row, 'ws10m');
+
+                return [
+                    'fecha' => $date ? Carbon::parse((string) $date)->format('Y-m-d H:i') : 'N/A',
+                    'fuente' => $sourceLabel,
+                    'radiacion' => $radiation !== null ? number_format((float) $radiation, 2, '.', '') : null,
+                    'temperature' => $temperature !== null ? number_format((float) $temperature, 2, '.', '') : null,
+                    'humidity' => $humidity !== null ? number_format((float) $humidity, 2, '.', '') : null,
+                    'rain' => $rain !== null ? number_format((float) $rain, 2, '.', '') : null,
+                    'wind' => $wind !== null ? number_format((float) $wind, 2, '.', '') : null,
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $nasaRows
+     * @param  Collection<int, mixed>  $localRows
+     * @param  Collection<int, mixed>  $ambientRows
+     * @param  Collection<int, mixed>  $fallbackRows
+     * @return array{0: Collection<int, mixed>, 1: string}
+     */
+    private function resolveAnalysisRowsBySource(
+        string $preferredSource,
+        Collection $nasaRows,
+        Collection $localRows,
+        Collection $ambientRows,
+        Collection $fallbackRows,
+        string $fallbackSource,
+    ): array {
+        $preferredRows = match ($preferredSource) {
+            ClimateSourceFallbackService::SOURCE_AMBIENT => $ambientRows,
+            ClimateSourceFallbackService::SOURCE_LOCAL => $localRows,
+            ClimateSourceFallbackService::SOURCE_NASA => $nasaRows,
+            default => collect(),
+        };
+
+        if ($preferredRows->isNotEmpty()) {
+            return [$preferredRows, $preferredSource];
+        }
+
+        return [$fallbackRows, $fallbackSource];
     }
 
     /**

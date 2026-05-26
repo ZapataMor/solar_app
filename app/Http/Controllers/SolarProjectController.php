@@ -298,6 +298,7 @@ class SolarProjectController extends Controller
                     $solarCalculationService->calculate(
                         $solarProject,
                         $solarCalculationService->weatherDataFromRows($ambientDailyRows),
+                        'ambient',
                     );
                 } catch (Throwable $exception) {
                     report($exception);
@@ -332,6 +333,7 @@ class SolarProjectController extends Controller
                     $solarCalculationService->calculate(
                         $solarProject,
                         $solarCalculationService->weatherDataFromRows($stationDailyRows),
+                        'local',
                     );
                 } catch (Throwable $exception) {
                     report($exception);
@@ -358,7 +360,7 @@ class SolarProjectController extends Controller
         }
 
         try {
-            $solarCalculationService->calculate($solarProject);
+            $solarCalculationService->calculate($solarProject, null, 'nasa_power');
         } catch (Throwable $exception) {
             report($exception);
 
@@ -401,6 +403,7 @@ class SolarProjectController extends Controller
             $solarCalculationService->calculate(
                 $solarProject,
                 $solarCalculationService->weatherDataFromRows($dailyReadings),
+                'local',
             );
         } catch (Throwable $exception) {
             report($exception);
@@ -441,6 +444,7 @@ class SolarProjectController extends Controller
             $solarCalculationService->calculate(
                 $solarProject,
                 $solarCalculationService->weatherDataFromRows($dailyReadings),
+                'ambient',
             );
         } catch (Throwable $exception) {
             report($exception);
@@ -451,6 +455,39 @@ class SolarProjectController extends Controller
         }
 
         return back()->with('status', 'Calculos solares ejecutados correctamente con datos de la estacion Ambient Weather.');
+    }
+
+    public function calculateWithNasaPower(
+        Request $request,
+        SolarProject $solarProject,
+        SolarCalculationService $solarCalculationService,
+        NasaWeatherDataService $nasaWeatherDataService,
+    ): RedirectResponse {
+        $this->authorizeOwner($request, $solarProject);
+
+        if ($solarProject->technicalParameter()->doesntExist()) {
+            return back()->withErrors([
+                'solar_calculation' => 'No es posible ejecutar calculos solares sin parametros tecnicos.',
+            ]);
+        }
+
+        if ($nasaWeatherDataService->countForProject($solarProject) === 0) {
+            return back()->withErrors([
+                'solar_calculation' => 'No hay datos NASA POWER en el rango del proyecto. Sincroniza primero con el boton NASA.',
+            ]);
+        }
+
+        try {
+            $solarCalculationService->calculate($solarProject, null, 'nasa_power');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'solar_calculation' => 'No fue posible ejecutar los calculos solares con NASA POWER. Revise los datos del proyecto e intente nuevamente.',
+            ]);
+        }
+
+        return back()->with('status', 'Calculos solares ejecutados correctamente con datos NASA POWER.');
     }
 
     /**

@@ -16,7 +16,11 @@ class SolarCalculationService
      * NASA POWER daily ALLSKY_SFC_SW_DWN is stored as W/m2.
      * Multiplying by 24 and dividing by 1000 gives daily HSP in kWh/m2/day.
      */
-    public function calculate(SolarProject $solarProject, ?Collection $weatherData = null): SolarProject
+    public function calculate(
+        SolarProject $solarProject,
+        ?Collection $weatherData = null,
+        string $climateSource = 'nasa_power'
+    ): SolarProject
     {
         $solarProject->loadMissing('technicalParameter');
 
@@ -63,6 +67,7 @@ class SolarCalculationService
             $estimatedAnnualSavings,
             $installationCost,
             $paybackPeriodYears,
+            $climateSource,
         ) {
             $solarProject->calculationResult()->updateOrCreate(
                 ['solar_project_id' => $solarProject->id],
@@ -78,6 +83,7 @@ class SolarCalculationService
                     'estimated_annual_savings_cop' => $estimatedAnnualSavings,
                     'installation_cost_cop' => $installationCost,
                     'payback_period_years' => $paybackPeriodYears,
+                    'climate_source' => $climateSource,
                 ],
             );
 
