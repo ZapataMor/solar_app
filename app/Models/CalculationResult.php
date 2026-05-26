@@ -20,6 +20,8 @@ class CalculationResult extends Model
         'annual_consumption_kwh',
         'coverage_percentage',
         'estimated_annual_savings_cop',
+        'installation_cost_cop',
+        'payback_period_years',
     ];
 
     protected function casts(): array
@@ -34,6 +36,8 @@ class CalculationResult extends Model
             'annual_consumption_kwh' => 'decimal:4',
             'coverage_percentage' => 'decimal:4',
             'estimated_annual_savings_cop' => 'decimal:4',
+            'installation_cost_cop' => 'decimal:4',
+            'payback_period_years' => 'decimal:4',
         ];
     }
 

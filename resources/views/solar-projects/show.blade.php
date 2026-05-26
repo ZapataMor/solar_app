@@ -31,6 +31,8 @@
     $monthlyGen    = $calculationResult ? (float) $calculationResult->estimated_monthly_generation_kwh : null;
     $installedKwp  = $calculationResult?->installed_capacity_kwp ? (float) $calculationResult->installed_capacity_kwp : null;
     $numPanels     = $calculationResult?->estimated_panels ?? null;
+    $installationCost = $calculationResult?->installation_cost_cop !== null ? (float) $calculationResult->installation_cost_cop : null;
+    $paybackYears = $calculationResult?->payback_period_years !== null ? (float) $calculationResult->payback_period_years : null;
 
     $coverageTone  = $coverage === null ? 'warn' : ($coverage >= 100 ? 'success' : ($coverage >= 70 ? 'warn' : 'danger'));
     $coverageLabel = $coverage === null ? 'Pendiente' : number_format($coverage, 1, ',', '.') . '%';
@@ -84,11 +86,6 @@
         ? $installedKwp * ($solarLevel / 100)
         : null;
 
-    $heroSceneConfig = [
-        'high'   => ['label' => 'Radiacion excelente',  'status' => 'Despejado',            'color' => 'var(--solar-success)',  'icon' => '☀️',  'efficiency' => 94],
-        'medium' => ['label' => 'Radiacion moderada',   'status' => 'Parcialmente nublado', 'color' => 'var(--solar-warning)', 'icon' => '⛅', 'efficiency' => 58],
-        'low'    => ['label' => 'Radiacion baja',        'status' => 'Nublado',              'color' => 'var(--solar-danger)',   'icon' => '☁️',  'efficiency' => 24],
-    ];
     $heroSceneConfig = [
         'high'    => ['label' => 'Radiacion excelente', 'sublabel' => 'Produccion optima', 'status' => 'Irradiancia alta', 'state' => 'Sistema estable', 'color' => '#ffd05c', 'chart' => '#ffb703', 'icon' => 'A', 'efficiency' => $solarLevel],
         'medium'  => ['label' => 'Radiacion moderada', 'sublabel' => 'Produccion estable', 'status' => 'Irradiancia media', 'state' => 'Produccion variable', 'color' => '#ffc20a', 'chart' => '#ff9f0a', 'icon' => 'M', 'efficiency' => $solarLevel],
@@ -940,6 +937,47 @@
                         {{ $latestUvIndex >= 8 ? 'Muy alto' : ($latestUvIndex >= 6 ? 'Alto' : ($latestUvIndex >= 3 ? 'Moderado' : 'Bajo')) }}
                     @else Sin datos @endif
                 </span>
+            </div>
+
+            {{-- Recuperacion de inversion --}}
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__icon">📈</span>
+                <span class="sdash-kpi__value sdash-kpi__value--success">
+                    {{ $paybackYears !== null ? $fmt($paybackYears, 1) . ' anos' : 'N/A' }}
+                </span>
+                <span class="sdash-kpi__label">Recuperacion de inversion</span>
+                <span class="sdash-kpi__sub">
+                    {{ $installationCost !== null ? 'Costo: ' . $fmtCop($installationCost) : 'Sin costo calculado' }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="sdash-card">
+        <div class="sdash-section-head">
+            <div>
+                <h2 class="sdash-section-head__title">Recuperacion de la inversion</h2>
+                <p class="sdash-section-head__sub">Costo total de instalacion / Ahorro anual estimado</p>
+            </div>
+        </div>
+        <div class="sdash-rec-grid" style="grid-template-columns:1fr;padding:.875rem 1.25rem;">
+            <div class="sdash-rec">
+                <p class="sdash-rec__label">Formula aplicada</p>
+                <p class="sdash-rec__text">Recuperacion = Costo total del sistema ÷ Ahorro anual generado.</p>
+            </div>
+            <div class="sdash-rec">
+                <p class="sdash-rec__label">Resultado</p>
+                @if ($paybackYears !== null)
+                    <p class="sdash-rec__text">
+                        Inversion estimada: {{ $installationCost !== null ? $fmtCop($installationCost) : 'N/A' }}.
+                        Ahorro anual estimado: {{ $annualSavings !== null ? $fmtCop($annualSavings) : 'N/A' }}.
+                        Tiempo aproximado de recuperacion: <strong>{{ $fmt($paybackYears, 2) }} anos</strong>.
+                    </p>
+                @else
+                    <p class="sdash-rec__text">
+                        No es posible calcular la recuperacion de la inversion porque no hay ahorro anual estimado.
+                    </p>
+                @endif
             </div>
         </div>
     </div>

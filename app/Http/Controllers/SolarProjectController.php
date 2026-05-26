@@ -13,6 +13,8 @@ use App\Services\SolarCalculationService;
 use App\Services\AmbientWeatherAggregationService;
 use App\Services\WeatherStationAggregationService;
 use App\Services\WeatherStationImportService;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +115,47 @@ class SolarProjectController extends Controller
         $solarProject->load('technicalParameter');
 
         return view('solar-projects.edit', compact('solarProject'));
+    }
+
+    public function ambientSimulatorContext(
+        Request $request,
+        AmbientWeatherAggregationService $ambientWeatherAggregationService,
+    ): JsonResponse {
+        $validated = $request->validate([
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        $start = Carbon::parse((string) $validated['start_date'])->startOfDay();
+        $end = Carbon::parse((string) $validated['end_date'])->endOfDay();
+
+        $readings = $ambientWeatherAggregationService->latestReadings(5000)
+            ->filter(fn ($r) => $r->recorded_at !== null && $r->recorded_at->betweenIncluded($start, $end))
+            ->values();
+
+        $dailyRows = $ambientWeatherAggregationService->dailyRows($readings);
+
+        if ($dailyRows->isNotEmpty()) {
+            $avgDailyHsp = (float) $dailyRows->avg(fn (array $row) => (((float) $row['allsky_sfc_sw_dwn']) * 24) / 1000);
+
+            return response()->json([
+                'source' => 'ambient_range',
+                'avg_daily_hsp' => round($avgDailyHsp, 4),
+                'days' => $dailyRows->count(),
+            ]);
+        }
+
+        $fallbackReadings = $ambientWeatherAggregationService->latestReadings(3000);
+        $fallbackRows = $ambientWeatherAggregationService->dailyRows($fallbackReadings);
+        $fallbackDailyHsp = $fallbackRows->isNotEmpty()
+            ? (float) $fallbackRows->avg(fn (array $row) => (((float) $row['allsky_sfc_sw_dwn']) * 24) / 1000)
+            : null;
+
+        return response()->json([
+            'source' => $fallbackDailyHsp !== null ? 'ambient_recent_fallback' : 'default_fallback',
+            'avg_daily_hsp' => $fallbackDailyHsp !== null ? round($fallbackDailyHsp, 4) : null,
+            'days' => $fallbackRows->count(),
+        ]);
     }
 
     public function update(Request $request, SolarProject $solarProject): RedirectResponse

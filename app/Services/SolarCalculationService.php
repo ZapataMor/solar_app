@@ -11,6 +11,7 @@ use stdClass;
 
 class SolarCalculationService
 {
+    private const INSTALLATION_COST_PER_KWP_COP = 5000000;
     /**
      * NASA POWER daily ALLSKY_SFC_SW_DWN is stored as W/m2.
      * Multiplying by 24 and dividing by 1000 gives daily HSP in kWh/m2/day.
@@ -45,6 +46,9 @@ class SolarCalculationService
         $estimatedAnnualGeneration = $estimatedDailyGeneration * $targetAnnualDays;
         $estimatedMonthlyGeneration = $estimatedAnnualGeneration / 12;
         $consumptionScales = $this->consumptionScales($solarProject);
+        $estimatedAnnualSavings = $this->calculateSavings($estimatedAnnualGeneration, (float) $solarProject->energy_rate_cop_kwh);
+        $installationCost = $this->calculateInstallationCost($installedCapacityKwp);
+        $paybackPeriodYears = $this->calculatePaybackPeriodYears($installationCost, $estimatedAnnualSavings);
 
         DB::transaction(function () use (
             $solarProject,
@@ -56,6 +60,9 @@ class SolarCalculationService
             $estimatedMonthlyGeneration,
             $estimatedAnnualGeneration,
             $consumptionScales,
+            $estimatedAnnualSavings,
+            $installationCost,
+            $paybackPeriodYears,
         ) {
             $solarProject->calculationResult()->updateOrCreate(
                 ['solar_project_id' => $solarProject->id],
@@ -68,7 +75,9 @@ class SolarCalculationService
                     'estimated_annual_generation_kwh' => $estimatedAnnualGeneration,
                     'annual_consumption_kwh' => $consumptionScales['annual'],
                     'coverage_percentage' => $this->calculateCoveragePercentage($estimatedAnnualGeneration, $consumptionScales['annual']),
-                    'estimated_annual_savings_cop' => $this->calculateSavings($estimatedAnnualGeneration, (float) $solarProject->energy_rate_cop_kwh),
+                    'estimated_annual_savings_cop' => $estimatedAnnualSavings,
+                    'installation_cost_cop' => $installationCost,
+                    'payback_period_years' => $paybackPeriodYears,
                 ],
             );
 
@@ -131,6 +140,20 @@ class SolarCalculationService
     public function calculateSavings(float $generatedEnergyKwh, float $energyRateCopKwh): float
     {
         return $generatedEnergyKwh * $energyRateCopKwh;
+    }
+
+    public function calculateInstallationCost(float $installedCapacityKwp): float
+    {
+        return $installedCapacityKwp * self::INSTALLATION_COST_PER_KWP_COP;
+    }
+
+    public function calculatePaybackPeriodYears(float $installationCostCop, float $annualSavingsCop): ?float
+    {
+        if ($annualSavingsCop <= 0) {
+            return null;
+        }
+
+        return $installationCostCop / $annualSavingsCop;
     }
 
     public function calculateCoveragePercentage(float $generationKwh, float $consumptionKwh): float
