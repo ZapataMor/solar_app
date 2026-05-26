@@ -173,6 +173,8 @@
         'local' => 'Centro meteorologico',
         default => 'NASA POWER',
     };
+    $showWeatherStationRadiationChart = $analysisClimateSource === 'local'
+        && (($weatherStationStats['total'] ?? 0) > 0);
     $tableRows = $analysisClimateRows->values()->all();
 
     $badgeClass = fn ($tone) => match ($tone) {
@@ -2006,7 +2008,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                 </div>
             </div>
 
-            @if (($weatherStationStats['total'] ?? 0) > 0)
+            @if ($showWeatherStationRadiationChart)
                 <div class="sdash-divider"></div>
                 <div class="sdash-section-head" style="border-bottom:none;padding-top:.875rem;padding-bottom:.5rem;">
                     <div>
