@@ -22,6 +22,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('solar-projects.fetch-weather-data');
     Route::post('solar-projects/{solarProject}/fetch-weather-station-data', [SolarProjectController::class, 'fetchWeatherStationData'])
         ->name('solar-projects.fetch-weather-station-data');
+    Route::post('solar-projects/{solarProject}/calculate-ambient-weather', [SolarProjectController::class, 'calculateWithAmbientWeather'])
+        ->name('solar-projects.calculate-ambient-weather');
 
     Route::get('api-data', ApiDataController::class)->name('api-data.index');
     Route::post('api-data/fetch-nasa-data', [ApiDataController::class, 'fetchNasaData'])
