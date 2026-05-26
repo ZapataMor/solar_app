@@ -1165,51 +1165,6 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
         </div>
     @endif
 
-    <div class="sdash-card">
-        <div class="sdash-section-head">
-            <div>
-                <h2 class="sdash-section-head__title">Estimacion de costo de instalacion</h2>
-                <p class="sdash-section-head__sub">Precio historico usado al guardar esta cotizacion.</p>
-            </div>
-            <span class="sdash-badge sdash-badge--warn">COP</span>
-        </div>
-        <div class="sdash-kpis">
-            <div class="sdash-kpi">
-                <span class="sdash-kpi__label">Municipio</span>
-                <span class="sdash-kpi__value">{{ $solarProject->municipality?->name ?? 'Pendiente' }}</span>
-                <span class="sdash-kpi__sub">{{ $solarProject->municipality?->zone ?? $solarProject->location_name }}</span>
-            </div>
-            <div class="sdash-kpi">
-                <span class="sdash-kpi__label">Tipo de ubicacion</span>
-                <span class="sdash-kpi__value">{{ $locationTypeLabels[$solarProject->location_type] ?? 'Pendiente' }}</span>
-                <span class="sdash-kpi__sub">Factor logistico aplicado</span>
-            </div>
-            <div class="sdash-kpi">
-                <span class="sdash-kpi__label">Potencia requerida</span>
-                <span class="sdash-kpi__value">{{ $solarProject->required_power_kw !== null ? $fmt($solarProject->required_power_kw) . ' kW' : 'Pendiente' }}</span>
-                <span class="sdash-kpi__sub">Sistema dimensionado para cotizacion</span>
-            </div>
-            <div class="sdash-kpi">
-                <span class="sdash-kpi__label">Precio base por kW</span>
-                <span class="sdash-kpi__value">{{ $solarProject->base_price_per_kw !== null ? $fmtCop($solarProject->base_price_per_kw) : 'Pendiente' }}</span>
-                <span class="sdash-kpi__sub">Promedio municipal</span>
-            </div>
-            <div class="sdash-kpi">
-                <span class="sdash-kpi__label">Precio final por kW</span>
-                <span class="sdash-kpi__value">{{ $solarProject->final_price_per_kw_used !== null ? $fmtCop($solarProject->final_price_per_kw_used) : 'Pendiente' }}</span>
-                <span class="sdash-kpi__sub">Factor: {{ $solarProject->logistic_factor_used !== null ? number_format((float) $solarProject->logistic_factor_used, 2, ',', '.') : 'N/A' }}</span>
-            </div>
-            <div class="sdash-kpi">
-                <span class="sdash-kpi__label">Costo estimado</span>
-                <span class="sdash-kpi__value sdash-kpi__value--accent">{{ $solarProject->estimated_installation_cost !== null ? $fmtCop($solarProject->estimated_installation_cost) : 'Pendiente' }}</span>
-                <span class="sdash-kpi__sub">Snapshot de la cotizacion</span>
-            </div>
-        </div>
-        <p style="font-size:.78rem;color:var(--solar-text-muted);padding:0 1.5rem 1.25rem;line-height:1.55;">
-            Este valor corresponde a una estimacion preliminar calculada con base en la potencia requerida, el precio promedio por kW instalado y el factor logistico asociado a la ubicacion seleccionada. El valor final puede variar segun visita tecnica, tipo de techo, distancia, transporte, baterias, estructura, protecciones electricas, certificacion RETIE y condiciones particulares del sitio.
-        </p>
-    </div>
-
     {{-- ── 1. Project Header ───────────────────────────────── --}}
     <div class="sdash-card">
         <div class="sdash-hero-stage">
@@ -1500,6 +1455,51 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                 </span>
             </div>
         </div>
+    </div>
+
+    <div class="sdash-card">
+        <div class="sdash-section-head">
+            <div>
+                <h2 class="sdash-section-head__title">Estimacion de costo de instalacion</h2>
+                <p class="sdash-section-head__sub">Precio historico usado al guardar esta cotizacion.</p>
+            </div>
+            <span class="sdash-badge sdash-badge--warn">COP</span>
+        </div>
+        <div class="sdash-kpis">
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Municipio</span>
+                <span class="sdash-kpi__value">{{ $solarProject->municipality?->name ?? 'Pendiente' }}</span>
+                <span class="sdash-kpi__sub">{{ $solarProject->municipality?->zone ?? $solarProject->location_name }}</span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Tipo de ubicacion</span>
+                <span class="sdash-kpi__value">{{ $locationTypeLabels[$solarProject->location_type] ?? 'Pendiente' }}</span>
+                <span class="sdash-kpi__sub">Factor logistico aplicado</span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Potencia requerida</span>
+                <span class="sdash-kpi__value">{{ $solarProject->required_power_kw !== null ? $fmt($solarProject->required_power_kw) . ' kW' : 'Pendiente' }}</span>
+                <span class="sdash-kpi__sub">Sistema dimensionado para cotizacion</span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Precio base por kW</span>
+                <span class="sdash-kpi__value">{{ $solarProject->base_price_per_kw !== null ? $fmtCop($solarProject->base_price_per_kw) : 'Pendiente' }}</span>
+                <span class="sdash-kpi__sub">Promedio municipal</span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Precio final por kW</span>
+                <span class="sdash-kpi__value">{{ $solarProject->final_price_per_kw_used !== null ? $fmtCop($solarProject->final_price_per_kw_used) : 'Pendiente' }}</span>
+                <span class="sdash-kpi__sub">Factor: {{ $solarProject->logistic_factor_used !== null ? number_format((float) $solarProject->logistic_factor_used, 2, ',', '.') : 'N/A' }}</span>
+            </div>
+            <div class="sdash-kpi">
+                <span class="sdash-kpi__label">Costo estimado</span>
+                <span class="sdash-kpi__value sdash-kpi__value--accent">{{ $solarProject->estimated_installation_cost !== null ? $fmtCop($solarProject->estimated_installation_cost) : 'Pendiente' }}</span>
+                <span class="sdash-kpi__sub">Snapshot de la cotizacion</span>
+            </div>
+        </div>
+        <p style="font-size:.78rem;color:var(--solar-text-muted);padding:0 1.5rem 1.25rem;line-height:1.55;">
+            Este valor corresponde a una estimacion preliminar calculada con base en la potencia requerida, el precio promedio por kW instalado y el factor logistico asociado a la ubicacion seleccionada. El valor final puede variar segun visita tecnica, tipo de techo, distancia, transporte, baterias, estructura, protecciones electricas, certificacion RETIE y condiciones particulares del sitio.
+        </p>
     </div>
 
     <div class="sdash-card" x-data="{ investmentScale: 'monthly' }">
