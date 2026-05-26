@@ -30,8 +30,8 @@
             </flux:sidebar.header>
 
             <div class="solar-sidebar-intro">
-                <p>Riohacha Solar Intelligence</p>
-                <p>Analitica, radiacion, ahorro y operaciones en una capa visual coherente con el territorio.</p>
+                <p>Natal-IA</p>
+                <p>Núcleo de Análisis Tecnológico para el Aprovechamiento de la Luz Solar mediante IA.</p>
             </div>
 
             <flux:sidebar.nav>
