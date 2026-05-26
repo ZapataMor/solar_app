@@ -213,9 +213,9 @@
 
         <section class="solar-project-context">
             <div class="solar-project-context__copy">
-                <p class="solar-kicker">Dashboard solar operativo</p>
+              
                 <h1 class="solar-title">{{ $solarProject->name }}</h1>
-                <p class="solar-subtitle">{{ $solarProject->location_name }} - Actualizado {{ $solarProject->updated_at?->format('d/m/Y H:i') }}</p>
+                <p class="solar-subtitle">{{ $solarProject->location_name }}</p>
                 <p class="solar-project-context__description">{{ $solarProject->description ?: 'Proyecto sin descripcion.' }}</p>
 
                 <div class="solar-project-context__badges">
