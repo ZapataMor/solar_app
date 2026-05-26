@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -55,7 +56,7 @@ class AmbientWeatherService
         $ttl = $this->cacheTtl();
 
         return Cache::remember($cacheKey, $ttl, function (): Collection {
-            $response = Http::timeout($this->timeout())
+            $response = $this->http()
                 ->retry(2, 1000, fn (Throwable $e) => ! $this->isRateLimitException($e))
                 ->get($this->endpoint('/devices'), $this->buildQueryParams());
 
@@ -92,7 +93,7 @@ class AmbientWeatherService
         $ttl = $this->cacheTtl();
 
         return Cache::remember($cacheKey, $ttl, function () use ($macAddress): ?array {
-            $response = Http::timeout($this->timeout())
+            $response = $this->http()
                 ->retry(2, 1000, fn (Throwable $e) => ! $this->isRateLimitException($e))
                 ->get(
                     $this->endpoint("/devices/{$macAddress}"),
@@ -145,7 +146,7 @@ class AmbientWeatherService
 
         $extra = ['limit' => min(max(1, $limit), 288), 'endDate' => $endEpochMs];
 
-        $response = Http::timeout($this->timeout())
+        $response = $this->http()
             ->retry(2, 1000, fn (Throwable $e) => ! $this->isRateLimitException($e))
             ->get(
                 $this->endpoint("/devices/{$macAddress}"),
@@ -262,6 +263,24 @@ class AmbientWeatherService
     private function timeout(): int
     {
         return (int) config('ambient.request_timeout', 20);
+    }
+
+    private function http(): PendingRequest
+    {
+        return Http::timeout($this->timeout())->withOptions([
+            'verify' => $this->verifyOption(),
+        ]);
+    }
+
+    private function verifyOption(): bool|string
+    {
+        if (! (bool) config('ambient.verify_ssl', true)) {
+            return false;
+        }
+
+        $caBundle = (string) config('ambient.ca_bundle', '');
+
+        return $caBundle !== '' && is_file($caBundle) ? $caBundle : true;
     }
 
     private function cacheTtl(): \DateInterval

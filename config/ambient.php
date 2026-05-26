@@ -32,6 +32,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | TLS Verification
+    |--------------------------------------------------------------------------
+    |
+    | Windows PHP/cURL installs often do not ship with a configured CA bundle.
+    | Keep SSL verification enabled and point AMBIENT_CA_BUNDLE to cacert.pem
+    | when curl.cainfo / openssl.cafile are not configured globally.
+    |
+    */
+
+    'verify_ssl' => (bool) env('AMBIENT_VERIFY_SSL', true),
+
+    'ca_bundle' => env('AMBIENT_CA_BUNDLE', storage_path('app/certs/cacert.pem')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Freshness Threshold
     |--------------------------------------------------------------------------
     |
