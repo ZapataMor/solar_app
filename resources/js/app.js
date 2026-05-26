@@ -807,10 +807,130 @@ const upsertWeatherStationRealtimeChart = (rows) => {
     updateUvIndexIndicator(rows);
 };
 
+const upsertAmbientRealtimeChart = (rows) => {
+    const canvas = document.getElementById('ambient-realtime-chart');
+
+    if (!canvas) {
+        return;
+    }
+
+    const solarColors = getSolarChartColors();
+    const labels     = rows.map((row) => row.recorded_at ?? 'N/A');
+    const radiation  = rows.map((row) => normalizeChartNumber(row.radiation));
+    const temperature = rows.map((row) => normalizeChartNumber(row.temperature));
+    const uvIndex    = rows.map((row) => normalizeChartNumber(row.uv_index));
+
+    const existingChart = activeSolarCharts.get('ambient-realtime-chart');
+
+    if (existingChart) {
+        existingChart.data.labels              = labels;
+        existingChart.data.datasets[0].data    = radiation;
+        existingChart.data.datasets[1].data    = temperature;
+        existingChart.data.datasets[2].data    = uvIndex;
+        existingChart.update('none');
+        return;
+    }
+
+    createChart('ambient-realtime-chart', {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Radiacion solar (W/m²)',
+                    data: radiation,
+                    yAxisID: 'radiation',
+                    backgroundColor: `${solarColors.gold}24`,
+                    borderColor: solarColors.gold,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.35,
+                    pointBackgroundColor: solarColors.pointSurface,
+                    pointBorderColor: solarColors.goldDark,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    spanGaps: true,
+                },
+                {
+                    label: 'Temperatura (°C)',
+                    data: temperature,
+                    yAxisID: 'temp',
+                    borderColor: solarColors.danger,
+                    backgroundColor: `${solarColors.danger}18`,
+                    borderWidth: 2,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    spanGaps: true,
+                },
+                {
+                    label: 'IUV',
+                    data: uvIndex,
+                    yAxisID: 'temp',
+                    borderColor: solarColors.uvIndex,
+                    backgroundColor: `${solarColors.uvIndex}18`,
+                    borderWidth: 2,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    spanGaps: true,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: {
+                    labels: { color: solarColors.text, usePointStyle: true, pointStyle: 'circle', padding: 18 },
+                },
+                tooltip: {
+                    backgroundColor: solarColors.tooltipBg,
+                    titleColor: solarColors.tooltipTitle,
+                    bodyColor: solarColors.tooltipBody,
+                    borderColor: solarColors.tooltipBorder,
+                    borderWidth: 1,
+                    padding: 12,
+                    callbacks: {
+                        label: (context) => {
+                            if (context.dataset.yAxisID === 'radiation') {
+                                return `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)} W/m²`;
+                            }
+                            return `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)}`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: { color: solarColors.text, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+                    grid: { color: solarColors.grid },
+                },
+                radiation: {
+                    beginAtZero: true,
+                    position: 'left',
+                    title: { display: true, text: 'Radiacion (W/m²)', color: solarColors.text },
+                    ticks: { color: solarColors.text },
+                    grid: { color: solarColors.grid },
+                },
+                temp: {
+                    beginAtZero: false,
+                    position: 'right',
+                    title: { display: true, text: '°C / IUV', color: solarColors.text },
+                    ticks: { color: solarColors.text },
+                    grid: { drawOnChartArea: false },
+                },
+            },
+        },
+    });
+};
+
 const initSolarCharts = () => {
     const timeScaleDataElement = document.getElementById('solar-timescale-chart-data');
     const weatherStationDataElement = document.getElementById('weather-station-chart-data');
     const weatherStationRealtimeDataElement = document.getElementById('weather-station-realtime-chart-data');
+    const ambientRealtimeDataElement = document.getElementById('ambient-realtime-chart-data');
 
     destroySolarCharts();
 
@@ -865,6 +985,10 @@ const initSolarCharts = () => {
 
     if (weatherStationRealtimeDataElement) {
         upsertWeatherStationRealtimeChart(JSON.parse(weatherStationRealtimeDataElement.textContent || '[]'));
+    }
+
+    if (ambientRealtimeDataElement) {
+        upsertAmbientRealtimeChart(JSON.parse(ambientRealtimeDataElement.textContent || '[]'));
     }
 };
 
@@ -1054,6 +1178,10 @@ const apiDataPagePath = '/api-data';
 
 const sectionKeyFromUrl = (url) => {
     const parsedUrl = new URL(url, window.location.href);
+
+    if (parsedUrl.searchParams.has('ambient_page')) {
+        return 'ambient';
+    }
 
     if (parsedUrl.searchParams.has('station_page')) {
         return 'weather-station';

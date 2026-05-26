@@ -17,6 +17,9 @@ class ProjectDashboardService
         private readonly SolarRecommendationService $solarRecommendationService,
         private readonly WeatherAnalysisService $weatherAnalysisService,
         private readonly WeatherStationAggregationService $weatherStationAggregationService,
+        // Ambient Weather — injected after existing deps to preserve backward compat
+        private readonly AmbientWeatherAggregationService $ambientWeatherAggregationService,
+        private readonly ClimateSourceFallbackService $climateSourceFallbackService,
     ) {}
 
     /**
@@ -54,11 +57,28 @@ class ProjectDashboardService
             ...$weatherStationStats,
             'nasaDataQuality' => $nasaDataQuality,
         ];
-        $dailyClimateRows = $projectWeatherData->isNotEmpty()
-            ? $projectWeatherData
-            : ($weatherStationReadings->isNotEmpty()
-                ? $this->weatherStationAggregationService->dailyRows($weatherStationReadings)
-                : collect());
+
+        // --- Ambient Weather data for this project period ---
+        $ambientReadings = $this->ambientWeatherAggregationService->readingsForProject($solarProject);
+        $ambientStats    = $this->ambientWeatherAggregationService->stats($ambientReadings);
+
+        // Determine which climate source is currently active (for dashboard indicator)
+        $activeClimateSource = $this->climateSourceFallbackService->resolveActiveSourceDescriptor();
+
+        // Build daily rows using the fallback hierarchy:
+        //   NASA (modelled, complete history) → local station → Ambient → empty
+        $localDailyRows   = $weatherStationReadings->isNotEmpty()
+            ? $this->weatherStationAggregationService->dailyRows($weatherStationReadings)
+            : collect();
+        $ambientDailyRows = $ambientReadings->isNotEmpty()
+            ? $this->ambientWeatherAggregationService->dailyRows($ambientReadings)
+            : collect();
+
+        ['rows' => $dailyClimateRows] = $this->climateSourceFallbackService->selectDailyClimateRows(
+            $projectWeatherData,
+            $localDailyRows,
+            $ambientDailyRows,
+        );
         $solarRecommendations = $this->solarRecommendationService->recommend(
             $weatherAnalysis,
             $energyAnalysis,
@@ -152,6 +172,16 @@ class ProjectDashboardService
             ],
             'weatherStationChartData' => $this->weatherStationAggregationService->chartData($weatherStationReadings),
             'timeScales' => $timeScales,
+            // ---- Ambient Weather additions (non-breaking — new keys only) ----
+            'activeClimateSource' => $activeClimateSource,
+            'ambientWeatherStats' => $ambientStats,
+            'recentAmbientReadings' => $ambientReadings
+                ->sortByDesc('recorded_at')
+                ->take(60)
+                ->values(),
+            'ambientChartData' => $this->ambientWeatherAggregationService->chartData($ambientReadings),
+            // Comparison: latest NASA vs latest Ambient radiation reading
+            'climateSourceComparison' => $this->buildClimateSourceComparison($projectWeatherData, $ambientStats),
         ];
     }
 
@@ -502,5 +532,47 @@ class ProjectDashboardService
     private function stringValue(mixed $value): ?string
     {
         return is_string($value) && filled(trim($value)) ? trim($value) : null;
+    }
+
+    /**
+     * Build a side-by-side comparison of the latest NASA POWER and Ambient
+     * Weather radiation values, useful for the "Comparativa de fuentes" widget.
+     *
+     * @param  Collection<int, mixed>  $nasaRows
+     * @param  array<string, mixed>    $ambientStats
+     * @return array<string, mixed>
+     */
+    private function buildClimateSourceComparison(Collection $nasaRows, array $ambientStats): array
+    {
+        $latestNasaRadiation = $nasaRows->isNotEmpty()
+            ? (float) ($nasaRows->sortByDesc('date_time')->first()?->allsky_sfc_sw_dwn ?? 0)
+            : null;
+
+        $latestAmbientRadiation = ($ambientStats['averageRadiation'] ?? null) !== null
+            ? (float) $ambientStats['averageRadiation']
+            : null;
+
+        $delta = ($latestNasaRadiation !== null && $latestAmbientRadiation !== null)
+            ? round($latestAmbientRadiation - $latestNasaRadiation, 2)
+            : null;
+
+        return [
+            'nasa' => [
+                'source'    => ClimateSourceFallbackService::SOURCE_NASA,
+                'label'     => 'NASA POWER',
+                'radiation' => $latestNasaRadiation,
+            ],
+            'ambient' => [
+                'source'    => ClimateSourceFallbackService::SOURCE_AMBIENT,
+                'label'     => 'Ambient Weather',
+                'radiation' => $latestAmbientRadiation,
+                'readingCount' => (int) ($ambientStats['total'] ?? 0),
+                'latestReading'=> $ambientStats['latest'] ?? null,
+            ],
+            'delta'       => $delta,
+            'deltaLabel'  => $delta !== null
+                ? ($delta >= 0 ? "+{$delta} W/m²" : "{$delta} W/m²") . ' vs NASA'
+                : null,
+        ];
     }
 }

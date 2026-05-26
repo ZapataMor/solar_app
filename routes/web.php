@@ -28,6 +28,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('api-data.fetch-nasa-data');
     Route::post('api-data/fetch-weather-station-data', [ApiDataController::class, 'fetchWeatherStationData'])
         ->name('api-data.fetch-weather-station-data');
+    Route::post('api-data/fetch-ambient-data', [ApiDataController::class, 'fetchAmbientData'])
+        ->name('api-data.fetch-ambient-data');
 });
 
 require __DIR__.'/settings.php';

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AmbientWeatherReading;
 use App\Models\WeatherStationReading;
+use App\Services\AmbientWeatherImportService;
 use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
 use App\Services\WeatherStationImportService;
@@ -19,10 +21,10 @@ class ApiDataController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        $nasaRows = $this->nasaRowsQuery()
+        $ambientRows = $this->ambientRowsQuery()
             ->orderByDesc('recorded_at')
-            ->orderByDesc('record_id')
-            ->paginate(15, ['*'], 'nasa_page')
+            ->orderByDesc('id')
+            ->paginate(15, ['*'], 'ambient_page')
             ->withQueryString();
 
         $weatherStationRows = $this->weatherStationRowsQuery()
@@ -31,12 +33,25 @@ class ApiDataController extends Controller
             ->paginate(15, ['*'], 'station_page')
             ->withQueryString();
 
+        $nasaRows = $this->nasaRowsQuery()
+            ->orderByDesc('recorded_at')
+            ->orderByDesc('record_id')
+            ->paginate(15, ['*'], 'nasa_page')
+            ->withQueryString();
+
+        $ambientCount         = $this->ambientRowsCount();
+        $weatherStationCount  = $this->weatherStationRowsCount();
+        $nasaCount            = $this->nasaRowsCount();
+
         return view('api-data.index', [
-            'nasaRows' => $nasaRows,
-            'weatherStationRows' => $weatherStationRows,
+            'ambientRows'             => $ambientRows,
+            'ambientCount'            => $ambientCount,
+            'ambientChartRows'        => $this->latestAmbientChartRows(),
+            'nasaRows'                => $nasaRows,
+            'nasaCount'               => $nasaCount,
+            'weatherStationRows'      => $weatherStationRows,
+            'weatherStationCount'     => $weatherStationCount,
             'weatherStationChartRows' => $this->latestWeatherStationChartRows(),
-            'nasaCount' => $this->nasaRowsCount(),
-            'weatherStationCount' => $this->weatherStationRowsCount(),
         ]);
     }
 
@@ -125,6 +140,85 @@ class ApiDataController extends Controller
             'status',
             $message,
         );
+    }
+
+    public function fetchAmbientData(
+        Request $request,
+        AmbientWeatherImportService $ambientWeatherImportService,
+    ): RedirectResponse {
+        // Allow long-running historical imports without hitting PHP's default limit.
+        set_time_limit(0);
+
+        $from = Carbon::now('UTC')->subYear()->startOfDay();
+
+        try {
+            $imported = $ambientWeatherImportService->importHistoricalForAllDevices(
+                from: $from,
+                sleepSeconds: 1,
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'ambient_data' => 'No fue posible sincronizar Ambient Weather: ' . $exception->getMessage(),
+            ]);
+        }
+
+        if ($imported['received'] === 0) {
+            return back()->withErrors([
+                'ambient_data' => 'Ambient Weather no devolvio lecturas. Verifica las credenciales y que tengas estaciones registradas.',
+            ]);
+        }
+
+        $since = $from->format('d/m/Y');
+
+        return back()->with(
+            'status',
+            "Ambient Weather sincronizado desde {$since}. Nuevos: {$imported['created']}. Omitidos (duplicados): {$imported['skipped']}. Total recibidos: {$imported['received']}."
+        );
+    }
+
+    private function ambientRowsQuery(): Builder
+    {
+        return DB::table('ambient_weather_readings')
+            ->select([
+                'id',
+                'mac_address',
+                'recorded_at',
+                'temperature',
+                'humidity',
+                'wind_speed',
+                'wind_direction',
+                'rainfall',
+                'uv_index',
+                'solar_radiation as radiation',
+            ]);
+    }
+
+    private function ambientRowsCount(): int
+    {
+        return AmbientWeatherReading::query()->count();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function latestAmbientChartRows(): array
+    {
+        return DB::table('ambient_weather_readings')
+            ->select(['recorded_at', 'solar_radiation', 'uv_index', 'temperature'])
+            ->orderByDesc('recorded_at')
+            ->limit(30)
+            ->get()
+            ->reverse()
+            ->values()
+            ->map(fn (object $row): array => [
+                'recorded_at'    => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'radiation'      => $row->solar_radiation !== null ? (float) $row->solar_radiation : null,
+                'uv_index'       => $row->uv_index !== null ? (float) $row->uv_index : null,
+                'temperature'    => $row->temperature !== null ? (float) $row->temperature : null,
+            ])
+            ->all();
     }
 
     private function nasaRowsQuery(): Builder

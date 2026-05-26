@@ -2,7 +2,9 @@
     $formatNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'N/A';
     $formatNasaNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'Dato no publicado por NASA';
     $formatDate = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->format('Y-m-d H:i') : 'N/A';
-    $totalRows = $nasaCount + $weatherStationCount;
+
+    $totalRows = $ambientCount + $weatherStationCount + $nasaCount;
+
     $latestWeatherStationChartPoint = collect($weatherStationChartRows)->last();
     $latestUvIndex = $latestWeatherStationChartPoint['uv_index'] ?? null;
     $uvIndexPercent = $latestUvIndex !== null ? min(100, ((float) $latestUvIndex / 11) * 100) : 0;
@@ -12,6 +14,18 @@
         $latestUvIndex < 6 => 'Moderado',
         $latestUvIndex < 8 => 'Alto',
         $latestUvIndex < 11 => 'Muy alto',
+        default => 'Extremo',
+    };
+
+    $latestAmbientChartPoint = collect($ambientChartRows)->last();
+    $latestAmbientUv = $latestAmbientChartPoint['uv_index'] ?? null;
+    $ambientUvPercent = $latestAmbientUv !== null ? min(100, ((float) $latestAmbientUv / 11) * 100) : 0;
+    $ambientUvRisk = match (true) {
+        $latestAmbientUv === null => 'Sin dato',
+        $latestAmbientUv < 3 => 'Bajo',
+        $latestAmbientUv < 6 => 'Moderado',
+        $latestAmbientUv < 8 => 'Alto',
+        $latestAmbientUv < 11 => 'Muy alto',
         default => 'Extremo',
     };
 @endphp
@@ -28,21 +42,26 @@
                 <span class="solar-pill"><span data-api-data-total-count>{{ number_format($totalRows, 0, ',', '.') }}</span> registros visibles</span>
             </div>
 
-            <div class="mt-6 grid gap-4 md:grid-cols-3">
+            <div class="mt-6 grid gap-4 md:grid-cols-4">
                 <div class="solar-metric-card">
                     <p class="solar-metric-label">Total registros</p>
                     <p class="solar-metric-value" data-api-data-total-count>{{ number_format($totalRows, 0, ',', '.') }}</p>
                     <p class="solar-metric-copy">Base consolidada para decisiones de energia, radiacion y riesgo operativo.</p>
                 </div>
-                <div class="solar-metric-card">
-                    <p class="solar-metric-label">NASA POWER</p>
-                    <p class="solar-metric-value" data-api-data-nasa-count data-count="{{ $nasaCount }}">{{ number_format($nasaCount, 0, ',', '.') }}</p>
-                    <p class="solar-metric-copy">Fuente satelital para comparacion y cobertura historica.</p>
+                <div class="solar-metric-card" style="border-left: 3px solid var(--solar-sun, #fbbf24);">
+                    <p class="solar-metric-label">Ambient Weather</p>
+                    <p class="solar-metric-value">{{ number_format($ambientCount, 0, ',', '.') }}</p>
+                    <p class="solar-metric-copy">Estacion IoT con datos de temperatura, radiacion y viento en tiempo real.</p>
                 </div>
                 <div class="solar-metric-card">
                     <p class="solar-metric-label">Estacion local</p>
                     <p class="solar-metric-value" data-weather-station-count data-count="{{ $weatherStationCount }}">{{ number_format($weatherStationCount, 0, ',', '.') }}</p>
                     <p class="solar-metric-copy">Lecturas de contexto real para Riohacha y seguimiento ambiental.</p>
+                </div>
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">NASA POWER</p>
+                    <p class="solar-metric-value" data-api-data-nasa-count data-count="{{ $nasaCount }}">{{ number_format($nasaCount, 0, ',', '.') }}</p>
+                    <p class="solar-metric-copy">Fuente satelital para comparacion y cobertura historica.</p>
                 </div>
             </div>
         </section>
@@ -50,6 +69,12 @@
         @if (session('status'))
             <div class="solar-alert solar-alert-success">
                 {{ session('status') }}
+            </div>
+        @endif
+
+        @if ($errors->has('ambient_data'))
+            <div class="solar-alert solar-alert-danger">
+                {{ $errors->first('ambient_data') }}
             </div>
         @endif
 
@@ -64,6 +89,96 @@
                 {{ $errors->first('weather_station') }}
             </div>
         @endif
+
+        {{-- ══════════════════════════════════════════════
+             1. AMBIENT WEATHER
+        ══════════════════════════════════════════════ --}}
+        <section class="solar-card" data-api-pagination-section="ambient">
+            <div class="solar-page-header solar-api-section-header">
+                <div>
+                    <p class="solar-kicker">Ambient Weather</p>
+                    <h2 class="text-2xl text-[color:var(--solar-text)]">Estacion IoT — UniGuajiraPtG</h2>
+                    <p class="solar-subtitle mt-2">Lecturas en tiempo real desde la estacion Ambient Weather conectada. Temperatura, radiacion solar, viento y lluvia con actualizacion automatica cada 5 minutos.</p>
+                </div>
+                <div class="solar-api-actions">
+                    <span class="solar-pill solar-pill-warn">
+                        {{ number_format($ambientCount, 0, ',', '.') }} registros
+                    </span>
+                    <form method="POST" action="{{ route('api-data.fetch-ambient-data') }}">
+                        @csrf
+                        <button type="submit" class="solar-button-secondary">Sincronizar Ambient Weather</button>
+                    </form>
+                </div>
+            </div>
+
+            <script id="ambient-realtime-chart-data" type="application/json">@json($ambientChartRows)</script>
+
+            <div class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+                <div class="solar-table-shell p-4">
+                    <div class="h-[320px]">
+                        <canvas id="ambient-realtime-chart" aria-label="Radiacion solar y temperatura Ambient Weather" role="img"></canvas>
+                    </div>
+                </div>
+
+                <div class="solar-metric-card">
+                    <p class="solar-metric-label">IUV actual (Ambient)</p>
+                    <p class="solar-metric-value">{{ $latestAmbientUv !== null ? $formatNumber($latestAmbientUv, 2) : 'N/A' }}</p>
+                    <p class="solar-metric-copy">{{ $ambientUvRisk }}</p>
+                    <div class="mt-4 h-3 overflow-hidden rounded-full bg-[color:var(--solar-border)]">
+                        <div class="h-full rounded-full bg-[color:var(--solar-sun)] transition-all" style="width: {{ $ambientUvPercent }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="solar-table-shell mt-6">
+                <div class="overflow-x-auto">
+                    <table class="solar-table min-w-[900px]">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Estacion (MAC)</th>
+                                <th>Radiacion solar</th>
+                                <th>Temp.</th>
+                                <th>Humedad</th>
+                                <th>Viento (km/h)</th>
+                                <th>Dir. viento</th>
+                                <th>Lluvia (mm)</th>
+                                <th>IUV</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($ambientRows as $row)
+                                <tr>
+                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
+                                    <td class="font-mono text-xs">{{ $row->mac_address ?? 'N/A' }}</td>
+                                    <td>{{ $formatNumber($row->radiation, 2) }} <span class="text-xs text-[color:var(--solar-text-muted)]">W/m²</span></td>
+                                    <td>{{ $formatNumber($row->temperature, 2) }} <span class="text-xs text-[color:var(--solar-text-muted)]">°C</span></td>
+                                    <td>{{ $formatNumber($row->humidity, 2) }} <span class="text-xs text-[color:var(--solar-text-muted)]">%</span></td>
+                                    <td>{{ $formatNumber($row->wind_speed, 2) }}</td>
+                                    <td>{{ $row->wind_direction !== null ? $row->wind_direction . '°' : 'N/A' }}</td>
+                                    <td>{{ $formatNumber($row->rainfall, 3) }}</td>
+                                    <td>{{ $formatNumber($row->uv_index, 2) }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="9" class="py-10 text-center">
+                                        Aun no hay lecturas registradas desde Ambient Weather. Pulsa "Sincronizar Ambient Weather" para importar.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="solar-pagination mt-5">
+                {{ $ambientRows->links() }}
+            </div>
+        </section>
+
+        {{-- ══════════════════════════════════════════════
+             2. ESTACION METEOROLOGICA LOCAL
+        ══════════════════════════════════════════════ --}}
         <section class="solar-card" data-api-pagination-section="weather-station" data-weather-station-sync data-sync-interval="15000">
             <div class="solar-page-header solar-api-section-header">
                 <div>
@@ -156,6 +271,9 @@
             </div>
         </section>
 
+        {{-- ══════════════════════════════════════════════
+             3. NASA POWER
+        ══════════════════════════════════════════════ --}}
         <section class="solar-card" data-api-pagination-section="nasa">
             <div class="solar-page-header">
                 <div>
