@@ -68,18 +68,11 @@
 
         .solar-api-page .solar-api-actions {
             min-width: 0;
-            width: 100%;
         }
 
         .solar-api-page .solar-api-actions > *,
         .solar-api-page .solar-api-actions form {
             min-width: 0;
-        }
-
-        .solar-api-page .solar-api-actions .solar-pill,
-        .solar-api-page .solar-api-actions form,
-        .solar-api-page .solar-api-actions button {
-            width: 100%;
         }
 
         .solar-api-page .solar-api-actions button {
@@ -123,6 +116,12 @@
             .solar-api-page .solar-api-actions {
                 width: 100%;
                 justify-content: stretch;
+            }
+
+            .solar-api-page .solar-api-actions .solar-pill,
+            .solar-api-page .solar-api-actions form,
+            .solar-api-page .solar-api-actions button {
+                width: 100%;
             }
         }
 
