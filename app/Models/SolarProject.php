@@ -22,8 +22,18 @@ class SolarProject extends Model
     protected $fillable = [
         'name',
         'description',
+        'location_name',
         'start_date',
         'end_date',
+        'municipality_id',
+        'latitude',
+        'longitude',
+        'location_type',
+        'required_power_kw',
+        'base_price_per_kw',
+        'logistic_factor_used',
+        'final_price_per_kw_used',
+        'estimated_installation_cost',
         'monthly_consumption_kwh',
         'daily_consumption_kwh',
         'annual_consumption_kwh',
@@ -37,6 +47,11 @@ class SolarProject extends Model
             'end_date' => 'date',
             'latitude' => 'decimal:4',
             'longitude' => 'decimal:4',
+            'required_power_kw' => 'decimal:2',
+            'base_price_per_kw' => 'decimal:2',
+            'logistic_factor_used' => 'decimal:3',
+            'final_price_per_kw_used' => 'decimal:2',
+            'estimated_installation_cost' => 'decimal:2',
             'monthly_consumption_kwh' => 'decimal:2',
             'daily_consumption_kwh' => 'decimal:2',
             'annual_consumption_kwh' => 'decimal:2',
@@ -92,6 +107,11 @@ class SolarProject extends Model
     public function calculationResult(): HasOne
     {
         return $this->hasOne(CalculationResult::class);
+    }
+
+    public function municipality(): BelongsTo
+    {
+        return $this->belongsTo(Municipality::class);
     }
 
     public function monthlyResults(): HasMany

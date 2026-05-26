@@ -11,6 +11,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('solar-projects/create', [SolarProjectController::class, 'create'])->name('solar-projects.create');
     Route::get('solar-projects/simulator/ambient-context', [SolarProjectController::class, 'ambientSimulatorContext'])
         ->name('solar-projects.simulator.ambient-context');
+    Route::get('municipalities/{municipality}/solar-price', [SolarProjectController::class, 'solarPrice'])
+        ->name('municipalities.solar-price');
     Route::post('solar-projects', [SolarProjectController::class, 'store'])->name('solar-projects.store');
     Route::get('solar-projects/{solarProject}', [SolarProjectController::class, 'show'])->name('solar-projects.show');
     Route::get('solar-projects/{solarProject}/edit', [SolarProjectController::class, 'edit'])->name('solar-projects.edit');

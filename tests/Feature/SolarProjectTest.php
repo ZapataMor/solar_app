@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ApiWeatherData;
+use App\Models\Municipality;
 use App\Models\SolarProject;
 use App\Models\User;
 use App\Models\WeatherStationReading;
@@ -15,15 +16,16 @@ class SolarProjectTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_create_a_solar_project_with_fixed_location_and_technical_parameters(): void
+    public function test_user_can_create_a_solar_project_with_municipality_quote_and_technical_parameters(): void
     {
         $user = User::factory()->create();
+        $municipality = $this->seedMunicipalityPrice('Maicao', 'Media Guajira', 'Base urbana', 'urbana', 4000000, 1.00);
 
         $response = $this->actingAs($user)->post(route('solar-projects.store'), [
             ...$this->validPayload(),
             'location_name' => 'Otra ciudad',
-            'latitude' => 0,
-            'longitude' => 0,
+            'latitude' => 11.3778,
+            'longitude' => -72.2389,
         ]);
 
         $solarProject = SolarProject::query()->first();
@@ -33,13 +35,21 @@ class SolarProjectTest extends TestCase
         $this->assertDatabaseHas('solar_projects', [
             'user_id' => $user->id,
             'name' => 'Sistema solar institucional',
-            'location_name' => SolarProject::LOCATION_NAME,
-            'latitude' => 11.5444,
-            'longitude' => -72.9072,
+            'location_name' => 'Maicao, La Guajira, Colombia',
+            'municipality_id' => $municipality->id,
+            'latitude' => 11.3778,
+            'longitude' => -72.2389,
+            'location_type' => 'urbana',
+            'required_power_kw' => 5,
+            'base_price_per_kw' => 4000000,
+            'logistic_factor_used' => 1,
+            'final_price_per_kw_used' => 4000000,
+            'estimated_installation_cost' => 20000000,
             'monthly_consumption_kwh' => 2000,
-            'daily_consumption_kwh' => 66.67,
             'annual_consumption_kwh' => 24000,
         ]);
+
+        $this->assertSame(66.67, round((float) $solarProject->daily_consumption_kwh, 2));
 
         $this->assertDatabaseHas('technical_parameters', [
             'solar_project_id' => $solarProject->id,
@@ -343,6 +353,31 @@ class SolarProjectTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_solar_project_keeps_historical_price_when_municipal_price_changes(): void
+    {
+        $user = User::factory()->create();
+        $municipality = $this->seedMunicipalityPrice('Maicao', 'Media Guajira', 'Base urbana', 'urbana', 4000000, 1.00);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.store'), $this->validPayload())
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $solarProject = SolarProject::query()->firstOrFail();
+
+        $municipality->solarPrices()->first()->update([
+            'base_price_per_kw' => 5000000,
+            'logistic_factor' => 1.20,
+        ]);
+
+        $solarProject->refresh();
+
+        $this->assertSame('4000000.00', $solarProject->base_price_per_kw);
+        $this->assertSame('1.000', $solarProject->logistic_factor_used);
+        $this->assertSame('4000000.00', $solarProject->final_price_per_kw_used);
+        $this->assertSame('20000000.00', $solarProject->estimated_installation_cost);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -351,6 +386,9 @@ class SolarProjectTest extends TestCase
         return [
             ...$this->projectAttributes(),
             ...$this->technicalParameterAttributes(),
+            'municipality_id' => $this->seedMunicipalityPrice('Maicao', 'Media Guajira', 'Base urbana', 'urbana', 4000000, 1.00)->id,
+            'location_type' => 'urbana',
+            'required_power_kw' => 5,
         ];
     }
 
@@ -382,5 +420,32 @@ class SolarProjectTest extends TestCase
             'performance_ratio' => 0.82,
             'system_losses_percentage' => 14,
         ];
+    }
+
+    private function seedMunicipalityPrice(
+        string $name,
+        string $zone,
+        string $zoneName,
+        string $locationType,
+        int $basePrice,
+        float $factor,
+    ): Municipality {
+        $municipality = Municipality::query()->firstOrCreate(
+            ['name' => $name, 'department' => 'La Guajira'],
+            ['zone' => $zone, 'latitude' => 11.3778, 'longitude' => -72.2389, 'active' => true],
+        );
+
+        $municipality->solarPrices()->updateOrCreate(
+            ['zone_name' => $zoneName, 'location_type' => $locationType],
+            [
+                'base_price_per_kw' => $basePrice,
+                'logistic_factor' => $factor,
+                'min_price_per_kw' => $basePrice,
+                'max_price_per_kw' => $basePrice,
+                'active' => true,
+            ],
+        );
+
+        return $municipality;
     }
 }

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SolarProjectRequest;
 use App\Models\ApiWeatherData;
+use App\Models\Municipality;
 use App\Models\SolarProject;
 use App\Models\User;
 use App\Models\WeatherStationReading;
@@ -10,6 +12,7 @@ use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
 use App\Services\ProjectDashboardService;
 use App\Services\SolarCalculationService;
+use App\Services\SolarInstallationCostService;
 use App\Services\AmbientWeatherAggregationService;
 use App\Services\WeatherStationAggregationService;
 use App\Services\WeatherStationImportService;
@@ -19,6 +22,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use RuntimeException;
 use Throwable;
 
 class SolarProjectController extends Controller
@@ -55,19 +59,31 @@ class SolarProjectController extends Controller
 
     public function create(): View
     {
-        return view('solar-projects.create');
+        return view('solar-projects.create', [
+            'municipalities' => $this->municipalityOptions(),
+        ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(SolarProjectRequest $request, SolarInstallationCostService $installationCostService): RedirectResponse
     {
-        $validated = $this->validateProject($request);
+        $validated = $request->validated();
+        $municipality = Municipality::query()->findOrFail($validated['municipality_id']);
+        try {
+            $cost = $installationCostService->calculate(
+                $municipality,
+                (string) $validated['location_type'],
+                (float) $validated['required_power_kw'],
+            );
+        } catch (RuntimeException) {
+            return back()->withInput()->withErrors([
+                'municipality_id' => 'No hay precio disponible para esa ubicacion.',
+            ]);
+        }
 
-        $solarProject = DB::transaction(function () use ($request, $validated) {
+        $solarProject = DB::transaction(function () use ($request, $validated, $municipality, $cost) {
             $solarProject = $request->user()->solarProjects()->create([
                 ...$this->projectAttributes($validated),
-                'location_name' => (string) config('services.nasa_power.location_name', SolarProject::LOCATION_NAME),
-                'latitude' => (float) config('services.nasa_power.latitude', SolarProject::LATITUDE),
-                'longitude' => (float) config('services.nasa_power.longitude', SolarProject::LONGITUDE),
+                ...$this->locationAttributes($validated, $municipality, $cost),
             ]);
 
             $solarProject->technicalParameter()->create($this->technicalParameterAttributes($validated));
@@ -90,6 +106,7 @@ class SolarProjectController extends Controller
         $this->authorizeOwner($request, $solarProject);
 
         $solarProject->load([
+            'municipality',
             'technicalParameter',
             'calculationResult',
             'monthlyResults' => fn ($query) => $query->orderBy('month_number'),
@@ -114,7 +131,10 @@ class SolarProjectController extends Controller
 
         $solarProject->load('technicalParameter');
 
-        return view('solar-projects.edit', compact('solarProject'));
+        return view('solar-projects.edit', [
+            'solarProject' => $solarProject,
+            'municipalities' => $this->municipalityOptions(),
+        ]);
     }
 
     public function ambientSimulatorContext(
@@ -158,14 +178,33 @@ class SolarProjectController extends Controller
         ]);
     }
 
-    public function update(Request $request, SolarProject $solarProject): RedirectResponse
+    public function update(
+        SolarProjectRequest $request,
+        SolarProject $solarProject,
+        SolarInstallationCostService $installationCostService,
+    ): RedirectResponse
     {
         $this->authorizeOwner($request, $solarProject);
 
-        $validated = $this->validateProject($request);
+        $validated = $request->validated();
+        $municipality = Municipality::query()->findOrFail($validated['municipality_id']);
+        try {
+            $cost = $installationCostService->calculate(
+                $municipality,
+                (string) $validated['location_type'],
+                (float) $validated['required_power_kw'],
+            );
+        } catch (RuntimeException) {
+            return back()->withInput()->withErrors([
+                'municipality_id' => 'No hay precio disponible para esa ubicacion.',
+            ]);
+        }
 
-        DB::transaction(function () use ($solarProject, $validated) {
-            $solarProject->update($this->projectAttributes($validated));
+        DB::transaction(function () use ($solarProject, $validated, $municipality, $cost) {
+            $solarProject->update([
+                ...$this->projectAttributes($validated),
+                ...$this->locationAttributes($validated, $municipality, $cost),
+            ]);
 
             $solarProject->technicalParameter()->updateOrCreate(
                 ['solar_project_id' => $solarProject->id],
@@ -176,6 +215,37 @@ class SolarProjectController extends Controller
         return redirect()
             ->route('solar-projects.show', $solarProject)
             ->with('status', 'Proyecto solar actualizado correctamente.');
+    }
+
+    public function solarPrice(
+        Request $request,
+        Municipality $municipality,
+        SolarInstallationCostService $installationCostService,
+    ): JsonResponse {
+        abort_unless($municipality->active, 404);
+
+        $validated = $request->validate([
+            'location_type' => ['nullable', 'string', 'in:urbana,rural,rural_dispersa,alta_guajira'],
+            'required_power_kw' => ['nullable', 'numeric', 'gt:0'],
+        ]);
+
+        $locationType = (string) ($validated['location_type'] ?? 'urbana');
+        $requiredPowerKw = (float) ($validated['required_power_kw'] ?? 1);
+        $cost = $installationCostService->calculate($municipality, $locationType, $requiredPowerKw);
+
+        return response()->json([
+            'municipality_id' => $municipality->id,
+            'municipality_name' => $municipality->name,
+            'zone_name' => $cost['zone_name'],
+            'location_type' => $locationType,
+            'base_price_per_kw' => $cost['base_price_per_kw'],
+            'logistic_factor' => $cost['logistic_factor_used'],
+            'final_price_per_kw' => $cost['final_price_per_kw_used'],
+            'estimated_installation_cost' => $cost['estimated_installation_cost'],
+            'min_price_per_kw' => $cost['min_price_per_kw'],
+            'max_price_per_kw' => $cost['max_price_per_kw'],
+            'notes' => $cost['notes'],
+        ]);
     }
 
     public function destroy(Request $request, SolarProject $solarProject): RedirectResponse
@@ -491,27 +561,6 @@ class SolarProjectController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function validateProject(Request $request): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'monthly_consumption_kwh' => ['required', 'numeric', 'gt:0'],
-            'energy_rate_cop_kwh' => ['required', 'numeric', 'gte:0'],
-            'available_area_m2' => ['required', 'numeric', 'gt:0'],
-            'usable_area_percentage' => ['required', 'numeric', 'between:1,100'],
-            'panel_power_w' => ['required', 'numeric', 'gt:0'],
-            'panel_area_m2' => ['required', 'numeric', 'gt:0'],
-            'performance_ratio' => ['required', 'numeric', 'between:0,1'],
-            'system_losses_percentage' => ['required', 'numeric', 'between:0,100'],
-        ]);
-    }
-
-    /**
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
@@ -524,6 +573,27 @@ class SolarProjectController extends Controller
             'end_date' => $validated['end_date'],
             'monthly_consumption_kwh' => $validated['monthly_consumption_kwh'],
             'energy_rate_cop_kwh' => $validated['energy_rate_cop_kwh'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @param  array<string, mixed>  $cost
+     * @return array<string, mixed>
+     */
+    private function locationAttributes(array $validated, Municipality $municipality, array $cost): array
+    {
+        return [
+            'location_name' => "{$municipality->name}, La Guajira, Colombia",
+            'municipality_id' => $municipality->id,
+            'latitude' => $validated['latitude'] ?? $municipality->latitude ?? SolarProject::LATITUDE,
+            'longitude' => $validated['longitude'] ?? $municipality->longitude ?? SolarProject::LONGITUDE,
+            'location_type' => $validated['location_type'],
+            'required_power_kw' => $validated['required_power_kw'],
+            'base_price_per_kw' => $cost['base_price_per_kw'],
+            'logistic_factor_used' => $cost['logistic_factor_used'],
+            'final_price_per_kw_used' => $cost['final_price_per_kw_used'],
+            'estimated_installation_cost' => $cost['estimated_installation_cost'],
         ];
     }
 
@@ -555,6 +625,15 @@ class SolarProjectController extends Controller
     {
         $solarProject->setAttribute('weather_data_count', $this->apiWeatherDataCount($solarProject));
         $solarProject->setAttribute('weather_station_readings_count', $this->weatherStationReadingCount($solarProject));
+    }
+
+    private function municipalityOptions()
+    {
+        return Municipality::query()
+            ->active()
+            ->with(['solarPrices' => fn ($query) => $query->active()])
+            ->orderBy('name')
+            ->get();
     }
 
     private function apiWeatherDataCount(SolarProject $solarProject): int

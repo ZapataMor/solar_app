@@ -2275,6 +2275,103 @@ select:focus[data-flux-control] {
         color: var(--solar-text-muted);
     }
 
+    .solar-energy-guide-trigger {
+        width: 100%;
+        justify-content: flex-start;
+        text-align: left;
+        color: var(--solar-text);
+    }
+
+    .solar-energy-guide-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(1rem, 3vw, 2rem);
+    }
+
+    .solar-energy-guide-modal.is-open {
+        display: flex;
+    }
+
+    .solar-energy-guide-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(18, 14, 10, 0.62);
+        backdrop-filter: blur(3px);
+    }
+
+    .solar-energy-guide-panel {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        max-height: min(88vh, 58rem);
+        width: min(100%, 62rem);
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: var(--solar-surface-elevated);
+        box-shadow: 0 28px 80px -32px rgba(0, 0, 0, 0.72);
+    }
+
+    .solar-energy-guide-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--solar-border);
+        padding: 1rem;
+    }
+
+    .solar-energy-guide-title {
+        color: var(--solar-text);
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.5;
+    }
+
+    .solar-energy-guide-close {
+        flex: 0 0 auto;
+        padding: 0.65rem 0.9rem;
+    }
+
+    .solar-energy-guide-body {
+        overflow: auto;
+        padding: 1rem;
+        background: color-mix(in srgb, var(--solar-surface-muted) 72%, transparent);
+    }
+
+    .solar-energy-guide-image {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        border-radius: 0.75rem;
+    }
+
+    @media (max-width: 640px) {
+        .solar-energy-guide-modal {
+            align-items: flex-start;
+            padding: 0.75rem;
+        }
+
+        .solar-energy-guide-panel {
+            max-height: calc(100vh - 1.5rem);
+            border-radius: 0.9rem;
+        }
+
+        .solar-energy-guide-header {
+            flex-direction: column;
+        }
+
+        .solar-energy-guide-close {
+            width: 100%;
+        }
+    }
+
     .solar-button-danger {
         border: 1px solid color-mix(in srgb, var(--solar-danger) 24%, transparent);
         background: var(--solar-danger-bg);
