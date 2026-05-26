@@ -197,6 +197,16 @@
     padding: 1.5rem clamp(1rem, 3vw, 2rem) 3rem;
     max-width: 90rem;
     margin: 0 auto;
+    /* Evitar que cualquier hijo desborde el viewport horizontalmente */
+    overflow-x: clip;
+    /* Asegurar que no exceda el contenedor padre */
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.sdash,
+.sdash * {
+    box-sizing: border-box;
 }
 
 /* ── Card base ──────────────────────────────────────────────── */
@@ -206,6 +216,9 @@
     border-radius: var(--sdash-radius);
     box-shadow: var(--solar-shadow);
     overflow: hidden;
+    /* Evitar que la card rompa el grid/flex padre */
+    min-width: 0;
+    max-width: 100%;
 }
 .dark .sdash-card {
     background: var(--solar-surface-elevated);
@@ -231,7 +244,7 @@
     padding: 1.75rem 2rem;
 }
 @media (min-width: 900px) {
-    .sdash-header { grid-template-columns: 1fr auto; align-items: start; }
+    .sdash-header { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
 }
 
 .sdash-header__kicker {
@@ -262,6 +275,7 @@
     font-size: .82rem;
     color: var(--solar-text-muted);
     margin: 0 0 .75rem;
+    overflow-wrap: anywhere;
 }
 .sdash-header__desc {
     font-size: .875rem;
@@ -274,6 +288,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: .4rem;
+    min-width: 0;
 }
 .sdash-badge {
     display: inline-flex;
@@ -287,6 +302,9 @@
     border: 1px solid transparent;
     background: var(--solar-surface-muted);
     color: var(--solar-text-muted);
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 .sdash-badge--success { background: var(--solar-success-bg); color: var(--solar-success); border-color: color-mix(in srgb, var(--solar-success) 28%, transparent); }
 .sdash-badge--warn    { background: var(--solar-warning-bg); color: var(--solar-warning); border-color: color-mix(in srgb, var(--solar-warning) 28%, transparent); }
@@ -298,6 +316,9 @@
     flex-wrap: wrap;
     gap: .5rem;
     align-items: flex-start;
+    justify-content: flex-end;
+    min-width: 0;
+    max-width: 100%;
 }
 .sdash-btn {
     display: inline-flex;
@@ -312,6 +333,7 @@
     transition: opacity var(--sdash-transition), box-shadow var(--sdash-transition);
     white-space: nowrap;
     text-decoration: none;
+    min-width: 0;
 }
 .sdash-btn:hover { opacity: .85; }
 .sdash-btn:disabled {
@@ -358,6 +380,7 @@
     background: var(--solar-surface-muted);
     border: 1px solid var(--solar-border);
     transition: box-shadow var(--sdash-transition);
+    min-width: 0;
 }
 .sdash-kpi:hover { box-shadow: 0 4px 20px -8px var(--solar-border-strong); }
 .sdash-kpi__icon { font-size: 1.1rem; margin-bottom: .15rem; }
@@ -368,6 +391,7 @@
     color: var(--solar-text);
     letter-spacing: -.02em;
     line-height: 1.1;
+    overflow-wrap: anywhere;
 }
 .sdash-kpi__value--accent { color: var(--solar-sun); }
 .sdash-kpi__value--success { color: var(--solar-success); }
@@ -395,6 +419,10 @@
     gap: .75rem;
     padding: 1.25rem 1.5rem .75rem;
     border-bottom: 1px solid var(--solar-border);
+    min-width: 0;
+}
+.sdash-section-head > * {
+    min-width: 0;
 }
 .sdash-section-head__title {
     font-family: var(--font-display);
@@ -413,10 +441,23 @@
 .sdash-grid-2 {
     display: grid;
     gap: var(--sdash-gap);
+    /* min-width: 0 para que el grid nunca desborde su contenedor */
+    min-width: 0;
+    width: 100%;
 }
 @media (min-width: 1024px) {
-    .sdash-grid-2 { grid-template-columns: 1fr 1fr; }
-    .sdash-grid-2--wide { grid-template-columns: 2fr 1fr; }
+    /* minmax(0, ...) es crítico: evita que el track crezca más allá del contenedor */
+    .sdash-grid-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .sdash-grid-2--wide { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+}
+
+/* ── Columna flex interna del grid ─────────────────────────── */
+.sdash-grid-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sdash-gap);
+    min-width: 0;
+    overflow: hidden;
 }
 
 /* ── Condition card ─────────────────────────────────────────── */
@@ -458,10 +499,41 @@
 }
 .sdash-hero-stage {
     padding: 1rem 1rem 0;
+    /* Contener al hijo que puede desbordar */
+    overflow: hidden;
+    max-width: 100%;
 }
 .sdash-hero-stage .solar-live-dashboard {
     border-radius: calc(var(--sdash-radius) - 4px);
     margin: 0;
+    /* El dashboard animado no debe superar el ancho disponible */
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.sdash-hero-stage .solar-live-header > div,
+.sdash-hero-stage .solar-live-footer > span,
+.sdash-hero-stage .solar-live-panel,
+.sdash-hero-stage .solar-live-stats,
+.sdash-hero-stage .solar-live-sky {
+    min-width: 0;
+}
+.sdash-hero-stage .solar-live-meta,
+.sdash-hero-stage .solar-live-footer,
+.sdash-hero-stage .solar-live-status h1,
+.sdash-hero-stage .solar-live-status p,
+.sdash-hero-stage .solar-live-reading strong,
+.sdash-hero-stage .solar-live-kpis strong,
+.sdash-hero-stage .solar-live-state,
+.sdash-stat-cell__value,
+.sdash-rec__text,
+.sdash-prediction-text,
+.sdash-prediction-note {
+    overflow-wrap: anywhere;
+}
+.sdash-hero-stage .solar-live-controls {
+    max-width: 100%;
 }
 html:not(.dark) .sdash-hero-stage .solar-live-dashboard {
     background: transparent;
@@ -698,10 +770,16 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 /* ── Chart containers ───────────────────────────────────────── */
 .sdash-chart-wrap {
     padding: 1rem 1.25rem 1.25rem;
+    min-width: 0;
 }
 .sdash-chart-canvas {
     position: relative;
     height: 220px;
+    min-width: 0;
+    max-width: 100%;
+}
+.sdash-chart-canvas canvas {
+    max-width: 100%;
 }
 .sdash-chart-canvas--tall { height: 260px; }
 
@@ -783,6 +861,8 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
     color: var(--solar-text);
     font-size: .78rem;
     cursor: pointer;
+    min-width: 0;
+    max-width: 100%;
 }
 .sdash-ai-select:focus {
     outline: 2px solid color-mix(in srgb, var(--solar-sun) 62%, transparent);
@@ -1128,6 +1208,341 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
     font-size: .85rem;
 }
 .sdash-divider { height: 1px; background: var(--solar-border); margin: 0 1.5rem; }
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE — mobile-first overrides
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Tablet / small desktop (< 900px) ─────────────────────── */
+@media (max-width: 899px) {
+    /* Hero panel: evitar desbordamiento horizontal */
+    .sdash-hero-stage {
+        overflow: hidden;
+    }
+
+    /* Condition strip: permitir que el texto envuelva */
+    .sdash-condition__detail {
+        font-size: .75rem;
+        line-height: 1.5;
+    }
+}
+
+/* ── Mobile (< 640px) ──────────────────────────────────────── */
+@media (max-width: 640px) {
+
+    /* Contenedor principal */
+    .sdash {
+        padding: 1rem .875rem 2.5rem;
+        gap: 1rem;
+    }
+
+    /* Header: padding reducido */
+    .sdash-header {
+        padding: 1.25rem 1rem;
+        gap: 1rem;
+    }
+    .sdash-header__title {
+        font-size: clamp(1.2rem, 5vw, 1.55rem);
+    }
+    .sdash-header__desc {
+        max-width: 100%;
+    }
+
+    /* Botones de acción: apilar verticalmente */
+    .sdash-actions {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: .45rem;
+        width: 100%;
+    }
+    .sdash-actions > form {
+        display: contents; /* los botones dentro de form heredan el flex del padre */
+    }
+    .sdash-actions > form > .sdash-btn,
+    .sdash-actions > a.sdash-btn {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+        text-align: center;
+    }
+    .sdash-btn--divider {
+        display: none;
+    }
+
+    /* Section head: apilar título y controles */
+    .sdash-section-head {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem 1rem .625rem;
+    }
+
+    /* Scale tabs: ocupar ancho completo con botones equitativos */
+    .sdash-scale-tabs {
+        width: 100%;
+        overflow-x: auto;
+    }
+    .sdash-scale-tab {
+        flex: 1;
+        text-align: center;
+        padding: .35rem .5rem;
+        min-width: max-content;
+    }
+
+    /* KPIs: 2 columnas compactas */
+    .sdash-kpis {
+        grid-template-columns: repeat(2, 1fr);
+        padding: .875rem .875rem;
+        gap: .5rem;
+    }
+    .sdash-kpi {
+        padding: .75rem .875rem;
+    }
+    .sdash-kpi__value {
+        font-size: 1.15rem;
+    }
+    .sdash-kpi__sub,
+    .sdash-kpi__label {
+        line-height: 1.35;
+    }
+
+    /* Chart wrap: menos padding */
+    .sdash-chart-wrap {
+        padding: .75rem .875rem 1rem;
+    }
+    .sdash-chart-canvas {
+        height: 190px;
+    }
+    .sdash-chart-canvas--tall {
+        height: 220px;
+    }
+
+    /* Stat row: 2 columnas con bordes correctos */
+    .sdash-stat-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .sdash-stat-cell {
+        border-right: none;
+        border-bottom: 1px solid var(--solar-border);
+    }
+    .sdash-stat-cell:nth-child(odd) {
+        border-right: 1px solid var(--solar-border);
+    }
+    .sdash-stat-cell:last-child,
+    .sdash-stat-cell:nth-last-child(2):nth-child(odd) {
+        border-bottom: none;
+    }
+    .sdash-stat-cell:nth-last-child(1) {
+        border-bottom: none;
+    }
+
+    /* Source indicator */
+    .sdash-source {
+        padding: .625rem 1rem;
+        flex-wrap: wrap;
+    }
+
+    /* Rec grid */
+    .sdash-rec-grid {
+        padding: 1rem;
+    }
+    .sdash-rec-grid[style] {
+        padding: .875rem 1rem !important;
+    }
+
+    /* Hero solar: reduce altura y evita que textos largos empujen el viewport */
+    .sdash-hero-stage {
+        padding: .75rem .75rem 0;
+    }
+    .sdash-hero-stage .solar-live-dashboard {
+        gap: .85rem;
+        padding: .75rem;
+        border-radius: 12px;
+    }
+    .sdash-hero-stage .solar-live-header,
+    .sdash-hero-stage .solar-live-footer {
+        gap: .65rem;
+    }
+    .sdash-hero-stage .solar-live-kicker {
+        letter-spacing: .18em;
+        line-height: 1.35;
+    }
+    .sdash-hero-stage .solar-live-meta {
+        font-size: .7rem;
+        line-height: 1.45;
+    }
+    .sdash-hero-stage .solar-live-controls {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: .4rem;
+    }
+    .sdash-hero-stage .solar-live-control {
+        min-width: 0;
+        width: 100%;
+        padding-inline: .4rem;
+    }
+    .sdash-hero-stage .solar-live-panel,
+    .sdash-hero-stage .solar-live-sky {
+        min-height: 260px;
+        border-radius: 12px;
+    }
+    .sdash-hero-stage .solar-live-stats {
+        gap: 1rem;
+        padding: 1rem;
+    }
+    .sdash-hero-stage .solar-live-status {
+        gap: .8rem;
+    }
+    .sdash-hero-stage .solar-live-reading strong {
+        font-size: clamp(2.25rem, 13vw, 3rem);
+    }
+    .sdash-hero-stage .solar-live-kpis {
+        gap: .75rem;
+        padding-block: .875rem;
+    }
+    .sdash-hero-stage .solar-live-kpis p,
+    .sdash-hero-stage .solar-live-efficiency span,
+    .sdash-hero-stage .solar-live-trend p {
+        letter-spacing: .12em;
+    }
+    .sdash-hero-stage .solar-live-weather-pill {
+        margin: .85rem;
+        max-width: calc(100% - 1.7rem);
+        white-space: normal;
+    }
+    .sdash-hero-stage .solar-live-trend {
+        right: .9rem;
+        bottom: .9rem;
+        left: .9rem;
+    }
+    .sdash-hero-stage .solar-live-curve {
+        height: 4rem;
+    }
+
+    /* AI panel: toolbar apilada */
+    .sdash-ai-shell {
+        padding: .875rem .875rem 1rem;
+        gap: .75rem;
+    }
+    .sdash-ai-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .5rem;
+    }
+    .sdash-ai-toolbar > button {
+        align-self: flex-end;
+    }
+
+    /* AI composer: select + botón generar en una fila, hint abajo */
+    .sdash-ai-composer {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: auto auto auto;
+        gap: .5rem;
+    }
+    .sdash-ai-composer > select {
+        grid-column: 1;
+        grid-row: 1;
+        min-width: 0;
+    }
+    .sdash-ai-composer > div {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+    /* Botón "Detener generacion" (condicional) */
+    .sdash-ai-composer > button:first-of-type {
+        grid-column: 1 / -1;
+        grid-row: 3;
+    }
+    /* Botón "Generar IA / Regenerar" */
+    .sdash-ai-composer > button:last-of-type {
+        grid-column: 2;
+        grid-row: 1;
+        white-space: nowrap;
+    }
+
+    /* Prediction head: apilar título y acciones */
+    .sdash-prediction-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .sdash-prediction-actions {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+    .sdash-prediction-actions .sdash-btn--primary {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Prediction body */
+    .sdash-prediction-body {
+        padding: .875rem .875rem 1rem;
+    }
+
+    /* Modal: ocupar pantalla completa desde abajo */
+    .sdash-modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+    .sdash-modal {
+        max-height: 92vh;
+        border-radius: var(--sdash-radius) var(--sdash-radius) 0 0;
+        max-width: 100%;
+    }
+    .sdash-modal__head {
+        padding: 1rem 1.125rem;
+        gap: .75rem;
+        align-items: flex-start;
+    }
+}
+
+/* ── Teléfono pequeño (< 400px) ────────────────────────────── */
+@media (max-width: 400px) {
+    .sdash {
+        padding: .875rem .625rem 2rem;
+    }
+    .sdash-kpis {
+        grid-template-columns: 1fr 1fr;
+        gap: .375rem;
+        padding: .75rem .625rem;
+    }
+    .sdash-kpi__value {
+        font-size: 1rem;
+    }
+    .sdash-kpi__label {
+        font-size: .64rem;
+    }
+    .sdash-hero-stage .solar-live-controls {
+        grid-template-columns: 1fr;
+    }
+    .sdash-hero-stage .solar-live-panel,
+    .sdash-hero-stage .solar-live-sky {
+        min-height: 230px;
+    }
+    .sdash-hero-stage .solar-live-stats {
+        padding: .85rem;
+    }
+    .sdash-ai-composer {
+        grid-template-columns: 1fr;
+    }
+    .sdash-ai-composer > select,
+    .sdash-ai-composer > div,
+    .sdash-ai-composer > button:first-of-type,
+    .sdash-ai-composer > button:last-of-type {
+        grid-column: 1 / -1;
+        grid-row: auto;
+        width: 100%;
+    }
+    .sdash-header {
+        padding: 1rem .875rem;
+    }
+    .sdash-section-head {
+        padding: .875rem .875rem .5rem;
+    }
+}
 </style>
 
 <script type="application/json" id="solar-dashboard-scales-{{ $solarProject->id }}">@json($timeScales['scales'] ?? [])</script>
@@ -1608,7 +2023,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
         </div>
 
         {{-- Right column: operational + coverage --}}
-        <div style="display:flex;flex-direction:column;gap:var(--sdash-gap);">
+        <div class="sdash-grid-col">
 
             {{-- Coverage donut --}}
             <div class="sdash-card">

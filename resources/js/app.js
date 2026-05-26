@@ -205,6 +205,25 @@ const updateUvIndexIndicator = (rows) => {
     }
 };
 
+const updateAmbientUvIndexIndicator = (rows) => {
+    const value = latestNumericValue(rows, 'uv_index');
+    const valueElement = document.querySelector('[data-ambient-iuv-value]');
+    const riskElement = document.querySelector('[data-ambient-iuv-risk]');
+    const barElement = document.querySelector('[data-ambient-iuv-bar]');
+
+    if (valueElement) {
+        valueElement.textContent = value === null ? 'N/A' : numberFormatter.format(value);
+    }
+
+    if (riskElement) {
+        riskElement.textContent = uvRiskLabel(value);
+    }
+
+    if (barElement) {
+        barElement.style.width = `${Math.min(100, ((value ?? 0) / 11) * 100)}%`;
+    }
+};
+
 const formatDashboardMetric = (kpi) => {
     const value = kpi?.value;
 
@@ -828,6 +847,7 @@ const upsertAmbientRealtimeChart = (rows) => {
         existingChart.data.datasets[1].data    = temperature;
         existingChart.data.datasets[2].data    = uvIndex;
         existingChart.update('none');
+        updateAmbientUvIndexIndicator(rows);
         return;
     }
 
@@ -924,6 +944,8 @@ const upsertAmbientRealtimeChart = (rows) => {
             },
         },
     });
+
+    updateAmbientUvIndexIndicator(rows);
 };
 
 const initSolarCharts = () => {
@@ -1017,9 +1039,64 @@ const apiDataCountFormatter = new Intl.NumberFormat('es-CO', {
     maximumFractionDigits: 0,
 });
 
-let weatherStationSyncTimer = null;
-let weatherStationSyncController = null;
+let apiDataSyncTimer = null;
+let apiDataSyncController = null;
 let apiPaginationController = null;
+let apiDataManualSyncActive = false;
+
+const apiSourceConfig = {
+    ambient: {
+        countKey: 'ambientCount',
+        countSelector: '[data-ambient-count]',
+        emptyColspan: 9,
+        emptyMessage: 'Aun no hay lecturas registradas desde Ambient Weather. Pulsa "Sincronizar Ambient Weather" para importar.',
+        formSelector: '[data-api-fetch-form="ambient"]',
+        pillSelector: '[data-ambient-count-pill]',
+        renderRows: (rows) => rows.map((row) => `
+            <tr>
+                <td class="font-semibold text-[color:var(--solar-text)]">${escapeHtml(row.recorded_at)}</td>
+                <td class="font-mono text-xs">${escapeHtml(row.mac_address)}</td>
+                <td>${escapeHtml(row.radiation)} <span class="text-xs text-[color:var(--solar-text-muted)]">W/m²</span></td>
+                <td>${escapeHtml(row.temperature)} <span class="text-xs text-[color:var(--solar-text-muted)]">°C</span></td>
+                <td>${escapeHtml(row.humidity)} <span class="text-xs text-[color:var(--solar-text-muted)]">%</span></td>
+                <td>${escapeHtml(row.wind_speed)}</td>
+                <td>${escapeHtml(row.wind_direction)}</td>
+                <td>${escapeHtml(row.rainfall)}</td>
+                <td>${escapeHtml(row.uv_index)}</td>
+            </tr>
+        `).join(''),
+        rowsSelector: '[data-ambient-rows]',
+        statusBusy: 'Sincronizando Ambient Weather...',
+        statusAuto: 'Buscando nuevas lecturas de Ambient...',
+        updateChart: upsertAmbientRealtimeChart,
+    },
+    'weather-station': {
+        countKey: 'weatherStationCount',
+        countSelector: '[data-weather-station-count]',
+        emptyColspan: 12,
+        emptyMessage: 'Aun no hay lecturas registradas desde el centro meteorologico.',
+        formSelector: '[data-api-fetch-form="weather-station"]',
+        pillSelector: '[data-weather-station-count-pill]',
+        renderRows: (rows) => renderWeatherStationRows(rows),
+        rowsSelector: '[data-weather-station-rows]',
+        statusBusy: 'Consultando estacion...',
+        statusAuto: 'Buscando nuevas lecturas meteorologicas...',
+        updateChart: upsertWeatherStationRealtimeChart,
+    },
+    nasa: {
+        autoSync: false,
+        countKey: 'nasaCount',
+        countSelector: '[data-api-data-nasa-count]',
+        emptyColspan: 8,
+        emptyMessage: 'Aun no hay datos registrados desde NASA POWER.',
+        formSelector: '[data-api-fetch-form="nasa"]',
+        pillSelector: '[data-api-data-nasa-count-pill]',
+        renderRows: (rows) => renderNasaRows(rows),
+        rowsSelector: '[data-nasa-rows]',
+        statusBusy: 'Consultando NASA POWER...',
+        statusAuto: 'NASA POWER se actualiza manualmente.',
+    },
+};
 
 const renderWeatherStationRows = (rows) => {
     if (!rows.length) {
@@ -1050,8 +1127,50 @@ const renderWeatherStationRows = (rows) => {
     `).join('');
 };
 
-const setWeatherStationStatus = (section, message, tone = 'neutral') => {
-    const status = section.querySelector('[data-weather-station-status]');
+const renderNasaRows = (rows) => {
+    if (!rows.length) {
+        return `
+            <tr>
+                <td colspan="8" class="py-10 text-center">
+                    Aun no hay datos registrados desde NASA POWER.
+                </td>
+            </tr>
+        `;
+    }
+
+    return rows.map((row) => `
+        <tr>
+            <td class="font-semibold text-[color:var(--solar-text)]">${escapeHtml(row.recorded_at)}</td>
+            <td>
+                <span class="solar-pill ${row.is_incomplete ? 'solar-pill-warn' : ''}">
+                    ${escapeHtml(row.status)}
+                </span>
+            </td>
+            <td>${escapeHtml(row.radiation)}</td>
+            <td>
+                ${escapeHtml(row.radiation_source)}
+                <span class="text-xs text-[color:var(--solar-text-muted)]">
+                    (${escapeHtml(row.radiation_confidence)})
+                </span>
+            </td>
+            <td>${escapeHtml(row.temperature)}</td>
+            <td>${escapeHtml(row.humidity)}</td>
+            <td>${escapeHtml(row.precipitation)}</td>
+            <td>${escapeHtml(row.wind_speed)}</td>
+        </tr>
+    `).join('');
+};
+
+const renderEmptyApiRows = (config) => `
+    <tr>
+        <td colspan="${config.emptyColspan}" class="py-10 text-center">
+            ${escapeHtml(config.emptyMessage)}
+        </td>
+    </tr>
+`;
+
+const setApiDataStatus = (section, source, message, tone = 'neutral') => {
+    const status = section.querySelector(`[data-api-sync-status="${source}"]`);
 
     if (!status) {
         return;
@@ -1064,51 +1183,77 @@ const setWeatherStationStatus = (section, message, tone = 'neutral') => {
     status.classList.toggle('dark:text-zinc-400', tone !== 'error');
 };
 
-const updateWeatherStationDom = (section, payload) => {
-    const stationCount = Number(payload.weatherStationCount ?? 0);
-    const formattedStationCount = apiDataCountFormatter.format(stationCount);
-    const stationCountElements = document.querySelectorAll('[data-weather-station-count]');
-    const stationCountPill = section.querySelector('[data-weather-station-count-pill]');
-    const totalCountElement = document.querySelector('[data-api-data-total-count]');
+const updateApiDataTotal = () => {
+    const totalCountElements = document.querySelectorAll('[data-api-data-total-count]');
+    const ambientCountElement = document.querySelector('[data-ambient-count]');
+    const stationCountElement = document.querySelector('[data-weather-station-count]');
     const nasaCountElement = document.querySelector('[data-api-data-nasa-count]');
-    const rowsElement = section.querySelector('[data-weather-station-rows]');
+    const totalCount = Number(ambientCountElement?.dataset.count ?? 0)
+        + Number(stationCountElement?.dataset.count ?? 0)
+        + Number(nasaCountElement?.dataset.count ?? 0);
 
-    stationCountElements.forEach((element) => {
-        element.textContent = formattedStationCount;
-        element.dataset.count = String(stationCount);
+    totalCountElements.forEach((element) => {
+        element.textContent = apiDataCountFormatter.format(totalCount);
+    });
+};
+
+const updateApiSourceDom = (section, source, payload) => {
+    const config = apiSourceConfig[source];
+
+    if (!config) {
+        return;
+    }
+
+    const sourceCount = Number(payload[config.countKey] ?? 0);
+    const formattedSourceCount = apiDataCountFormatter.format(sourceCount);
+    const countElements = document.querySelectorAll(config.countSelector);
+    const countPill = section.querySelector(config.pillSelector);
+
+    countElements.forEach((element) => {
+        element.textContent = formattedSourceCount;
+        element.dataset.count = String(sourceCount);
     });
 
-    if (stationCountPill) {
-        stationCountPill.textContent = `${formattedStationCount} registros`;
+    if (countPill) {
+        countPill.textContent = `${formattedSourceCount} registros`;
     }
 
-    if (totalCountElement && nasaCountElement) {
-        const nasaCount = Number(nasaCountElement.dataset.count ?? 0);
-        totalCountElement.textContent = apiDataCountFormatter.format(nasaCount + stationCount);
-    }
+    updateApiDataTotal();
 
-    if (rowsElement) {
-        rowsElement.innerHTML = renderWeatherStationRows(payload.rows ?? []);
+    const sourceRowsElement = section.querySelector(config.rowsSelector);
+
+    if (sourceRowsElement) {
+        const rows = payload.rows ?? [];
+        sourceRowsElement.innerHTML = rows.length ? config.renderRows(rows) : renderEmptyApiRows(config);
     }
 
     if (payload.chartRows) {
-        upsertWeatherStationRealtimeChart(payload.chartRows);
+        config.updateChart(payload.chartRows);
     }
 };
 
-const syncWeatherStationData = async (section, { manual = false } = {}) => {
-    const form = section.querySelector('[data-weather-station-fetch-form]');
+const syncApiDataSource = async (source, { manual = false } = {}) => {
+    const config = apiSourceConfig[source];
+    const section = document.querySelector(`[data-api-sync-section="${source}"]`);
+    const form = section?.querySelector(config?.formSelector);
 
-    if (!form || weatherStationSyncController) {
+    if (!config || !section || !form || apiDataSyncController) {
         return;
     }
 
-    if (!manual && document.visibilityState !== 'visible') {
+    if (!manual && (config.autoSync === false || document.visibilityState !== 'visible' || apiDataManualSyncActive)) {
         return;
     }
 
-    weatherStationSyncController = new AbortController();
-    setWeatherStationStatus(section, manual ? 'Consultando estacion...' : 'Buscando nuevas lecturas...');
+    apiDataSyncController = new AbortController();
+    apiDataManualSyncActive = manual;
+    setApiDataStatus(section, source, manual ? config.statusBusy : config.statusAuto);
+
+    const formData = new FormData(form);
+
+    if (!manual) {
+        formData.set('auto_sync', '1');
+    }
 
     try {
         const response = await fetch(form.action, {
@@ -1117,9 +1262,9 @@ const syncWeatherStationData = async (section, { manual = false } = {}) => {
                 Accept: 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
             },
-            body: new FormData(form),
+            body: formData,
             credentials: 'same-origin',
-            signal: weatherStationSyncController.signal,
+            signal: apiDataSyncController.signal,
         });
 
         const payload = await response.json();
@@ -1128,51 +1273,65 @@ const syncWeatherStationData = async (section, { manual = false } = {}) => {
             throw new Error(payload.message ?? 'No fue posible actualizar los datos.');
         }
 
-        updateWeatherStationDom(section, payload);
-        setWeatherStationStatus(section, payload.message ?? 'Datos actualizados.');
+        updateApiSourceDom(section, source, payload);
+        setApiDataStatus(section, source, payload.message ?? 'Datos actualizados.');
     } catch (error) {
         if (error.name !== 'AbortError') {
-            setWeatherStationStatus(section, error.message, 'error');
+            setApiDataStatus(section, source, error.message, 'error');
         }
     } finally {
-        weatherStationSyncController = null;
+        apiDataSyncController = null;
+        apiDataManualSyncActive = false;
     }
 };
 
-const initWeatherStationSync = () => {
-    const section = document.querySelector('[data-weather-station-sync]');
+const runApiDataAutoSync = async () => {
+    for (const source of Object.keys(apiSourceConfig)) {
+        if (apiDataManualSyncActive || document.visibilityState !== 'visible') {
+            return;
+        }
 
-    if (weatherStationSyncTimer) {
-        clearInterval(weatherStationSyncTimer);
-        weatherStationSyncTimer = null;
+        await syncApiDataSource(source);
+    }
+};
+
+const initApiDataSync = () => {
+    const page = document.querySelector('[data-api-auto-sync]');
+
+    if (apiDataSyncTimer) {
+        clearInterval(apiDataSyncTimer);
+        apiDataSyncTimer = null;
     }
 
-    if (weatherStationSyncController) {
-        weatherStationSyncController.abort();
-        weatherStationSyncController = null;
+    if (apiDataSyncController) {
+        apiDataSyncController.abort();
+        apiDataSyncController = null;
     }
 
-    if (!section) {
+    if (!page) {
         return;
     }
 
-    const form = section.querySelector('[data-weather-station-fetch-form]');
-    const interval = Number(section.dataset.syncInterval ?? 15000);
+    document.querySelectorAll('[data-api-fetch-form]').forEach((form) => {
+        const source = form.dataset.apiFetchForm;
 
-    if (form && !form.dataset.weatherStationSubmitBound) {
+        if (!source || form.dataset.apiSyncSubmitBound) {
+            return;
+        }
+
         form.addEventListener('submit', (event) => {
             event.preventDefault();
-            syncWeatherStationData(section, { manual: true });
+            syncApiDataSource(source, { manual: true });
         });
-        form.dataset.weatherStationSubmitBound = 'true';
-    }
+        form.dataset.apiSyncSubmitBound = 'true';
+    });
 
-    syncWeatherStationData(section);
-    weatherStationSyncTimer = window.setInterval(() => syncWeatherStationData(section), interval);
+    const interval = Number(page.dataset.apiSyncInterval ?? 300000);
+    apiDataSyncTimer = window.setInterval(runApiDataAutoSync, interval);
 };
 
-document.addEventListener('DOMContentLoaded', initWeatherStationSync);
-document.addEventListener('livewire:navigated', initWeatherStationSync);
+document.addEventListener('DOMContentLoaded', initApiDataSync);
+document.addEventListener('livewire:navigated', initApiDataSync);
 
 const apiDataPagePath = '/api-data';
 
@@ -1205,7 +1364,7 @@ const replaceApiPaginationSection = (html, sectionKey) => {
 
     currentSection.replaceWith(nextSection);
     initApiDataPagination();
-    initWeatherStationSync();
+    initApiDataSync();
 
     return true;
 };
