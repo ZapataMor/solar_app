@@ -10,11 +10,10 @@
             <header class="login-topbar">
                 <a href="{{ route('home') }}" class="login-brand" wire:navigate>
                     <span class="login-brand-mark" aria-hidden="true">
-                        <img src="{{ asset('images/logo.png') }}" alt="" />
+                        <img src="{{ asset('images/fondoNathalIA.png') }}" alt="Natal-IA" />
                     </span>
                     <span class="login-brand-name">
-                        Maicao Coders
-                        <small>SolarApp Guajira</small>
+                        <small style="margin-left:0;border-left:none;padding-left:0;">Núcleo de análisis solar con IA</small>
                     </span>
                 </a>
 
@@ -30,7 +29,7 @@
                 <div class="login-panel">
                     <section class="login-hero">
                         <span class="login-panel-logo" aria-hidden="true">
-                            <img src="{{ asset('images/logo.png') }}" alt="" />
+                            <img src="{{ asset('images/fondoNathalIA.png') }}" alt="Natal-IA" />
                         </span>
 
                         <div class="login-eyebrow">Energia - Clima - Territorio</div>
@@ -60,7 +59,7 @@
             </main>
 
             <footer class="login-footer">
-                <div>&copy; 2026 SolarApp Guajira</div>
+                <div>&copy; 2026 Natal-IA</div>
                 <ul>
                     <li>Riohacha</li>
                     <li><a href="#">Soporte</a></li>

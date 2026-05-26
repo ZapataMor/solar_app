@@ -11,8 +11,8 @@
             </flux:sidebar.header>
 
             <div class="solar-sidebar-intro">
-                <p>Riohacha Solar Intelligence</p>
-                <p>Dashboard premium para analisis energetico, clima, radiacion y decisiones operativas con contexto local.</p>
+                <p>Natal-IA</p>
+                <p>Núcleo de Análisis Tecnológico para el Aprovechamiento de la Luz Solar mediante IA.</p>
             </div>
 
             <flux:sidebar.nav>

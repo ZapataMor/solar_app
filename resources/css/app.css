@@ -256,16 +256,18 @@ select:focus[data-flux-control] {
 
     .login-brand-mark {
         display: grid;
-        width: 38px;
-        height: 38px;
+        width: 16%;
+        height: auto;
         place-items: center;
-        border-radius: 10px;
-        background: rgba(247, 239, 228, 0.9);
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
     }
 
     .login-brand-mark img {
-        width: 34px;
-        height: 34px;
+        width: 100%;
+        height: auto;
+        max-width: 100%;
         object-fit: contain;
     }
 
@@ -363,21 +365,20 @@ select:focus[data-flux-control] {
 
     .login-panel-logo {
         display: grid;
-        width: 66px;
-        height: 66px;
+        width: 72%;
+        height: auto;
         margin-bottom: 28px;
         place-items: center;
-        border: 1px solid rgba(247, 239, 228, 0.2);
-        border-radius: 17px;
-        background: rgba(247, 239, 228, 0.95);
-        box-shadow:
-            0 16px 34px -20px rgba(0, 0, 0, 0.82),
-            inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
     }
 
     .login-panel-logo img {
-        width: 54px;
-        height: 54px;
+        width: 100%;
+        height: auto;
+        max-width: 100%;
         object-fit: contain;
     }
 
@@ -828,13 +829,24 @@ select:focus[data-flux-control] {
         padding: 0.25rem 0 0.5rem !important;
     }
 
+    .solar-sidebar-brand .solar-brand-mark {
+        width: 100%;
+    }
+
+    .solar-sidebar-brand .solar-brand-logo {
+        width: 132%;
+        max-width: 132%;
+        height: auto;
+        object-fit: contain;
+        transform-origin: left center;
+    }
+
     .solar-brand-mark {
-        overflow: hidden;
-        background: rgba(255, 250, 240, 0.96) !important;
-        color: #fff7ee !important;
-        box-shadow:
-            0 14px 34px -18px rgba(169, 91, 31, 0.44),
-            inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        overflow: visible;
+        background: transparent !important;
+        color: inherit !important;
+        box-shadow: none;
+        border: none;
     }
 
     .solar-brand-logo {
@@ -3303,16 +3315,18 @@ select:focus[data-flux-control] {
             padding: 24px 18px;
         }
 
-        .login-panel-logo {
-            width: 54px;
-            height: 54px;
-            margin-bottom: 26px;
-            border-radius: 14px;
+        .login-brand-mark {
+            width: 24%;
         }
 
-        .login-panel-logo img {
-            width: 44px;
-            height: 44px;
+        .login-panel-logo {
+            width: 92%;
+            margin-bottom: 20px;
+        }
+
+        .solar-sidebar-brand .solar-brand-logo {
+            width: 112%;
+            max-width: 112%;
         }
 
         .login-card {
