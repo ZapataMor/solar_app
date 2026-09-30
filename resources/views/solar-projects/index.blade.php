@@ -10,13 +10,6 @@
             ->values()
         : collect();
 
-    $ownersOnPage = $isAdmin
-        ? $projectsOnPage->pluck('user_id')->filter()->unique()->count()
-        : 1;
-
-    $projectsWithResults = $projectsOnPage->filter(fn ($project) => $project->calculationResult !== null)->count();
-    $aiReadyProjects = $projectsOnPage->filter(fn ($project) => filled(config('openai.api_key')) && $project->calculationResult !== null)->count();
-
     $formatMoney = fn ($value) => '$ ' . number_format((float) $value, 0, ',', '.') . ' COP';
     $formatDate = fn ($value) => optional($value)->format('d M Y');
     $badgeClass = fn ($tone) => match ($tone) {
@@ -44,24 +37,6 @@
                 <a href="{{ route('solar-projects.create') }}" class="solar-button">
                     Nuevo proyecto
                 </a>
-            </div>
-
-            <div class="mt-6 grid gap-4 md:grid-cols-3">
-                <div class="solar-metric-card">
-                    <p class="solar-metric-label">{{ $isAdmin ? 'Portafolio total' : 'Tus proyectos' }}</p>
-                    <p class="solar-metric-value">{{ number_format($solarProjects->total(), 0, ',', '.') }}</p>
-                    <p class="solar-metric-copy">{{ $isAdmin ? 'Todos los proyectos visibles desde la administracion.' : 'Escenarios activos disponibles en tu cuenta.' }}</p>
-                </div>
-                <div class="solar-metric-card">
-                    <p class="solar-metric-label">{{ $isAdmin ? 'Propietarios visibles' : 'Analisis listos' }}</p>
-                    <p class="solar-metric-value">{{ number_format($isAdmin ? $ownersOnPage : $projectsWithResults, 0, ',', '.') }}</p>
-                    <p class="solar-metric-copy">{{ $isAdmin ? 'Usuarios representados en esta pagina del dashboard.' : 'Proyectos con calculos disponibles para lectura ejecutiva.' }}</p>
-                </div>
-                <div class="solar-metric-card">
-                    <p class="solar-metric-label">IA disponible</p>
-                    <p class="solar-metric-value">{{ number_format($aiReadyProjects, 0, ',', '.') }}</p>
-                    <p class="solar-metric-copy">Cards listas para resumen asistido cuando existe calculo y configuracion IA.</p>
-                </div>
             </div>
         </section>
 
