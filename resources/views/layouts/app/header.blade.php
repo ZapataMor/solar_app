@@ -25,14 +25,9 @@
 
         <flux:sidebar collapsible="mobile" sticky class="solar-shell-sidebar lg:hidden">
             <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('solar-projects.index') }}" wire:navigate />
+                <x-app-logo :sidebar="true" />
                 <flux:sidebar.collapse class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
             </flux:sidebar.header>
-
-            <div class="solar-sidebar-intro">
-                <p>Natal-IA</p>
-                <p>Núcleo de Análisis Tecnológico para el Aprovechamiento de la Luz Solar mediante IA.</p>
-            </div>
 
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Centro solar')" class="grid solar-nav-heading">

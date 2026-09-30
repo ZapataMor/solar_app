@@ -4,26 +4,19 @@
         @include('partials.head')
     </head>
     <body class="solar-shell-body min-h-dvh antialiased">
-        <flux:sidebar sticky collapsible="mobile" class="solar-shell-sidebar">
-            <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('solar-projects.index') }}" wire:navigate />
-                <flux:sidebar.collapse class="lg:hidden" />
+        <flux:sidebar sticky collapsible persist class="solar-shell-sidebar">
+            <flux:sidebar.header class="solar-sidebar-header">
+                <x-app-logo :sidebar="true" />
             </flux:sidebar.header>
 
-            <div class="solar-sidebar-intro">
-                <p>Natal-IA</p>
-                <p>Núcleo de Análisis Tecnológico para el Aprovechamiento de la Luz Solar mediante IA.</p>
-            </div>
-
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Centro solar')" class="grid solar-nav-heading">
-                    <flux:sidebar.item class="solar-nav-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" wire:navigate>
-                        {{ __('Proyectos solares') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" wire:navigate>
-                        {{ __('Datos APIs') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
+                <div class="solar-nav-label">{{ __('Centro solar') }}</div>
+                <flux:sidebar.item class="solar-nav-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" :tooltip="__('Proyectos solares')" wire:navigate>
+                    {{ __('Proyectos solares') }}
+                </flux:sidebar.item>
+                <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" :tooltip="__('Datos APIs')" wire:navigate>
+                    {{ __('Datos APIs') }}
+                </flux:sidebar.item>
             </flux:sidebar.nav>
 
             <flux:spacer />

@@ -789,7 +789,7 @@ select:focus[data-flux-control] {
         z-index: 1;
     }
 
-    .solar-shell-body > [data-flux-sidebar] {
+    .solar-shell-body > [data-flux-sidebar]:not([data-flux-sidebar-collapsed-desktop]) {
         width: var(--solar-sidebar-width);
         min-height: 100dvh;
         align-self: stretch;
@@ -912,33 +912,6 @@ select:focus[data-flux-control] {
         text-transform: uppercase;
     }
 
-    .solar-sidebar-intro {
-        margin: 0 0 1rem;
-        margin-top: 0.4rem !important;
-        border: 1px solid var(--solar-border);
-        border-radius: 1.1rem;
-        background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-strong) 84%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 78%, transparent) 100%);
-        padding: 1rem;
-        box-shadow: var(--solar-shadow);
-        position: relative;
-        z-index: 1;
-    }
-
-    .solar-sidebar-intro p:first-child {
-        color: var(--solar-gold);
-        font-family: var(--font-mono);
-        font-size: 0.64rem;
-        font-weight: 700;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-    }
-
-    .solar-sidebar-intro p:last-child {
-        margin-top: 0.55rem;
-        color: var(--solar-text);
-        font-size: 0.84rem;
-        line-height: 1.45;
-    }
 
     .solar-nav-heading {
         color: var(--solar-text-muted) !important;
@@ -3532,18 +3505,27 @@ select:focus[data-flux-control] {
     }
 
 
-    /* Final sidebar logo fix: centered, readable, and non-overlapping */
+    /* Sidebar header: collapse button on top, logo centered and full width below */
     .solar-shell-sidebar [data-flux-sidebar-header] {
-        display: block;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
         padding-bottom: 1rem !important;
-        margin-bottom: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
         overflow: visible !important;
     }
 
     .solar-sidebar-brand {
+        cursor: pointer;
+        border: 0;
+        background: transparent;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
+        width: 100%;
+        height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
     }
@@ -3553,25 +3535,99 @@ select:focus[data-flux-control] {
         justify-content: center !important;
         align-items: center !important;
         width: 100%;
+        height: auto !important;
         line-height: 0;
         overflow: visible !important;
     }
 
     .solar-sidebar-brand .solar-brand-logo {
         display: block;
-        width: 88%;
-        max-width: 88%;
+        width: 100%;
+        max-width: 100%;
         height: auto;
-        max-height: none;
+        max-height: none !important;
         object-fit: contain;
         margin: 0 auto;
         filter: none;
     }
 
-    @media (max-width: 980px) {
-        .solar-sidebar-brand .solar-brand-logo {
-            width: 78%;
-            max-width: 78%;
+    .solar-sidebar-brand .solar-brand-logo-icon {
+        display: none;
+    }
+
+    /* Fixed-size logo: while the sidebar animates it is revealed instead of squashed */
+    .solar-sidebar-brand,
+    .solar-sidebar-brand .solar-brand-mark {
+        justify-content: safe center !important;
+    }
+
+    .solar-sidebar-brand .solar-brand-logo-full {
+        flex-shrink: 0;
+        width: 13.5rem;
+        max-width: none;
+    }
+
+    .solar-nav-label {
+        padding: 0.5rem 0.75rem;
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        letter-spacing: 0.18em;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    /* Collapsed (desktop): icon-only rail */
+    [data-flux-sidebar-collapsed-desktop] [data-flux-sidebar-header] {
+        padding-bottom: 0.5rem !important;
+    }
+
+    [data-flux-sidebar-collapsed-desktop] .solar-sidebar-brand {
+        width: 2.5rem;
+    }
+
+    [data-flux-sidebar-collapsed-desktop] .solar-sidebar-brand .solar-brand-logo-full,
+    [data-flux-sidebar-collapsed-desktop] .solar-nav-label {
+        display: none;
+    }
+
+    [data-flux-sidebar-collapsed-desktop] .solar-sidebar-brand .solar-brand-logo-icon {
+        display: block;
+        width: 2.25rem;
+        height: 2.25rem;
+        object-fit: contain;
+    }
+
+    /* Larger nav text and icons */
+    .solar-shell-sidebar [data-flux-sidebar-item] {
+        height: 2.5rem !important;
+        font-size: 0.95rem !important;
+    }
+
+    .solar-shell-sidebar [data-flux-sidebar-item] [data-flux-icon] {
+        width: 1.25rem !important;
+        height: 1.25rem !important;
+    }
+
+    .solar-shell-sidebar [data-flux-sidebar-profile] .truncate {
+        font-size: 0.95rem !important;
+    }
+
+    /* Smooth open / close on desktop */
+    .solar-shell-sidebar[data-flux-sidebar-on-desktop] {
+        overflow-x: hidden;
+        transition: width 300ms ease, padding 300ms ease !important;
+    }
+
+    .solar-shell-sidebar [data-flux-sidebar-item],
+    .solar-shell-sidebar [data-flux-sidebar-profile],
+    .solar-nav-label {
+        white-space: nowrap;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-shell-sidebar[data-flux-sidebar-on-desktop] {
+            transition: none !important;
         }
     }
 }
