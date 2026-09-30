@@ -1759,9 +1759,47 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 
                 <a href="{{ route('solar-projects.edit', $solarProject) }}" class="sdash-btn sdash-btn--ghost">✏️ Editar</a>
 
-                <form method="POST" action="{{ route('solar-projects.destroy', $solarProject) }}" onsubmit="return confirm('¿Eliminar este proyecto?');">
+                <form method="POST" action="{{ route('solar-projects.destroy', $solarProject) }}" x-data="{ confirmDeleteOpen: false }" x-ref="deleteForm">
                     @csrf @method('DELETE')
-                    <button class="sdash-btn sdash-btn--danger" type="submit">🗑</button>
+                    <button class="sdash-btn sdash-btn--danger" type="button" x-on:click="confirmDeleteOpen = true">🗑 Eliminar</button>
+
+                    <template x-teleport="body">
+                        <div
+                            x-cloak
+                            x-show="confirmDeleteOpen"
+                            x-on:keydown.escape.window="confirmDeleteOpen = false"
+                            class="solar-confirm-overlay"
+                        >
+                            <div
+                                class="solar-confirm-card"
+                                x-show="confirmDeleteOpen"
+                                x-transition.opacity.scale.90.duration.180ms
+                                x-on:click.stop
+                            >
+                                <p class="solar-kicker">Confirmar eliminacion</p>
+                                <h4 class="solar-confirm-card__title">¿Eliminar {{ $solarProject->name }}?</h4>
+                                <p class="solar-confirm-card__copy">
+                                    Se borrara el proyecto y perderas su acceso desde el listado. Esta accion no se puede deshacer.
+                                </p>
+
+                                <div class="solar-confirm-card__actions">
+                                    <button type="button" class="solar-button-ghost" x-on:click="confirmDeleteOpen = false">
+                                        Cancelar
+                                    </button>
+                                    <button type="button" class="solar-button-danger" x-on:click="$refs.deleteForm.requestSubmit()">
+                                        Si, eliminar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="solar-confirm-backdrop"
+                                aria-label="Cerrar confirmacion"
+                                x-on:click="confirmDeleteOpen = false"
+                            ></button>
+                        </div>
+                    </template>
                 </form>
 
                 <a href="{{ route('solar-projects.index') }}" class="sdash-btn sdash-btn--ghost">← Volver</a>
