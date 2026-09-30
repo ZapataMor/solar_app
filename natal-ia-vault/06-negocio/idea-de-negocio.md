@@ -6,6 +6,8 @@ tags: [moc, negocio]
 
 # Idea de negocio
 
+> Punto de partida: [[idea-deducida]] (hipótesis sacada del código).
+
 ## Problema
 
 ## Cliente

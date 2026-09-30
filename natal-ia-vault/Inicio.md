@@ -8,6 +8,10 @@ tags: [moc]
 
 Cerebro del aplicativo solar y de la idea de negocio: qué es, hacia dónde crece y por qué se decide lo que se decide.
 
+## Por revisar
+- [ ] [[06-negocio/idea-deducida|Idea deducida]]
+- [ ] [[02-producto/mapa-de-modulos|Mapa de módulos]]
+
 ## Secciones
 - [[06-negocio/idea-de-negocio|Idea de negocio]]
 - Estado actual → `01-estado-actual/`
