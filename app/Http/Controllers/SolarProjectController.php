@@ -149,11 +149,7 @@ class SolarProjectController extends Controller
         $start = Carbon::parse((string) $validated['start_date'])->startOfDay();
         $end = Carbon::parse((string) $validated['end_date'])->endOfDay();
 
-        $readings = $ambientWeatherAggregationService->latestReadings(5000)
-            ->filter(fn ($r) => $r->recorded_at !== null && $r->recorded_at->betweenIncluded($start, $end))
-            ->values();
-
-        $dailyRows = $ambientWeatherAggregationService->dailyRows($readings);
+        $dailyRows = $ambientWeatherAggregationService->dailyRowsForRange($start, $end);
 
         if ($dailyRows->isNotEmpty()) {
             $avgDailyHsp = (float) $dailyRows->avg(fn (array $row) => (((float) $row['allsky_sfc_sw_dwn']) * 24) / 1000);
@@ -165,8 +161,7 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        $fallbackReadings = $ambientWeatherAggregationService->latestReadings(3000);
-        $fallbackRows = $ambientWeatherAggregationService->dailyRows($fallbackReadings);
+        $fallbackRows = $ambientWeatherAggregationService->dailyRowsForLatest(3000);
         $fallbackDailyHsp = $fallbackRows->isNotEmpty()
             ? (float) $fallbackRows->avg(fn (array $row) => (((float) $row['allsky_sfc_sw_dwn']) * 24) / 1000)
             : null;
@@ -417,38 +412,34 @@ class SolarProjectController extends Controller
         }
 
         // ── Prioridad 1: Ambient Weather ─────────────────────────────────────
-        $ambientReadings = $ambientAgg->readingsForProject($solarProject);
+        $ambientDailyRows = $ambientAgg->dailyRowsForProject($solarProject);
 
-        if ($ambientReadings->isNotEmpty()) {
-            $ambientDailyRows = $ambientAgg->dailyRows($ambientReadings);
-
-            if ($ambientDailyRows->isNotEmpty()) {
-                try {
-                    $solarCalculationService->calculate(
-                        $solarProject,
-                        $solarCalculationService->weatherDataFromRows($ambientDailyRows),
-                        'ambient',
-                    );
-                } catch (Throwable $exception) {
-                    report($exception);
-
-                    return back()->withErrors([
-                        'solar_calculation' => 'No fue posible ejecutar los calculos con datos de Ambient Weather: ' . $exception->getMessage(),
-                    ]);
-                }
-
-                $avgCorrection = round(
-                    $ambientDailyRows->avg(fn ($r) => $r['temp_correction'] ?? 1.0) * 100,
-                    1
+        if ($ambientDailyRows->isNotEmpty()) {
+            try {
+                $solarCalculationService->calculate(
+                    $solarProject,
+                    $solarCalculationService->weatherDataFromRows($ambientDailyRows),
+                    'ambient',
                 );
+            } catch (Throwable $exception) {
+                report($exception);
 
-                return back()->with(
-                    'status',
-                    "✓ Calculos ejecutados con datos de Ambient Weather (prioridad 1). "
-                    . "Dias procesados: {$ambientDailyRows->count()}. "
-                    . "Correccion termica promedio: {$avgCorrection}%.",
-                );
+                return back()->withErrors([
+                    'solar_calculation' => 'No fue posible ejecutar los calculos con datos de Ambient Weather: ' . $exception->getMessage(),
+                ]);
             }
+
+            $avgCorrection = round(
+                $ambientDailyRows->avg(fn ($r) => $r['temp_correction'] ?? 1.0) * 100,
+                1
+            );
+
+            return back()->with(
+                'status',
+                "✓ Calculos ejecutados con datos de Ambient Weather (prioridad 1). "
+                . "Dias procesados: {$ambientDailyRows->count()}. "
+                . "Correccion termica promedio: {$avgCorrection}%.",
+            );
         }
 
         // ── Prioridad 2: Centro meteorologico ────────────────────────────────
@@ -559,9 +550,7 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        $dailyReadings = $ambientWeatherAggregationService->dailyRows(
-            $ambientWeatherAggregationService->readingsForProject($solarProject)
-        );
+        $dailyReadings = $ambientWeatherAggregationService->dailyRowsForProject($solarProject);
 
         if ($dailyReadings->isEmpty()) {
             return back()->withErrors([

@@ -59,8 +59,9 @@ class ProjectDashboardService
         ];
 
         // --- Ambient Weather data for this project period ---
-        $ambientReadings = $this->ambientWeatherAggregationService->readingsForProject($solarProject);
-        $ambientStats    = $this->ambientWeatherAggregationService->stats($ambientReadings);
+        // Aggregated in SQL: a year-long project spans tens of thousands of
+        // readings and hydrating them all exhausts the PHP memory limit.
+        $ambientStats = $this->ambientWeatherAggregationService->statsForProject($solarProject);
 
         // Determine which climate source is currently active (for dashboard indicator)
         $activeClimateSource = $this->climateSourceFallbackService->resolveActiveSourceDescriptor();
@@ -70,9 +71,7 @@ class ProjectDashboardService
         $localDailyRows   = $weatherStationReadings->isNotEmpty()
             ? $this->weatherStationAggregationService->dailyRows($weatherStationReadings)
             : collect();
-        $ambientDailyRows = $ambientReadings->isNotEmpty()
-            ? $this->ambientWeatherAggregationService->dailyRows($ambientReadings)
-            : collect();
+        $ambientDailyRows = $this->ambientWeatherAggregationService->dailyRowsForProject($solarProject);
 
         ['rows' => $fallbackClimateRows, 'source' => $fallbackClimateSource] = $this->climateSourceFallbackService->selectDailyClimateRows(
             $projectWeatherData,
@@ -188,11 +187,9 @@ class ProjectDashboardService
             // ---- Ambient Weather additions (non-breaking — new keys only) ----
             'activeClimateSource' => $activeClimateSource,
             'ambientWeatherStats' => $ambientStats,
-            'recentAmbientReadings' => $ambientReadings
-                ->sortByDesc('recorded_at')
-                ->take(60)
-                ->values(),
-            'ambientChartData' => $this->ambientWeatherAggregationService->chartData($ambientReadings),
+            'recentAmbientReadings' => $this->ambientWeatherAggregationService
+                ->recentReadingsForProject($solarProject, 60),
+            'ambientChartData' => $this->ambientWeatherAggregationService->chartDataForProject($solarProject),
             // Comparison: latest NASA vs latest Ambient radiation reading
             'climateSourceComparison' => $this->buildClimateSourceComparison($projectWeatherData, $ambientStats),
         ];
