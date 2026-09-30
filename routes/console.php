@@ -16,7 +16,7 @@ Schedule::command('weather-station:fetch')
 
 Schedule::command('nasa-power:fetch')
     ->hourlyAt(1)
-    ->timezone(config('app.timezone', 'America/Bogota'))
+    ->timezone(config('app.display_timezone', 'America/Bogota'))
     ->withoutOverlapping();
 
 // Ambient Weather — every 5 minutes, same window as the local station.
@@ -25,6 +25,6 @@ Schedule::command('nasa-power:fetch')
 Schedule::command('ambient:sync')
     ->everyFiveMinutes()
     ->between('06:00', '18:30')
-    ->timezone(config('app.timezone', 'America/Bogota'))
+    ->timezone(config('app.display_timezone', 'America/Bogota'))
     ->withoutOverlapping()
     ->onOneServer();
