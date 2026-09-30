@@ -1,6 +1,6 @@
 @php
     $description = filled($solarProject->description)
-        ? \Illuminate\Support\Str::limit(trim($solarProject->description), 96)
+        ? \Illuminate\Support\Str::limit(trim($solarProject->description), 160)
         : 'Escenario solar para consumo, cobertura y ahorro en Riohacha.';
 @endphp
 

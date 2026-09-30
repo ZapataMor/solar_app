@@ -46,6 +46,12 @@ class SolarProjectController extends Controller
             $solarProjectsQuery->where('user_id', $user->id);
         }
 
+        $search = trim((string) $request->query('search', ''));
+
+        if ($search !== '') {
+            $solarProjectsQuery->where('name', 'like', '%'.$search.'%');
+        }
+
         $solarProjects = $solarProjectsQuery->paginate(12)->withQueryString();
         $solarProjects->getCollection()->transform(function (SolarProject $solarProject) {
             $this->attachWeatherCounts($solarProject);
@@ -56,6 +62,7 @@ class SolarProjectController extends Controller
         return view('solar-projects.index', [
             'solarProjects' => $solarProjects,
             'isAdmin' => $isAdmin,
+            'search' => $search,
         ]);
     }
 

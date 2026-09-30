@@ -99,6 +99,20 @@ class SolarProjectTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_user_can_search_projects_by_name(): void
+    {
+        $user = User::factory()->create();
+
+        $user->solarProjects()->create(['name' => 'Parque Riohacha Norte'] + $this->projectAttributes());
+        $user->solarProjects()->create(['name' => 'Colegio Maicao'] + $this->projectAttributes());
+
+        $response = $this->actingAs($user)->get(route('solar-projects.index', ['search' => 'riohacha']));
+
+        $response->assertOk();
+        $response->assertSee('Parque Riohacha Norte');
+        $response->assertDontSee('Colegio Maicao');
+    }
+
     public function test_fetch_weather_data_stores_daily_values_without_duplicates(): void
     {
         Http::fake([

@@ -2994,7 +2994,7 @@ select:focus[data-flux-control] {
 
     .solar-project-grid {
         display: grid;
-        gap: 1rem;
+        gap: 1.25rem;
         grid-template-columns: repeat(1, minmax(0, 1fr));
     }
 
@@ -3002,14 +3002,15 @@ select:focus[data-flux-control] {
         position: relative;
         display: grid;
         align-content: start;
-        gap: 0.6rem;
+        gap: 0.85rem;
+        min-height: 12rem;
         color: inherit;
         text-decoration: none;
         overflow: hidden;
         border: 1px solid color-mix(in srgb, var(--solar-border) 82%, transparent);
         border-radius: 1.45rem;
         background: linear-gradient(180deg, color-mix(in srgb, var(--solar-surface-elevated) 88%, transparent) 0%, color-mix(in srgb, var(--solar-bg-alt) 62%, transparent) 100%);
-        padding: 1.2rem;
+        padding: 1.75rem;
         box-shadow: 0 18px 40px -32px rgba(83, 49, 20, 0.55);
         backdrop-filter: blur(10px);
         transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
@@ -3022,19 +3023,28 @@ select:focus[data-flux-control] {
         box-shadow: 0 28px 46px -30px rgba(83, 49, 20, 0.58);
     }
 
-
-
     .solar-project-card__title {
         color: var(--solar-text);
-        font-size: 1.55rem;
-        line-height: 1.08;
+        font-size: 1.9rem;
+        line-height: 1.1;
     }
-
 
     .solar-project-card__summary {
         color: var(--solar-text-muted);
-        font-size: 0.92rem;
+        font-size: 1.05rem;
         line-height: 1.6;
+    }
+
+    .solar-project-search {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        max-width: 40rem;
+    }
+
+    .solar-project-search .solar-input {
+        flex: 1 1 16rem;
+        font-size: 1rem;
     }
 
 
@@ -3496,11 +3506,6 @@ select:focus[data-flux-control] {
         }
     }
 
-    @media (min-width: 1480px) {
-        .solar-project-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-    }
 
     /* Final sidebar logo fix: centered, readable, and non-overlapping */
     .solar-shell-sidebar [data-flux-sidebar-header] {
