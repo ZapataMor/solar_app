@@ -226,7 +226,7 @@ class AmbientWeatherAggregationService
      *
      * Radiation methodology (Ambient Weather vs NASA POWER):
      *   NASA POWER stores allsky_sfc_sw_dwn as the true 24-hour average W/m²
-     *   (day + night). The SolarCalculationService converts it to HSP via × 24/1000.
+     *   (day + night). SolarCalculator converts it to HSP via × 24/1000.
      *
      *   Ambient sensors report instantaneous W/m² every ~5 min during daylight only.
      *   Simply averaging those daytime readings and multiplying by 24 overestimates
@@ -406,7 +406,7 @@ class AmbientWeatherAggregationService
         $dailyHsp = $this->trapezoidalHsp($sorted, 30);
 
         // Convert kWh/m²/day → 24h-average W/m² (NASA-compatible format).
-        // SolarCalculationService will apply × 24/1000 to recover HSP.
+        // SolarCalculator applies × 24/1000 to recover HSP.
         $allsky24hAvg = $dailyHsp * 1000.0 / 24.0;
 
         // Temperature derating: standard monocrystalline Si coefficient
@@ -426,7 +426,7 @@ class AmbientWeatherAggregationService
             'rh2m'              => $this->averageOf($dayReadings, 'humidity'),
             'prectotcorr'       => $rain > 0.0 ? $rain : null,
             'ws10m'             => $avgWindKmh !== null ? round($avgWindKmh / 3.6, 3) : null,
-            // Metadata — ignored by weatherDataFromRows() but useful for debugging
+            // Metadata — ignored by IrradianceRows but useful for debugging
             'daily_hsp_kwh'     => round($dailyHsp, 4),
             'temp_correction'   => $tempCorrection,
             'radiation_source'  => 'ambient_sensor',

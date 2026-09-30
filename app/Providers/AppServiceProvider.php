@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Domain\Climate\ClimateSourceChain;
+use App\Infrastructure\Climate\AmbientWeatherClimateSource;
+use App\Infrastructure\Climate\LocalStationClimateSource;
+use App\Infrastructure\Climate\NasaPowerClimateSource;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +19,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Climate sources in priority order: highest-quality data first.
+        $this->app->singleton(ClimateSourceChain::class, fn ($app) => new ClimateSourceChain(
+            $app->make(AmbientWeatherClimateSource::class),
+            $app->make(LocalStationClimateSource::class),
+            $app->make(NasaPowerClimateSource::class),
+        ));
     }
 
     /**

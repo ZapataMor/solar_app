@@ -2,6 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\SolarProjects\CalculateSolarProject;
+use App\Actions\SolarProjects\SaveSolarProject;
+use App\Domain\Climate\ClimateSeries;
+use App\Domain\Climate\ClimateSource;
+use App\Domain\Climate\NoClimateData;
+use App\Domain\Pricing\PriceNotAvailable;
+use App\Domain\Solar\MissingTechnicalParameters;
 use App\Http\Requests\SolarProjectRequest;
 use App\Models\AmbientWeatherReading;
 use App\Models\ApiWeatherData;
@@ -14,7 +21,6 @@ use App\Services\NasaWeatherDataService;
 use App\Services\AiForecastPredictionService;
 use App\Services\ProjectDashboardService;
 use App\Services\SolarProjectAiHistoryService;
-use App\Services\SolarCalculationService;
 use App\Services\SolarInstallationCostService;
 use App\Services\AmbientWeatherAggregationService;
 use App\Services\WeatherStationAggregationService;
@@ -23,9 +29,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use RuntimeException;
 use Throwable;
 
 class SolarProjectController extends Controller
@@ -93,32 +97,13 @@ class SolarProjectController extends Controller
         ]);
     }
 
-    public function store(SolarProjectRequest $request, SolarInstallationCostService $installationCostService): RedirectResponse
+    public function store(SolarProjectRequest $request, SaveSolarProject $saveSolarProject): RedirectResponse
     {
-        $validated = $request->validated();
-        $municipality = Municipality::query()->findOrFail($validated['municipality_id']);
         try {
-            $cost = $installationCostService->calculate(
-                $municipality,
-                (string) $validated['location_type'],
-                (float) $validated['required_power_kw'],
-            );
-        } catch (RuntimeException) {
-            return back()->withInput()->withErrors([
-                'municipality_id' => 'No hay precio disponible para esa ubicacion.',
-            ]);
+            $solarProject = $saveSolarProject($request->user(), $request->validated());
+        } catch (PriceNotAvailable $exception) {
+            return back()->withInput()->withErrors(['municipality_id' => $exception->getMessage()]);
         }
-
-        $solarProject = DB::transaction(function () use ($request, $validated, $municipality, $cost) {
-            $solarProject = $request->user()->solarProjects()->create([
-                ...$this->projectAttributes($validated),
-                ...$this->locationAttributes($validated, $municipality, $cost),
-            ]);
-
-            $solarProject->technicalParameter()->create($this->technicalParameterAttributes($validated));
-
-            return $solarProject;
-        });
 
         return redirect()
             ->route('solar-projects.show', $solarProject)
@@ -232,36 +217,16 @@ class SolarProjectController extends Controller
     public function update(
         SolarProjectRequest $request,
         SolarProject $solarProject,
-        SolarInstallationCostService $installationCostService,
+        SaveSolarProject $saveSolarProject,
     ): RedirectResponse
     {
         $this->authorizeOwner($request, $solarProject);
 
-        $validated = $request->validated();
-        $municipality = Municipality::query()->findOrFail($validated['municipality_id']);
         try {
-            $cost = $installationCostService->calculate(
-                $municipality,
-                (string) $validated['location_type'],
-                (float) $validated['required_power_kw'],
-            );
-        } catch (RuntimeException) {
-            return back()->withInput()->withErrors([
-                'municipality_id' => 'No hay precio disponible para esa ubicacion.',
-            ]);
+            $saveSolarProject($request->user(), $request->validated(), $solarProject);
+        } catch (PriceNotAvailable $exception) {
+            return back()->withInput()->withErrors(['municipality_id' => $exception->getMessage()]);
         }
-
-        DB::transaction(function () use ($solarProject, $validated, $municipality, $cost) {
-            $solarProject->update([
-                ...$this->projectAttributes($validated),
-                ...$this->locationAttributes($validated, $municipality, $cost),
-            ]);
-
-            $solarProject->technicalParameter()->updateOrCreate(
-                ['solar_project_id' => $solarProject->id],
-                $this->technicalParameterAttributes($validated),
-            );
-        });
 
         return redirect()
             ->route('solar-projects.show', $solarProject)
@@ -529,283 +494,90 @@ class SolarProjectController extends Controller
     }
 
     /**
-     * Auto-calculate solar metrics choosing the highest-quality data source available.
-     *
-     * Priority order:
-     *   1. Ambient Weather  — direct high-frequency sensor, temperature-derated irradiance
-     *   2. Weather Station  — local sensor, temperature-derated irradiance
-     *   3. NASA POWER       — satellite daily averages (fallback when no local data exists)
-     *
-     * Each source applies source-appropriate radiation normalization inside its
-     * dailyRows() method so the shared SolarCalculationService always receives
-     * a correctly normalized 24h-average irradiance (W/m²).
+     * Auto-calculate solar metrics choosing the highest-quality data source available
+     * (Ambient Weather → centro meteorologico → NASA POWER).
      */
-    public function calculate(
-        Request $request,
-        SolarProject $solarProject,
-        SolarCalculationService $solarCalculationService,
-        NasaWeatherDataService $nasaWeatherDataService,
-        AmbientWeatherAggregationService $ambientAgg,
-        WeatherStationAggregationService $stationAgg,
-    ): RedirectResponse {
-        $this->authorizeOwner($request, $solarProject);
-
-        if ($solarProject->technicalParameter()->doesntExist()) {
-            return back()->withErrors([
-                'solar_calculation' => 'No es posible ejecutar calculos solares sin parametros tecnicos.',
-            ]);
-        }
-
-        // ── Prioridad 1: Ambient Weather ─────────────────────────────────────
-        $ambientDailyRows = $ambientAgg->dailyRowsForProject($solarProject);
-
-        if ($ambientDailyRows->isNotEmpty()) {
-            try {
-                $solarCalculationService->calculate(
-                    $solarProject,
-                    $solarCalculationService->weatherDataFromRows($ambientDailyRows),
-                    'ambient',
-                );
-            } catch (Throwable $exception) {
-                report($exception);
-
-                return back()->withErrors([
-                    'solar_calculation' => 'No fue posible ejecutar los calculos con datos de Ambient Weather: ' . $exception->getMessage(),
-                ]);
-            }
-
-            $avgCorrection = round(
-                $ambientDailyRows->avg(fn ($r) => $r['temp_correction'] ?? 1.0) * 100,
-                1
-            );
-
-            return back()->with(
-                'status',
-                "✓ Calculos ejecutados con datos de Ambient Weather (prioridad 1). "
-                . "Dias procesados: {$ambientDailyRows->count()}. "
-                . "Correccion termica promedio: {$avgCorrection}%.",
-            );
-        }
-
-        // ── Prioridad 2: Centro meteorologico ────────────────────────────────
-        $stationReadings = $stationAgg->readingsForProject($solarProject);
-
-        if ($stationReadings->isNotEmpty()) {
-            $stationDailyRows = $stationAgg->dailyRows($stationReadings);
-
-            if ($stationDailyRows->isNotEmpty()) {
-                try {
-                    $solarCalculationService->calculate(
-                        $solarProject,
-                        $solarCalculationService->weatherDataFromRows($stationDailyRows),
-                        'local',
-                    );
-                } catch (Throwable $exception) {
-                    report($exception);
-
-                    return back()->withErrors([
-                        'solar_calculation' => 'No fue posible ejecutar los calculos con datos de la estacion: ' . $exception->getMessage(),
-                    ]);
-                }
-
-                return back()->with(
-                    'status',
-                    "✓ Calculos ejecutados con datos del centro meteorologico (prioridad 2 — sin datos Ambient en el rango). "
-                    . "Dias procesados: {$stationDailyRows->count()}.",
-                );
-            }
-        }
-
-        // ── Prioridad 3: NASA POWER ───────────────────────────────────────────
-        if ($nasaWeatherDataService->countForProject($solarProject) === 0) {
-            return back()->withErrors([
-                'solar_calculation' => 'No hay datos climaticos disponibles para este proyecto. '
-                    . 'Sincroniza al menos una fuente: Ambient Weather, centro meteorologico o NASA POWER.',
-            ]);
-        }
-
-        try {
-            $solarCalculationService->calculate($solarProject, null, 'nasa_power');
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return back()->withErrors([
-                'solar_calculation' => 'No fue posible ejecutar los calculos con NASA POWER: ' . $exception->getMessage(),
-            ]);
-        }
-
-        return back()->with(
-            'status',
-            '✓ Calculos ejecutados con datos NASA POWER (prioridad 3 — fallback satelital, sin datos locales en el rango del proyecto).',
-        );
+    public function calculate(Request $request, SolarProject $solarProject, CalculateSolarProject $calculateSolarProject): RedirectResponse
+    {
+        return $this->runCalculation($request, $solarProject, $calculateSolarProject, null);
     }
 
-    public function calculateWithWeatherStation(
-        Request $request,
-        SolarProject $solarProject,
-        SolarCalculationService $solarCalculationService,
-        WeatherStationAggregationService $weatherStationAggregationService,
-    ): RedirectResponse {
-        $this->authorizeOwner($request, $solarProject);
-
-        if ($solarProject->technicalParameter()->doesntExist()) {
-            return back()->withErrors([
-                'solar_calculation' => 'No es posible ejecutar calculos solares sin parametros tecnicos.',
-            ]);
-        }
-
-        $dailyReadings = $weatherStationAggregationService->dailyRows(
-            $weatherStationAggregationService->readingsForProject($solarProject)
-        );
-
-        if ($dailyReadings->isEmpty()) {
-            return back()->withErrors([
-                'solar_calculation' => 'No hay datos de estacion meteorologica almacenados para procesar en el rango del proyecto.',
-            ]);
-        }
-
-        try {
-            $solarCalculationService->calculate(
-                $solarProject,
-                $solarCalculationService->weatherDataFromRows($dailyReadings),
-                'local',
-            );
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return back()->withErrors([
-                'solar_calculation' => 'No fue posible ejecutar los calculos solares con datos de la estacion. Revise los datos del proyecto e intente nuevamente.',
-            ]);
-        }
-
-        return back()->with('status', 'Calculos solares ejecutados correctamente con datos de la estacion meteorologica.');
+    public function calculateWithWeatherStation(Request $request, SolarProject $solarProject, CalculateSolarProject $calculateSolarProject): RedirectResponse
+    {
+        return $this->runCalculation($request, $solarProject, $calculateSolarProject, ClimateSource::LOCAL);
     }
 
-    public function calculateWithAmbientWeather(
-        Request $request,
-        SolarProject $solarProject,
-        SolarCalculationService $solarCalculationService,
-        AmbientWeatherAggregationService $ambientWeatherAggregationService,
-    ): RedirectResponse {
-        $this->authorizeOwner($request, $solarProject);
-
-        if ($solarProject->technicalParameter()->doesntExist()) {
-            return back()->withErrors([
-                'solar_calculation' => 'No es posible ejecutar calculos solares sin parametros tecnicos.',
-            ]);
-        }
-
-        $dailyReadings = $ambientWeatherAggregationService->dailyRowsForProject($solarProject);
-
-        if ($dailyReadings->isEmpty()) {
-            return back()->withErrors([
-                'solar_calculation' => 'No hay datos de Ambient Weather almacenados para el rango del proyecto. Sincroniza primero desde "Datos APIs".',
-            ]);
-        }
-
-        try {
-            $solarCalculationService->calculate(
-                $solarProject,
-                $solarCalculationService->weatherDataFromRows($dailyReadings),
-                'ambient',
-            );
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return back()->withErrors([
-                'solar_calculation' => 'No fue posible ejecutar los calculos solares con datos de Ambient Weather. Revise los datos del proyecto e intente nuevamente.',
-            ]);
-        }
-
-        return back()->with('status', 'Calculos solares ejecutados correctamente con datos de la estacion Ambient Weather.');
+    public function calculateWithAmbientWeather(Request $request, SolarProject $solarProject, CalculateSolarProject $calculateSolarProject): RedirectResponse
+    {
+        return $this->runCalculation($request, $solarProject, $calculateSolarProject, ClimateSource::AMBIENT);
     }
 
-    public function calculateWithNasaPower(
-        Request $request,
-        SolarProject $solarProject,
-        SolarCalculationService $solarCalculationService,
-        NasaWeatherDataService $nasaWeatherDataService,
-    ): RedirectResponse {
-        $this->authorizeOwner($request, $solarProject);
-
-        if ($solarProject->technicalParameter()->doesntExist()) {
-            return back()->withErrors([
-                'solar_calculation' => 'No es posible ejecutar calculos solares sin parametros tecnicos.',
-            ]);
-        }
-
-        if ($nasaWeatherDataService->countForProject($solarProject) === 0) {
-            return back()->withErrors([
-                'solar_calculation' => 'No hay datos NASA POWER en el rango del proyecto. Sincroniza primero con el boton NASA.',
-            ]);
-        }
-
-        try {
-            $solarCalculationService->calculate($solarProject, null, 'nasa_power');
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return back()->withErrors([
-                'solar_calculation' => 'No fue posible ejecutar los calculos solares con NASA POWER. Revise los datos del proyecto e intente nuevamente.',
-            ]);
-        }
-
-        return back()->with('status', 'Calculos solares ejecutados correctamente con datos NASA POWER.');
+    public function calculateWithNasaPower(Request $request, SolarProject $solarProject, CalculateSolarProject $calculateSolarProject): RedirectResponse
+    {
+        return $this->runCalculation($request, $solarProject, $calculateSolarProject, ClimateSource::NASA_POWER);
     }
 
     /**
-     * @param  array<string, mixed>  $validated
-     * @return array<string, mixed>
+     * Messages shown after a calculation, per requested source (`auto` = best available).
      */
-    private function projectAttributes(array $validated): array
-    {
-        return [
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'],
-            'monthly_consumption_kwh' => $validated['monthly_consumption_kwh'],
-            'energy_rate_cop_kwh' => $validated['energy_rate_cop_kwh'],
-        ];
+    private const CALCULATION_MESSAGES = [
+        'auto' => [
+            'no_data' => 'No hay datos climaticos disponibles para este proyecto. Sincroniza al menos una fuente: Ambient Weather, centro meteorologico o NASA POWER.',
+            'failed' => 'No fue posible ejecutar los calculos solares: ',
+        ],
+        ClimateSource::LOCAL => [
+            'no_data' => 'No hay datos de estacion meteorologica almacenados para procesar en el rango del proyecto.',
+            'failed' => 'No fue posible ejecutar los calculos solares con datos de la estacion. Revise los datos del proyecto e intente nuevamente.',
+            'success' => 'Calculos solares ejecutados correctamente con datos de la estacion meteorologica.',
+        ],
+        ClimateSource::AMBIENT => [
+            'no_data' => 'No hay datos de Ambient Weather almacenados para el rango del proyecto. Sincroniza primero desde "Datos APIs".',
+            'failed' => 'No fue posible ejecutar los calculos solares con datos de Ambient Weather. Revise los datos del proyecto e intente nuevamente.',
+            'success' => 'Calculos solares ejecutados correctamente con datos de la estacion Ambient Weather.',
+        ],
+        ClimateSource::NASA_POWER => [
+            'no_data' => 'No hay datos NASA POWER en el rango del proyecto. Sincroniza primero con el boton NASA.',
+            'failed' => 'No fue posible ejecutar los calculos solares con NASA POWER. Revise los datos del proyecto e intente nuevamente.',
+            'success' => 'Calculos solares ejecutados correctamente con datos NASA POWER.',
+        ],
+    ];
+
+    private function runCalculation(
+        Request $request,
+        SolarProject $solarProject,
+        CalculateSolarProject $calculateSolarProject,
+        ?string $source,
+    ): RedirectResponse {
+        $this->authorizeOwner($request, $solarProject);
+        $messages = self::CALCULATION_MESSAGES[$source ?? 'auto'];
+
+        try {
+            $series = $calculateSolarProject($solarProject, $source);
+        } catch (MissingTechnicalParameters $exception) {
+            return back()->withErrors(['solar_calculation' => $exception->getMessage()]);
+        } catch (NoClimateData) {
+            return back()->withErrors(['solar_calculation' => $messages['no_data']]);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'solar_calculation' => $source === null ? $messages['failed'].$exception->getMessage() : $messages['failed'],
+            ]);
+        }
+
+        return back()->with('status', $messages['success'] ?? $this->autoCalculationMessage($series));
     }
 
-    /**
-     * @param  array<string, mixed>  $validated
-     * @param  array<string, mixed>  $cost
-     * @return array<string, mixed>
-     */
-    private function locationAttributes(array $validated, Municipality $municipality, array $cost): array
+    private function autoCalculationMessage(ClimateSeries $series): string
     {
-        return [
-            'location_name' => "{$municipality->name}, La Guajira, Colombia",
-            'municipality_id' => $municipality->id,
-            'latitude' => $validated['latitude'] ?? $municipality->latitude ?? SolarProject::LATITUDE,
-            'longitude' => $validated['longitude'] ?? $municipality->longitude ?? SolarProject::LONGITUDE,
-            'location_type' => $validated['location_type'],
-            'required_power_kw' => $validated['required_power_kw'],
-            'base_price_per_kw' => $cost['base_price_per_kw'],
-            'logistic_factor_used' => $cost['logistic_factor_used'],
-            'final_price_per_kw_used' => $cost['final_price_per_kw_used'],
-            'estimated_installation_cost' => $cost['estimated_installation_cost'],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     * @return array<string, mixed>
-     */
-    private function technicalParameterAttributes(array $validated): array
-    {
-        $systemLossesPercentage = (float) $validated['system_losses_percentage'];
-
-        return [
-            'available_area_m2' => $validated['available_area_m2'],
-            'usable_area_percentage' => $validated['usable_area_percentage'],
-            'panel_power_w' => $validated['panel_power_w'],
-            'panel_area_m2' => $validated['panel_area_m2'],
-            'performance_ratio' => 1 - ($systemLossesPercentage / 100),
-            'system_losses_percentage' => $systemLossesPercentage,
-        ];
+        return match ($series->source) {
+            ClimateSource::AMBIENT => '✓ Calculos ejecutados con datos de Ambient Weather (prioridad 1). '
+                ."Dias procesados: {$series->dayCount()}. "
+                .'Correccion termica promedio: '.round(($series->metadata['average_temperature_correction'] ?? 1.0) * 100, 1).'%.',
+            ClimateSource::LOCAL => '✓ Calculos ejecutados con datos del centro meteorologico (prioridad 2 — sin datos Ambient en el rango). '
+                ."Dias procesados: {$series->dayCount()}.",
+            default => '✓ Calculos ejecutados con datos NASA POWER (prioridad 3 — fallback satelital, sin datos locales en el rango del proyecto).',
+        };
     }
 
     private function authorizeOwner(Request $request, SolarProject $solarProject): void

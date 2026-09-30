@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 class WeatherStationAggregationService
@@ -14,11 +15,19 @@ class WeatherStationAggregationService
      */
     public function readingsForProject(SolarProject $solarProject): Collection
     {
+        return $this->readingsForRange(
+            $solarProject->start_date->copy()->startOfDay(),
+            $solarProject->end_date->copy()->endOfDay(),
+        );
+    }
+
+    /**
+     * @return Collection<int, WeatherStationReading>
+     */
+    public function readingsForRange(CarbonInterface $start, CarbonInterface $end): Collection
+    {
         return WeatherStationReading::query()
-            ->whereBetween('measured_at', [
-                $solarProject->start_date->copy()->startOfDay(),
-                $solarProject->end_date->copy()->endOfDay(),
-            ])
+            ->whereBetween('measured_at', [$start, $end])
             ->orderBy('measured_at')
             ->get();
     }
@@ -28,8 +37,8 @@ class WeatherStationAggregationService
      *
      * Radiation methodology:
      *   The weather station reports instantaneous W/m² at irregular intervals.
-     *   A simple average of active readings overestimates HSP when the SolarCalculation-
-     *   Service multiplies by × 24/1000 (designed for NASA POWER 24h-averages).
+     *   A simple average of active readings overestimates HSP when the SolarCalculator
+     *   multiplies by × 24/1000 (designed for NASA POWER 24h-averages).
      *
      *   Fix: trapezoidal integration over actual measurement timestamps gives total
      *   energy (kWh/m²/day = HSP), divided by 24 to get a 24h-average W/m² that is
@@ -61,7 +70,7 @@ class WeatherStationAggregationService
                 // Trapezoidal integration; max gap 60 min (station sends data in batches)
                 $dailyHsp = $this->trapezoidalHsp($sorted, 60);
 
-                // 24h-average W/m² — compatible with SolarCalculationService (× 24/1000 = HSP)
+                // 24h-average W/m² — compatible with SolarCalculator (× 24/1000 = HSP)
                 $allsky24hAvg = $dailyHsp * 1000.0 / 24.0;
 
                 $avgTemp = $dayReadings->average(

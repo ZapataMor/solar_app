@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Domain\Climate\ClimateSource;
 use App\Models\AmbientWeatherReading;
 use App\Models\WeatherStationReading;
 use Carbon\Carbon;
@@ -34,9 +35,9 @@ class ClimateSourceFallbackService
     // Constants
     // -------------------------------------------------------------------------
 
-    public const SOURCE_LOCAL    = 'local';
-    public const SOURCE_AMBIENT  = 'ambient';
-    public const SOURCE_NASA     = 'nasa_power';
+    public const SOURCE_LOCAL    = ClimateSource::LOCAL;
+    public const SOURCE_AMBIENT  = ClimateSource::AMBIENT;
+    public const SOURCE_NASA     = ClimateSource::NASA_POWER;
 
     /** Human-readable labels for the dashboard. */
     private const SOURCE_LABELS = [
