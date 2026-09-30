@@ -7,24 +7,6 @@
         <div class="login-bg" style="background-image: url('{{ asset('images/login/fondo3.jpg') }}');" aria-hidden="true"></div>
 
         <div class="login-page">
-            <header class="login-topbar">
-                <a href="{{ route('home') }}" class="login-brand" wire:navigate>
-                    <span class="login-brand-mark" aria-hidden="true">
-                        <img src="{{ asset('images/fondoNathalIA.png') }}" alt="Natal-IA" />
-                    </span>
-                    <span class="login-brand-name">
-                        <small style="margin-left:0;border-left:none;padding-left:0;">Núcleo de análisis solar con IA</small>
-                    </span>
-                </a>
-
-                <div class="login-topbar-meta" aria-hidden="true">
-                    <span>Riohacha 11.39&deg; N - 72.24&deg; W</span>
-                    <span>34&deg;C</span>
-                    <span>Despejado</span>
-                    <span>Irradiancia 952 W/m&sup2;</span>
-                </div>
-            </header>
-
             <main class="login-main">
                 <div class="login-panel">
                     <section class="login-hero">

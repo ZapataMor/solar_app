@@ -16,7 +16,8 @@ class AdminUserSeeder extends Seeder
             ['email' => 'admin@solar-app.test'],
             [
                 'name' => 'Administrador',
-                'password' => 'password',
+                'username' => 'admin',
+                'password' => '12345',
                 'role' => 'admin',
             ],
         );

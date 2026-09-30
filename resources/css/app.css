@@ -210,7 +210,7 @@ select:focus[data-flux-control] {
         z-index: 2;
         display: grid;
         min-height: 100vh;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: 1fr auto;
         padding: 10px clamp(18px, 3.4vw, 48px) 12px;
     }
 

@@ -12,7 +12,7 @@ class UserSolarProjectSeeder extends Seeder
      */
     public function run(): void
     {
-        $user = User::where('email', 'user@solar-app.test')->firstOrFail();
+        $user = User::where('username', 'cliente')->firstOrFail();
 
         $projects = [
             [

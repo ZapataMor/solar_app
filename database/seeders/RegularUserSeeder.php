@@ -13,10 +13,11 @@ class RegularUserSeeder extends Seeder
     public function run(): void
     {
         User::updateOrCreate(
-            ['email' => 'user@solar-app.test'],
+            ['email' => 'cliente@solar-app.test'],
             [
-                'name' => 'Usuario',
-                'password' => 'password',
+                'name' => 'Cliente',
+                'username' => 'cliente',
+                'password' => '12345',
                 'role' => 'user',
             ],
         );

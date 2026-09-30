@@ -1,13 +1,6 @@
 <x-layouts::auth :title="__('Iniciar sesion')">
     <div class="login-card" role="region" aria-label="Iniciar sesion">
         <div class="login-card-head">
-            <div class="login-badge">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                    <circle cx="5" cy="5" r="4" stroke="#C9823B" stroke-width="1" />
-                    <circle cx="5" cy="5" r="1.6" fill="#C9823B" />
-                </svg>
-                Acceso seguro
-            </div>
             <h2>Iniciar sesi&oacute;n</h2>
             <p>Accede a tu panel de monitoreo energ&eacute;tico y meteorol&oacute;gico.</p>
         </div>
@@ -18,15 +11,15 @@
             @csrf
 
             <div class="login-field">
-                <label for="email">Correo electr&oacute;nico</label>
+                <label for="email">Usuario</label>
                 <div class="login-input @error('email') login-input-error @enderror">
                     <span aria-hidden="true">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="5" width="18" height="14" rx="2.5" />
-                            <path d="m4 7 8 6 8-6" />
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 20a8 8 0 0 1 16 0" />
                         </svg>
                     </span>
-                    <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="email" placeholder="usuario@dominio.com" />
+                    <input id="email" name="email" type="text" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="Ingresa tu usuario" />
                 </div>
                 @error('email')
                     <p class="login-error">{{ $message }}</p>
@@ -78,7 +71,7 @@
             </div>
 
             <button type="submit" class="login-primary" data-test="login-button">
-                Acceder con correo
+                Acceder
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M5 12h14M13 6l6 6-6 6" />
                 </svg>
