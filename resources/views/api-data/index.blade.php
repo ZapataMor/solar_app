@@ -1,7 +1,7 @@
 @php
     $formatNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'N/A';
     $formatNasaNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'Dato no publicado por NASA';
-    $formatDate = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->format('Y-m-d H:i') : 'N/A';
+    $formatDate = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->timezone(config('app.display_timezone'))->format('Y-m-d H:i') : 'N/A';
 
     $totalRows = $ambientCount + $weatherStationCount + $nasaCount;
 

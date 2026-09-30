@@ -186,6 +186,20 @@
 @endphp
 
 <x-layouts::app :title="$solarProject->name">
+@include('solar-projects.partials.portfolio', ['inProjectModal' => true])
+
+{{-- Project detail modal: closes only with the X button (no backdrop click, no Escape) --}}
+<div class="solar-project-modal" role="dialog" aria-modal="true" aria-labelledby="solar-project-modal-title">
+<div class="solar-project-modal__panel">
+<header class="solar-project-modal__bar">
+    <h2 id="solar-project-modal-title" class="solar-project-modal__title">{{ $solarProject->name }}</h2>
+    <a href="{{ $portfolioUrl }}" class="solar-project-modal__close" aria-label="Cerrar proyecto" title="Cerrar" x-init="$el.focus()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+    </a>
+</header>
+<div class="solar-project-modal__body">
 <style>
 /* ── Design tokens & base ───────────────────────────────────── */
 .sdash {
@@ -1594,7 +1608,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                     <div>
                         <div class="solar-live-kicker">Condicion solar en tiempo real</div>
                         <div class="solar-live-meta">
-                            {{ ($radiationMeasuredAt ?? $solarProject->updated_at)?->format('d M Y - H:i') }}
+                            {{ ($radiationMeasuredAt ?? $solarProject->updated_at)?->copy()->timezone(config('app.display_timezone'))->format('d M Y - H:i') }}
                             COT
                             @if ($numPanels) - {{ $numPanels }} paneles @endif
                             @if ($installedKwp) - {{ $installedLabel }} @endif
@@ -1704,7 +1718,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                 <h1 class="sdash-header__title">{{ $solarProject->name }}</h1>
                 <p class="sdash-header__meta">
                     {{ $solarProject->location_name }}
-                    &nbsp;·&nbsp; Actualizado {{ $solarProject->updated_at?->format('d/m/Y H:i') }}
+                    &nbsp;·&nbsp; Actualizado {{ $solarProject->updated_at?->copy()->timezone(config('app.display_timezone'))->format('d/m/Y H:i') }}
                     @if ($numPanels) &nbsp;·&nbsp; {{ $numPanels }} paneles @endif
                     @if ($installedKwp) &nbsp;·&nbsp; {{ $installedLabel }} @endif
                 </p>
@@ -1802,7 +1816,6 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                     </template>
                 </form>
 
-                <a href="{{ route('solar-projects.index') }}" class="sdash-btn sdash-btn--ghost">← Volver</a>
             </div>
         </div>
 
@@ -2782,4 +2795,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
     <script type="application/json" id="weather-station-chart-data">@json($weatherStationChartData ?? ['labels' => [], 'radiation' => []])</script>
 
 </div>
+</div>{{-- /.solar-project-modal__body --}}
+</div>{{-- /.solar-project-modal__panel --}}
+</div>{{-- /.solar-project-modal --}}
 </x-layouts::app>

@@ -31,6 +31,17 @@ class SolarProjectController extends Controller
 {
     public function index(Request $request): View
     {
+        return view('solar-projects.index', $this->portfolioData($request));
+    }
+
+    /**
+     * Data for the project portfolio (listing), shared by the index and by
+     * the show view, which renders the portfolio behind the project modal.
+     *
+     * @return array<string, mixed>
+     */
+    private function portfolioData(Request $request): array
+    {
         /** @var User $user */
         $user = $request->user();
         $isAdmin = $user->role === 'admin';
@@ -52,18 +63,26 @@ class SolarProjectController extends Controller
             $solarProjectsQuery->where('name', 'like', '%'.$search.'%');
         }
 
-        $solarProjects = $solarProjectsQuery->paginate(12)->withQueryString();
+        $solarProjects = $solarProjectsQuery->paginate(12)
+            ->withPath(route('solar-projects.index'))
+            ->withQueryString();
         $solarProjects->getCollection()->transform(function (SolarProject $solarProject) {
             $this->attachWeatherCounts($solarProject);
 
             return $solarProject;
         });
 
-        return view('solar-projects.index', [
+        $portfolioQuery = array_filter([
+            'search' => $search,
+            'page' => $request->query('page'),
+        ], fn ($value) => filled($value));
+
+        return [
             'solarProjects' => $solarProjects,
             'isAdmin' => $isAdmin,
             'search' => $search,
-        ]);
+            'portfolioQuery' => $portfolioQuery,
+        ];
     }
 
     public function create(): View
@@ -127,7 +146,11 @@ class SolarProjectController extends Controller
         $generateAiRecommendations = $request->boolean('generate_ai');
         $aiFocus = $request->string('ai_focus')->toString();
 
+        $portfolio = $this->portfolioData($request);
+
         return view('solar-projects.show', [
+            ...$portfolio,
+            'portfolioUrl' => route('solar-projects.index', $portfolio['portfolioQuery']),
             'solarProject' => $solarProject,
             'generateAiRecommendations' => $generateAiRecommendations,
             'aiFocus' => $aiFocus,

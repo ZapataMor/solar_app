@@ -3630,4 +3630,102 @@ select:focus[data-flux-control] {
             transition: none !important;
         }
     }
+
+    /* Project detail modal (rendered over the portfolio) */
+    body:has(.solar-project-modal) {
+        overflow: hidden;
+    }
+
+    /* Let the modal stack above the sidebar instead of inside <main>'s context */
+    body:has(.solar-project-modal) .solar-shell-main {
+        z-index: auto !important;
+    }
+
+    .solar-project-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(0.5rem, 2vw, 1.5rem);
+        background: rgba(5, 8, 12, 0.62);
+        backdrop-filter: blur(6px);
+        animation: solar-modal-fade 220ms ease-out;
+    }
+
+    .solar-project-modal__panel {
+        display: flex;
+        flex-direction: column;
+        width: min(100%, 90rem);
+        height: 100%;
+        overflow: hidden;
+        border: 1px solid var(--solar-border-strong);
+        border-radius: 1.25rem;
+        background: var(--solar-bg);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+        animation: solar-modal-rise 260ms ease-out;
+    }
+
+    .solar-project-modal__bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.85rem 1rem 0.85rem 1.5rem;
+        border-bottom: 1px solid var(--solar-border);
+        background: var(--solar-surface-strong);
+    }
+
+    .solar-project-modal__title {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--solar-text);
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .solar-project-modal__close {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.75rem;
+        color: var(--solar-text-muted);
+        transition: background-color 150ms ease, color 150ms ease;
+    }
+
+    .solar-project-modal__close:hover,
+    .solar-project-modal__close:focus-visible {
+        background: var(--solar-surface-muted);
+        color: var(--solar-text);
+    }
+
+    .solar-project-modal__body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: clamp(1rem, 2vw, 1.75rem);
+    }
+
+    @keyframes solar-modal-fade {
+        from { opacity: 0; }
+    }
+
+    @keyframes solar-modal-rise {
+        from { opacity: 0; transform: translateY(12px) scale(0.99); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-project-modal,
+        .solar-project-modal__panel {
+            animation: none;
+        }
+    }
 }
