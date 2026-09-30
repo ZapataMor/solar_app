@@ -19,6 +19,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('solar-projects/{solarProject}/ai-prediction', [SolarProjectController::class, 'aiPrediction'])
         ->name('solar-projects.ai-prediction');
     Route::get('solar-projects/{solarProject}', [SolarProjectController::class, 'show'])->name('solar-projects.show');
+    Route::get('solar-projects/{solarProject}/live-status', [SolarProjectController::class, 'liveStatus'])
+        ->name('solar-projects.live-status');
     Route::get('solar-projects/{solarProject}/edit', [SolarProjectController::class, 'edit'])->name('solar-projects.edit');
     Route::put('solar-projects/{solarProject}', [SolarProjectController::class, 'update'])->name('solar-projects.update');
     Route::delete('solar-projects/{solarProject}', [SolarProjectController::class, 'destroy'])->name('solar-projects.destroy');

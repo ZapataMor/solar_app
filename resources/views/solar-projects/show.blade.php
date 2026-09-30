@@ -1579,6 +1579,50 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
     };
 </script>
 
+<script>
+    // Live station data: poll a cheap status endpoint and, when a new reading
+    // arrives, re-render the page off-screen and swap only the live regions.
+    (() => {
+        const statusUrl = @json(route('solar-projects.live-status', $solarProject));
+        let stamp = @json($liveReadingStamp ?? '');
+        let busy = false;
+
+        const pageUrl = () => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('generate_ai');
+            return url.toString();
+        };
+
+        const refresh = async () => {
+            if (busy || document.hidden) return;
+            busy = true;
+            try {
+                const status = await fetch(statusUrl, { headers: { Accept: 'application/json' } });
+                if (!status.ok) return;
+                const { stamp: latest } = await status.json();
+                if (!latest || latest === stamp) return;
+
+                const page = await fetch(pageUrl(), { headers: { Accept: 'text/html' } });
+                if (!page.ok) return;
+                const doc = new DOMParser().parseFromString(await page.text(), 'text/html');
+
+                document.querySelectorAll('[data-live-region]').forEach((region) => {
+                    const fresh = doc.querySelector(`[data-live-region="${region.dataset.liveRegion}"]`);
+                    if (fresh) region.replaceWith(document.importNode(fresh, true));
+                });
+                stamp = latest;
+            } catch (error) {
+                // Network hiccup: try again on the next tick.
+            } finally {
+                busy = false;
+            }
+        };
+
+        setInterval(refresh, 30000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    })();
+</script>
+
 <div
     class="sdash"
     data-scale-config="solar-dashboard-scales-{{ $solarProject->id }}"
@@ -1602,7 +1646,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 
     {{-- ── 1. Project Header ───────────────────────────────── --}}
     <div class="sdash-card">
-        <div class="sdash-hero-stage">
+        <div class="sdash-hero-stage" data-live-region="hero">
             <section class="solar-live-dashboard sdash-hero-live solar-hero-scene-{{ $heroScene }}" style="--scene-color: {{ $scene['color'] }}; --chart-color: {{ $scene['chart'] }};">
                 <header class="solar-live-header">
                     <div>
@@ -1820,7 +1864,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
         </div>
 
         {{-- Condition indicator strip --}}
-        <div class="sdash-condition">
+        <div class="sdash-condition" data-live-region="condition">
             <div class="sdash-condition__summary">
                 <div class="sdash-condition__orb sdash-condition__orb--{{ $heroScene }}">
                     {{ $scene['icon'] }}
@@ -1846,7 +1890,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 
     {{-- ── 2. KPI Strip ────────────────────────────────────── --}}
     <div class="sdash-card">
-        <div class="sdash-kpis">
+        <div class="sdash-kpis" data-live-region="kpis">
             {{-- Cobertura --}}
             <div class="sdash-kpi">
                 <span class="sdash-kpi__icon">⚡</span>

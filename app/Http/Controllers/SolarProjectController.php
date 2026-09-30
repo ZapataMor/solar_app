@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SolarProjectRequest;
+use App\Models\AmbientWeatherReading;
 use App\Models\ApiWeatherData;
 use App\Models\Municipality;
 use App\Models\SolarProject;
@@ -156,7 +157,27 @@ class SolarProjectController extends Controller
             'aiFocus' => $aiFocus,
             'aiRecommendationHistory' => $aiHistoryService->recommendationHistory($solarProject),
             'aiPredictionHistory' => $aiHistoryService->predictionHistory($solarProject),
+            'liveReadingStamp' => $this->latestReadingStamp(),
             ...$projectDashboardService->build($solarProject, $generateAiRecommendations, $aiFocus),
+        ]);
+    }
+
+    /**
+     * Cheap endpoint polled by the dashboard: tells the page whether a new
+     * station reading arrived so it can refresh its live sections.
+     */
+    public function liveStatus(Request $request, SolarProject $solarProject): JsonResponse
+    {
+        $this->authorizeOwner($request, $solarProject);
+
+        return response()->json(['stamp' => $this->latestReadingStamp()]);
+    }
+
+    private function latestReadingStamp(): string
+    {
+        return implode('|', [
+            (string) AmbientWeatherReading::query()->max('recorded_at'),
+            (string) WeatherStationReading::query()->max('measured_at'),
         ]);
     }
 
