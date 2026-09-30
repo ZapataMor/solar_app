@@ -127,7 +127,7 @@ class ProjectDashboardService
         $dashboard['futurePredictions'] = $this->buildFuturePredictions(
             $projectWeatherData,
             $weatherStationReadings,
-            $ambientReadings,
+            $this->ambientWeatherAggregationService->recentWindowForProject($solarProject, 30),
             $analysisClimateSource,
             $solarProject
         );

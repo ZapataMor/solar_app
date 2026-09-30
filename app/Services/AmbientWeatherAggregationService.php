@@ -58,6 +58,26 @@ class AmbientWeatherAggregationService
     }
 
     /**
+     * Return the project's readings recorded within the last N days.
+     *
+     * Bounded alternative to {@see readingsForProject()} for consumers that
+     * only look at recent observations (e.g. the forecast panel).
+     *
+     * @return Collection<int, AmbientWeatherReading>
+     */
+    public function recentWindowForProject(SolarProject $solarProject, int $days = 30): Collection
+    {
+        [$start, $end] = $this->projectRange($solarProject);
+        $windowStart = Carbon::now()->subDays($days)->startOfDay();
+
+        return AmbientWeatherReading::query()
+            ->select(['id', ...self::AGGREGATION_COLUMNS])
+            ->whereBetween('recorded_at', [$start->max($windowStart), $end])
+            ->orderBy('recorded_at')
+            ->get();
+    }
+
+    /**
      * Return the N most recent readings across all stations (no project filter).
      *
      * Used by the dashboard's "recent readings" panel.
