@@ -59,11 +59,17 @@ class ApiDataController extends Controller
         Request $request,
         NasaPowerService $nasaPowerService,
         NasaWeatherDataService $nasaWeatherDataService,
-    ): RedirectResponse
+    ): RedirectResponse|JsonResponse
     {
         $projects = $request->user()->solarProjects()->get();
 
         if ($projects->isEmpty()) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'No hay proyectos solares registrados para consultar NASA POWER.',
+                ], 422);
+            }
+
             return back()->withErrors([
                 'nasa_data' => 'No hay proyectos solares registrados para consultar NASA POWER.',
             ]);
@@ -78,12 +84,26 @@ class ApiDataController extends Controller
         } catch (Throwable $exception) {
             report($exception);
 
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'No fue posible consultar NASA POWER para los proyectos registrados.',
+                ], 502);
+            }
+
             return back()->withErrors([
                 'nasa_data' => 'No fue posible consultar NASA POWER para los proyectos registrados.',
             ]);
         }
 
         $message = "NASA POWER sincronizado. Nuevos: {$created}. Existentes actualizados: {$updated}.";
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => $message,
+                'nasaCount' => $this->nasaRowsCount(),
+                'rows' => $this->latestNasaRows(),
+            ]);
+        }
 
         return back()->with('status', $message);
     }
@@ -145,19 +165,27 @@ class ApiDataController extends Controller
     public function fetchAmbientData(
         Request $request,
         AmbientWeatherImportService $ambientWeatherImportService,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         // Allow long-running historical imports without hitting PHP's default limit.
         set_time_limit(0);
 
         $from = Carbon::now('UTC')->subYear()->startOfDay();
 
         try {
-            $imported = $ambientWeatherImportService->importHistoricalForAllDevices(
-                from: $from,
-                sleepSeconds: 1,
-            );
+            $imported = $request->boolean('auto_sync')
+                ? $ambientWeatherImportService->importLatestForAllDevices()
+                : $ambientWeatherImportService->importHistoricalForAllDevices(
+                    from: $from,
+                    sleepSeconds: 1,
+                );
         } catch (Throwable $exception) {
             report($exception);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'No fue posible sincronizar Ambient Weather: ' . $exception->getMessage(),
+                ], 502);
+            }
 
             return back()->withErrors([
                 'ambient_data' => 'No fue posible sincronizar Ambient Weather: ' . $exception->getMessage(),
@@ -165,16 +193,35 @@ class ApiDataController extends Controller
         }
 
         if ($imported['received'] === 0) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'Ambient Weather no devolvio lecturas. Verifica las credenciales y que tengas estaciones registradas.',
+                ], 422);
+            }
+
             return back()->withErrors([
                 'ambient_data' => 'Ambient Weather no devolvio lecturas. Verifica las credenciales y que tengas estaciones registradas.',
             ]);
         }
 
         $since = $from->format('d/m/Y');
+        $total = $this->ambientRowsCount();
+        $message = $request->boolean('auto_sync')
+            ? "Ambient Weather actualizado. Nuevos: {$imported['created']}. Omitidos (duplicados): {$imported['skipped']}. Total global: {$total}."
+            : "Ambient Weather sincronizado desde {$since}. Nuevos: {$imported['created']}. Omitidos (duplicados): {$imported['skipped']}. Total recibidos: {$imported['received']}.";
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => $message,
+                'ambientCount' => $total,
+                'rows' => $this->latestAmbientRows(),
+                'chartRows' => $this->latestAmbientChartRows(),
+            ]);
+        }
 
         return back()->with(
             'status',
-            "Ambient Weather sincronizado desde {$since}. Nuevos: {$imported['created']}. Omitidos (duplicados): {$imported['skipped']}. Total recibidos: {$imported['received']}."
+            $message
         );
     }
 
@@ -217,6 +264,30 @@ class ApiDataController extends Controller
                 'radiation'      => $row->solar_radiation !== null ? (float) $row->solar_radiation : null,
                 'uv_index'       => $row->uv_index !== null ? (float) $row->uv_index : null,
                 'temperature'    => $row->temperature !== null ? (float) $row->temperature : null,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function latestAmbientRows(): array
+    {
+        return $this->ambientRowsQuery()
+            ->orderByDesc('recorded_at')
+            ->orderByDesc('id')
+            ->limit(15)
+            ->get()
+            ->map(fn (object $row): array => [
+                'recorded_at' => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'mac_address' => $row->mac_address ?? 'N/A',
+                'radiation' => $this->formatJsonNumber($row->radiation, 2),
+                'temperature' => $this->formatJsonNumber($row->temperature, 2),
+                'humidity' => $this->formatJsonNumber($row->humidity, 2),
+                'wind_speed' => $this->formatJsonNumber($row->wind_speed, 2),
+                'wind_direction' => $row->wind_direction !== null ? $row->wind_direction . '°' : 'N/A',
+                'rainfall' => $this->formatJsonNumber($row->rainfall, 3),
+                'uv_index' => $this->formatJsonNumber($row->uv_index, 2),
             ])
             ->all();
     }
@@ -280,6 +351,31 @@ class ApiDataController extends Controller
             ->count();
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function latestNasaRows(): array
+    {
+        return $this->nasaRowsQuery()
+            ->orderByDesc('recorded_at')
+            ->orderByDesc('record_id')
+            ->limit(15)
+            ->get()
+            ->map(fn (object $row): array => [
+                'recorded_at' => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'status' => $this->nasaRowIsIncomplete($row) ? 'Incompleto' : 'Completo',
+                'is_incomplete' => $this->nasaRowIsIncomplete($row),
+                'radiation' => $this->formatJsonNasaNumber($row->radiation, 3),
+                'radiation_source' => $this->nasaRadiationSourceLabel($row->radiation_method ?? 'nasa_real'),
+                'radiation_confidence' => number_format((float) ($row->radiation_confidence ?? 0), 2, ',', '.'),
+                'temperature' => $this->formatJsonNasaNumber($row->temperature, 2),
+                'humidity' => $this->formatJsonNasaNumber($row->humidity, 2),
+                'precipitation' => $this->formatJsonNasaNumber($row->precipitation, 4),
+                'wind_speed' => $this->formatJsonNasaNumber($row->wind_speed, 2),
+            ])
+            ->all();
+    }
+
     private function weatherStationRowsCount(): int
     {
         return WeatherStationReading::query()->count();
@@ -338,5 +434,32 @@ class ApiDataController extends Controller
     private function formatJsonNumber(mixed $value, int $decimals = 2): string
     {
         return $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'N/A';
+    }
+
+    private function formatJsonNasaNumber(mixed $value, int $decimals = 2): string
+    {
+        return $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'Dato no publicado por NASA';
+    }
+
+    private function nasaRadiationSourceLabel(?string $method): string
+    {
+        return match ($method ?? 'nasa_real') {
+            'nasa_real' => 'NASA real',
+            'interpolated_recent' => 'Estimado: interpolacion',
+            'weather_signals_model' => 'Estimado: señales meteo',
+            'historical_monthly' => 'Estimado: historico mensual',
+            'riohacha_climatology' => 'Estimado: climatologia Riohacha',
+            'last_valid_known' => 'Estimado: ultimo valor valido',
+            default => 'Estimado',
+        };
+    }
+
+    private function nasaRowIsIncomplete(object $row): bool
+    {
+        return $row->radiation === null
+            || $row->temperature === null
+            || $row->humidity === null
+            || $row->precipitation === null
+            || $row->wind_speed === null;
     }
 }

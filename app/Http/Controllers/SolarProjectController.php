@@ -10,7 +10,9 @@ use App\Models\User;
 use App\Models\WeatherStationReading;
 use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
+use App\Services\AiForecastPredictionService;
 use App\Services\ProjectDashboardService;
+use App\Services\SolarProjectAiHistoryService;
 use App\Services\SolarCalculationService;
 use App\Services\SolarInstallationCostService;
 use App\Services\AmbientWeatherAggregationService;
@@ -101,6 +103,7 @@ class SolarProjectController extends Controller
         SolarProject $solarProject,
         ProjectDashboardService $projectDashboardService,
         NasaWeatherDataService $nasaWeatherDataService,
+        SolarProjectAiHistoryService $aiHistoryService,
     ): View
     {
         $this->authorizeOwner($request, $solarProject);
@@ -121,6 +124,8 @@ class SolarProjectController extends Controller
             'solarProject' => $solarProject,
             'generateAiRecommendations' => $generateAiRecommendations,
             'aiFocus' => $aiFocus,
+            'aiRecommendationHistory' => $aiHistoryService->recommendationHistory($solarProject),
+            'aiPredictionHistory' => $aiHistoryService->predictionHistory($solarProject),
             ...$projectDashboardService->build($solarProject, $generateAiRecommendations, $aiFocus),
         ]);
     }
@@ -217,6 +222,7 @@ class SolarProjectController extends Controller
         SolarProject $solarProject,
         ProjectDashboardService $projectDashboardService,
         NasaWeatherDataService $nasaWeatherDataService,
+        SolarProjectAiHistoryService $aiHistoryService,
     ): JsonResponse {
         $this->authorizeOwner($request, $solarProject);
 
@@ -244,10 +250,46 @@ class SolarProjectController extends Controller
             $message = 'No se genero una recomendacion utilizable. Reintenta cuando el proyecto tenga calculos y datos climaticos disponibles.';
         }
 
-        return response()->json([
-            'source' => (string) ($executiveSummary['source'] ?? 'ia'),
+        $focusLabel = (string) ($focusRecommendation['title'] ?? $this->aiFocusLabel((string) $validated['ai_focus']));
+        $source = (string) ($executiveSummary['source'] ?? 'ia');
+        $userPrompt = 'Generar enfoque '.$focusLabel;
+        $generatedAt = now();
+
+        $aiHistoryService->record($solarProject, [
+            'type' => 'recommendation',
+            'role' => 'user',
             'focus' => (string) $validated['ai_focus'],
-            'focus_label' => (string) ($focusRecommendation['title'] ?? $this->aiFocusLabel((string) $validated['ai_focus'])),
+            'focus_label' => $focusLabel,
+            'source' => $source,
+            'message' => $userPrompt,
+            'metadata' => [
+                'request' => ['ai_focus' => (string) $validated['ai_focus']],
+            ],
+            'generated_at' => $generatedAt,
+        ]);
+        $historyMessage = $aiHistoryService->record($solarProject, [
+            'type' => 'recommendation',
+            'role' => 'assistant',
+            'focus' => (string) $validated['ai_focus'],
+            'focus_label' => $focusLabel,
+            'source' => $source,
+            'title' => $focusLabel,
+            'message' => $message,
+            'summary' => trim((string) ($executiveSummary['text'] ?? '')),
+            'metadata' => [
+                'alerts' => array_values(array_filter(
+                    $executiveSummary['alerts'] ?? [],
+                    fn ($item) => is_string($item) && trim($item) !== ''
+                )),
+                'error' => $executiveSummary['error'] ?? null,
+            ],
+            'generated_at' => $generatedAt,
+        ]);
+
+        return response()->json([
+            'source' => $source,
+            'focus' => (string) $validated['ai_focus'],
+            'focus_label' => $focusLabel,
             'summary' => trim((string) ($executiveSummary['text'] ?? '')),
             'message' => $message,
             'alerts' => array_values(array_filter(
@@ -255,7 +297,59 @@ class SolarProjectController extends Controller
                 fn ($item) => is_string($item) && trim($item) !== ''
             )),
             'error' => $executiveSummary['error'] ?? null,
-            'generated_at' => now()->toIso8601String(),
+            'generated_at' => $generatedAt->toIso8601String(),
+            'history_message' => $aiHistoryService->serializeRecommendationMessage($historyMessage),
+        ]);
+    }
+
+    public function aiPrediction(
+        Request $request,
+        SolarProject $solarProject,
+        ProjectDashboardService $projectDashboardService,
+        NasaWeatherDataService $nasaWeatherDataService,
+        AiForecastPredictionService $aiForecastPredictionService,
+        SolarProjectAiHistoryService $aiHistoryService,
+    ): JsonResponse {
+        $this->authorizeOwner($request, $solarProject);
+
+        $solarProject->load([
+            'municipality',
+            'technicalParameter',
+            'calculationResult',
+            'monthlyResults' => fn ($query) => $query->orderBy('month_number'),
+        ]);
+        $solarProject->setRelation('weatherData', $nasaWeatherDataService->dataForProject($solarProject));
+        $this->attachWeatherCounts($solarProject);
+
+        $dashboardPayload = $projectDashboardService->build($solarProject, false);
+        $futurePredictions = $dashboardPayload['dashboard']['futurePredictions'] ?? [];
+
+        $generatedAt = now();
+        $result = [
+            ...$aiForecastPredictionService->generate($solarProject, $futurePredictions),
+            'generated_at' => $generatedAt->toIso8601String(),
+        ];
+        $historyMessage = $aiHistoryService->record($solarProject, [
+            'type' => 'prediction',
+            'role' => 'assistant',
+            'source' => (string) ($result['source'] ?? 'ia'),
+            'title' => $result['title'] ?? 'Prediccion IA proxima semana',
+            'message' => $result['prediction'] ?? null,
+            'summary' => $result['prediction'] ?? null,
+            'metadata' => [
+                'temperature_outlook' => $result['temperature_outlook'] ?? null,
+                'solar_window' => $result['solar_window'] ?? null,
+                'actions' => $result['actions'] ?? [],
+                'confidence' => $result['confidence'] ?? 'media',
+                'error' => $result['error'] ?? null,
+                'data_window' => $futurePredictions['data_window'] ?? [],
+            ],
+            'generated_at' => $generatedAt,
+        ]);
+
+        return response()->json([
+            ...$result,
+            'history_message' => $aiHistoryService->serializePredictionMessage($historyMessage),
         ]);
     }
 

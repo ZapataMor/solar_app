@@ -80,10 +80,7 @@ class OpenAIRecommendationService
                 'source' => $this->providerSource(),
                 'executive_summary' => $this->stringOrNull($decoded['executive_summary'] ?? null),
                 'daily_recommendation' => $this->stringOrNull($decoded['daily_recommendation'] ?? null),
-                'energy_alerts' => collect($decoded['energy_alerts'] ?? [])
-                    ->filter(fn ($item) => is_string($item) && trim($item) !== '')
-                    ->values()
-                    ->all(),
+                'energy_alerts' => $this->normalizeAlerts($decoded['energy_alerts'] ?? []),
                 'recommendation_pack' => is_array($decoded['recommendation_pack'] ?? null)
                     ? $decoded['recommendation_pack']
                     : [],
@@ -215,7 +212,7 @@ class OpenAIRecommendationService
             ])
             ->post("{$baseUrl}/messages", [
                 'model' => $model,
-                'max_tokens' => max(600, (int) config('services.openai_recommendations.max_output_tokens', 900)),
+                'max_tokens' => max(1500, (int) config('services.openai_recommendations.max_output_tokens', 2048)),
                 'temperature' => 0.2,
                 'system' => $this->anthropicSystemPrompt(false),
                 'messages' => [
@@ -280,7 +277,7 @@ class OpenAIRecommendationService
             ])
             ->post("{$baseUrl}/messages", [
                 'model' => $model,
-                'max_tokens' => max(220, (int) config('services.openai_recommendations.max_output_tokens', 400)),
+                'max_tokens' => max(1200, (int) config('services.openai_recommendations.max_output_tokens', 2048)),
                 'temperature' => 0.1,
                 'system' => $this->anthropicSystemPrompt(true),
                 'messages' => [
@@ -326,7 +323,7 @@ class OpenAIRecommendationService
             ])
             ->post("{$baseUrl}/messages", [
                 'model' => $model,
-                'max_tokens' => 520,
+                'max_tokens' => 1800,
                 'temperature' => 0.1,
                 'system' => implode("\n", [
                     'Devuelve SOLO JSON plano, sin markdown.',
@@ -855,22 +852,28 @@ class OpenAIRecommendationService
             return null;
         }
 
-        $executiveSummary = $this->usableAiText($decoded['executive_summary'] ?? null);
-        $dailyRecommendation = $this->usableAiText($decoded['daily_recommendation'] ?? null);
+        $executiveSummary = $this->usableAiText($decoded['executive_summary'] ?? null)
+            ?? $this->usableAiText($decoded['summary'] ?? null);
+        $dailyRecommendation = $this->usableAiText($decoded['daily_recommendation'] ?? null)
+            ?? $this->usableAiText($decoded['recommendation'] ?? null)
+            ?? $this->recommendationObjectText($decoded);
 
-        $alerts = collect($decoded['energy_alerts'] ?? [])
-            ->map(fn ($item) => $this->usableAiText($item))
-            ->filter()
-            ->values()
-            ->all();
+        $alerts = $this->normalizeAlerts($decoded['energy_alerts'] ?? $decoded['alerts'] ?? []);
 
         $pack = [];
         if (is_array($decoded['recommendation_pack'] ?? null)) {
             foreach (['savings', 'load_shift', 'risk', 'maintenance', 'climate'] as $key) {
-                $value = $this->usableAiText($decoded['recommendation_pack'][$key] ?? null);
+                $value = $this->usableAiText($decoded['recommendation_pack'][$key] ?? null)
+                    ?? $this->recommendationObjectText($decoded['recommendation_pack'][$key] ?? null);
                 if ($value !== null) {
                     $pack[$key] = $value;
                 }
+            }
+        }
+
+        if ($dailyRecommendation !== null) {
+            foreach (['savings', 'load_shift', 'risk', 'maintenance', 'climate'] as $key) {
+                $pack[$key] ??= $dailyRecommendation;
             }
         }
 
@@ -884,6 +887,64 @@ class OpenAIRecommendationService
             'energy_alerts' => $alerts,
             'recommendation_pack' => $pack,
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizeAlerts(mixed $alerts): array
+    {
+        if (! is_array($alerts)) {
+            return [];
+        }
+
+        return collect($alerts)
+            ->map(function ($item): ?string {
+                if (is_array($item)) {
+                    return $this->usableAiText($item['description'] ?? null)
+                        ?? $this->usableAiText($item['message'] ?? null)
+                        ?? $this->usableAiText($item['alert'] ?? null);
+                }
+
+                return $this->usableAiText($item);
+            })
+            ->filter(fn (?string $value) => $value !== null && mb_strlen($value) >= 24)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function recommendationObjectText(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            return $this->usableAiText($value);
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        $diagnostic = $this->usableAiText($value['diagnostic'] ?? $value['diagnostico'] ?? $value['description'] ?? null);
+        $action = $this->usableAiText($value['action'] ?? $value['accion'] ?? $value['recommendation'] ?? null);
+        $impact = $this->usableAiText($value['impact'] ?? $value['impacto'] ?? $value['expected_impact'] ?? null);
+        $message = $this->usableAiText($value['message'] ?? null);
+
+        if ($message !== null && ($diagnostic === null && $action === null && $impact === null)) {
+            return $message;
+        }
+
+        $parts = [];
+        if ($diagnostic !== null) {
+            $parts[] = "Diagnostico: {$diagnostic}";
+        }
+        if ($action !== null) {
+            $parts[] = "Accion: {$action}";
+        }
+        if ($impact !== null) {
+            $parts[] = "Impacto esperado: {$impact}";
+        }
+
+        return $parts !== [] ? implode(' ', $parts) : null;
     }
 
     private function usableAiText(mixed $value): ?string
@@ -903,6 +964,18 @@ class OpenAIRecommendationService
             'text',
             'message',
             'summary',
+            'status',
+            'diagnostic',
+            'diagnostico',
+            'action',
+            'accion',
+            'impact',
+            'impacto',
+            'severity',
+            'type',
+            'alert',
+            'description',
+            'data_source',
             'date_context',
             'executive_summary',
             'daily_recommendation',

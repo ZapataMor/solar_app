@@ -175,11 +175,15 @@ class NasaWeatherDataService
             return [];
         }
 
+        $monthExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', date_time) AS INTEGER)"
+            : 'MONTH(date_time)';
+
         return ApiWeatherData::query()
-            ->selectRaw('MONTH(date_time) as month, AVG(allsky_sfc_sw_dwn) as avg_radiation')
+            ->selectRaw("{$monthExpression} as month, AVG(allsky_sfc_sw_dwn) as avg_radiation")
             ->whereNotNull('allsky_sfc_sw_dwn')
-            ->whereIn(DB::raw('MONTH(date_time)'), $months)
-            ->groupByRaw('MONTH(date_time)')
+            ->whereIn(DB::raw($monthExpression), $months)
+            ->groupByRaw($monthExpression)
             ->get()
             ->mapWithKeys(fn ($row) => [(int) $row->month => (float) $row->avg_radiation])
             ->all();

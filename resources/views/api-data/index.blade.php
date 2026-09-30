@@ -194,7 +194,7 @@
         }
     </style>
 
-    <div class="solar-page solar-api-page">
+    <div class="solar-page solar-api-page" data-api-auto-sync data-api-sync-interval="300000">
         <section class="solar-hero">
             <div class="solar-page-header">
                 <div>
@@ -213,7 +213,7 @@
                 </div>
                 <div class="solar-metric-card" style="border-left: 3px solid var(--solar-sun, #fbbf24);">
                     <p class="solar-metric-label">Ambient Weather</p>
-                    <p class="solar-metric-value">{{ number_format($ambientCount, 0, ',', '.') }}</p>
+                    <p class="solar-metric-value" data-ambient-count data-count="{{ $ambientCount }}">{{ number_format($ambientCount, 0, ',', '.') }}</p>
                     <p class="solar-metric-copy">Estacion IoT con datos de temperatura, radiacion y viento en tiempo real.</p>
                 </div>
                 <div class="solar-metric-card">
@@ -256,18 +256,21 @@
         {{-- ══════════════════════════════════════════════
              1. AMBIENT WEATHER
         ══════════════════════════════════════════════ --}}
-        <section class="solar-card" data-api-pagination-section="ambient">
+        <section class="solar-card" data-api-pagination-section="ambient" data-api-sync-section="ambient">
             <div class="solar-page-header solar-api-section-header">
                 <div>
                     <p class="solar-kicker">Ambient Weather</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Estacion IoT — UniGuajiraPtG</h2>
-                    <p class="solar-subtitle mt-2">Lecturas en tiempo real desde la estacion Ambient Weather conectada. Temperatura, radiacion solar, viento y lluvia con actualizacion automatica cada 5 minutos.</p>
+                    <p class="solar-subtitle mt-2">Lecturas en tiempo real desde la estacion Ambient Weather conectada. Temperatura, radiacion solar, viento y lluvia con actualizacion automatica unificada cada 5 minutos.</p>
+                    <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-api-sync-status="ambient">
+                        Actualizacion automatica unificada activa.
+                    </p>
                 </div>
                 <div class="solar-api-actions">
-                    <span class="solar-pill solar-pill-warn">
+                    <span class="solar-pill solar-pill-warn" data-ambient-count-pill>
                         {{ number_format($ambientCount, 0, ',', '.') }} registros
                     </span>
-                    <form method="POST" action="{{ route('api-data.fetch-ambient-data') }}">
+                    <form method="POST" action="{{ route('api-data.fetch-ambient-data') }}" data-api-fetch-form="ambient">
                         @csrf
                         <button type="submit" class="solar-button-secondary">Sincronizar Ambient Weather</button>
                     </form>
@@ -283,12 +286,12 @@
                     </div>
                 </div>
 
-                <div class="solar-metric-card">
+                <div class="solar-metric-card" data-ambient-iuv-card>
                     <p class="solar-metric-label">IUV actual (Ambient)</p>
-                    <p class="solar-metric-value">{{ $latestAmbientUv !== null ? $formatNumber($latestAmbientUv, 2) : 'N/A' }}</p>
-                    <p class="solar-metric-copy">{{ $ambientUvRisk }}</p>
+                    <p class="solar-metric-value" data-ambient-iuv-value>{{ $latestAmbientUv !== null ? $formatNumber($latestAmbientUv, 2) : 'N/A' }}</p>
+                    <p class="solar-metric-copy" data-ambient-iuv-risk>{{ $ambientUvRisk }}</p>
                     <div class="mt-4 h-3 overflow-hidden rounded-full bg-[color:var(--solar-border)]">
-                        <div class="h-full rounded-full bg-[color:var(--solar-sun)] transition-all" style="width: {{ $ambientUvPercent }}%"></div>
+                        <div class="h-full rounded-full bg-[color:var(--solar-sun)] transition-all" data-ambient-iuv-bar style="width: {{ $ambientUvPercent }}%"></div>
                     </div>
                 </div>
             </div>
@@ -309,7 +312,7 @@
                                 <th>IUV</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody data-ambient-rows>
                             @forelse ($ambientRows as $row)
                                 <tr>
                                     <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
@@ -342,21 +345,21 @@
         {{-- ══════════════════════════════════════════════
              2. ESTACION METEOROLOGICA LOCAL
         ══════════════════════════════════════════════ --}}
-        <section class="solar-card" data-api-pagination-section="weather-station" data-weather-station-sync data-sync-interval="15000">
+        <section class="solar-card" data-api-pagination-section="weather-station" data-api-sync-section="weather-station">
             <div class="solar-page-header solar-api-section-header">
                 <div>
                     <p class="solar-kicker">Estacion local</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Centro meteorologico</h2>
                     <p class="solar-subtitle mt-2">Lecturas locales con mas personalidad visual y mejor lectura de variables ambientales.</p>
-                    <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-weather-station-status>
-                        Actualizacion automatica activa.
+                    <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-api-sync-status="weather-station">
+                        Actualizacion automatica unificada activa.
                     </p>
                 </div>
                 <div class="solar-api-actions">
                     <span class="solar-pill solar-pill-warn" data-weather-station-count-pill>
                         {{ number_format($weatherStationCount, 0, ',', '.') }} registros
                     </span>
-                    <form method="POST" action="{{ route('api-data.fetch-weather-station-data') }}" data-weather-station-fetch-form>
+                    <form method="POST" action="{{ route('api-data.fetch-weather-station-data') }}" data-api-fetch-form="weather-station">
                         @csrf
                         <button type="submit" class="solar-button-secondary">Obtener datos de estacion</button>
                     </form>
@@ -437,16 +440,19 @@
         {{-- ══════════════════════════════════════════════
              3. NASA POWER
         ══════════════════════════════════════════════ --}}
-        <section class="solar-card" data-api-pagination-section="nasa">
+        <section class="solar-card" data-api-pagination-section="nasa" data-api-sync-section="nasa">
             <div class="solar-page-header">
                 <div>
                     <p class="solar-kicker">NASA power</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Fuente satelital</h2>
                     <p class="solar-subtitle mt-2">Datos climaticos sincronizados desde NASA POWER con una lectura tabular mas clara.</p>
+                    <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-api-sync-status="nasa">
+                        Sincronizacion manual disponible.
+                    </p>
                 </div>
                 <div class="solar-api-actions">
-                    <span class="solar-pill">{{ number_format($nasaCount, 0, ',', '.') }} registros</span>
-                    <form method="POST" action="{{ route('api-data.fetch-nasa-data') }}">
+                    <span class="solar-pill" data-api-data-nasa-count-pill>{{ number_format($nasaCount, 0, ',', '.') }} registros</span>
+                    <form method="POST" action="{{ route('api-data.fetch-nasa-data') }}" data-api-fetch-form="nasa">
                         @csrf
                         <button type="submit" class="solar-button">Obtener datos NASA POWER</button>
                     </form>
@@ -468,7 +474,7 @@
                                 <th>Viento</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody data-nasa-rows>
                             @forelse ($nasaRows as $row)
                                 @php
                                     $isIncomplete = $row->radiation === null

@@ -119,6 +119,11 @@ class SolarProject extends Model
         return $this->hasMany(MonthlyResult::class);
     }
 
+    public function aiMessages(): HasMany
+    {
+        return $this->hasMany(SolarProjectAiMessage::class);
+    }
+
     public function syncConsumptionScales(): void
     {
         $monthlyConsumption = $this->numericConsumption($this->monthly_consumption_kwh);

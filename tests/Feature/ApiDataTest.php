@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\AmbientWeatherReading;
 use App\Models\SolarProject;
 use App\Models\User;
 use App\Models\WeatherStationReading;
+use App\Services\AmbientWeatherImportService;
 use App\Services\WeatherStationImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -137,6 +139,49 @@ class ApiDataTest extends TestCase
         ]);
     }
 
+    public function test_nasa_power_data_can_be_fetched_as_json_for_dynamic_refresh(): void
+    {
+        Http::fake([
+            'power.larc.nasa.gov/*' => Http::response([
+                'properties' => [
+                    'parameter' => [
+                        'ALLSKY_SFC_SW_DWN' => [
+                            '20260521' => 5.2,
+                        ],
+                        'T2M' => [
+                            '20260521' => 28.1,
+                        ],
+                        'RH2M' => [
+                            '20260521' => 70.5,
+                        ],
+                        'PRECTOTCORR' => [
+                            '20260521' => 0.01,
+                        ],
+                        'WS10M' => [
+                            '20260521' => 4.2,
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $user = User::factory()->create();
+        $user->solarProjects()->create($this->projectAttributes());
+
+        $this->actingAs($user)
+            ->postJson(route('api-data.fetch-nasa-data'))
+            ->assertOk()
+            ->assertJsonPath('nasaCount', 1)
+            ->assertJsonPath('rows.0.recorded_at', '2026-05-21 00:00')
+            ->assertJsonPath('rows.0.status', 'Completo')
+            ->assertJsonPath('rows.0.radiation', '5,200')
+            ->assertJsonPath('rows.0.radiation_source', 'NASA real')
+            ->assertJsonPath('rows.0.temperature', '28,10')
+            ->assertJsonPath('rows.0.humidity', '70,50')
+            ->assertJsonPath('rows.0.precipitation', '0,0100')
+            ->assertJsonPath('rows.0.wind_speed', '4,20');
+    }
+
     public function test_user_can_fetch_weather_station_data_from_api_data_page(): void
     {
         $user = User::factory()->create();
@@ -224,6 +269,48 @@ class ApiDataTest extends TestCase
             ->assertJsonPath('rows.0.temperature', '31,45')
             ->assertJsonPath('rows.0.radiation', '620,123')
             ->assertJsonPath('rows.0.uv_index', '7,456');
+    }
+
+    public function test_ambient_data_can_be_fetched_as_json_for_dynamic_refresh(): void
+    {
+        $user = User::factory()->create();
+        $user->solarProjects()->create($this->projectAttributes());
+
+        $this->app->instance(AmbientWeatherImportService::class, new class extends AmbientWeatherImportService
+        {
+            public function __construct() {}
+
+            public function importLatestForAllDevices(): array
+            {
+                AmbientWeatherReading::query()->create([
+                    'mac_address' => 'AA:BB:CC:DD:EE:FF',
+                    'temperature' => 30.25,
+                    'humidity' => 72.5,
+                    'wind_speed' => 13.4,
+                    'wind_direction' => 45,
+                    'rainfall' => 0.125,
+                    'uv_index' => 8.2,
+                    'solar_radiation' => 710.75,
+                    'recorded_at' => '2026-05-21 13:45:00',
+                ]);
+
+                return [
+                    'received' => 1,
+                    'created' => 1,
+                    'skipped' => 0,
+                ];
+            }
+        });
+
+        $this->actingAs($user)
+            ->postJson(route('api-data.fetch-ambient-data'), ['auto_sync' => true])
+            ->assertOk()
+            ->assertJsonPath('ambientCount', 1)
+            ->assertJsonPath('rows.0.mac_address', 'AA:BB:CC:DD:EE:FF')
+            ->assertJsonPath('rows.0.recorded_at', '2026-05-21 13:45')
+            ->assertJsonPath('rows.0.temperature', '30,25')
+            ->assertJsonPath('rows.0.radiation', '710,75')
+            ->assertJsonPath('rows.0.uv_index', '8,20');
     }
 
     public function test_weather_station_import_service_fetches_readings_from_public_api(): void
