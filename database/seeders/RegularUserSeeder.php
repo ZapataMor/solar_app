@@ -12,7 +12,7 @@ class RegularUserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::updateOrCreate(
+        $client = User::updateOrCreate(
             ['email' => 'cliente@solar-app.test'],
             [
                 'name' => 'Cliente',
@@ -21,5 +21,8 @@ class RegularUserSeeder extends Seeder
                 'role' => 'user',
             ],
         );
+
+        // Project routes require a verified email; development accounts start verified.
+        $client->forceFill(['email_verified_at' => $client->email_verified_at ?? now()])->save();
     }
 }

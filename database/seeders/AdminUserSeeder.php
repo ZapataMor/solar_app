@@ -12,7 +12,7 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::updateOrCreate(
+        $admin = User::updateOrCreate(
             ['email' => 'admin@solar-app.test'],
             [
                 'name' => 'Administrador',
@@ -21,5 +21,8 @@ class AdminUserSeeder extends Seeder
                 'role' => 'admin',
             ],
         );
+
+        // Project routes require a verified email; development accounts start verified.
+        $admin->forceFill(['email_verified_at' => $admin->email_verified_at ?? now()])->save();
     }
 }
