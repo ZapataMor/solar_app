@@ -253,10 +253,46 @@
             </div>
         @endif
 
+        {{-- Una pestaña por fuente (ADR-0008). Son enlaces reales: sin JS recargan; con JS cambian al instante. --}}
+        @php
+            $sourceTabs = [
+                'ambient' => ['label' => 'Ambient Weather', 'meta' => 'Estación IoT · cada 5 min', 'count' => $ambientCount],
+                'weather-station' => ['label' => 'Estación local', 'meta' => 'Centro meteorológico · UV', 'count' => $weatherStationCount],
+                'nasa' => ['label' => 'NASA POWER', 'meta' => 'Satelital · diaria', 'count' => $nasaCount],
+            ];
+        @endphp
+        <nav class="solar-source-tabs" role="tablist" aria-label="Fuentes de datos climáticos" data-api-tabs>
+            @foreach ($sourceTabs as $tabKey => $tab)
+                <a
+                    href="{{ request()->fullUrlWithQuery(['tab' => $tabKey]) }}"
+                    id="api-tab-{{ $tabKey }}"
+                    class="solar-source-tab"
+                    role="tab"
+                    aria-controls="api-panel-{{ $tabKey }}"
+                    aria-selected="{{ $activeTab === $tabKey ? 'true' : 'false' }}"
+                    tabindex="{{ $activeTab === $tabKey ? '0' : '-1' }}"
+                    data-api-tab="{{ $tabKey }}"
+                >
+                    <span class="solar-source-tab__label">{{ $tab['label'] }}</span>
+                    <span class="solar-source-tab__meta">{{ $tab['meta'] }} · {{ number_format($tab['count'], 0, ',', '.') }} registros</span>
+                </a>
+            @endforeach
+        </nav>
+
         {{-- ══════════════════════════════════════════════
              1. AMBIENT WEATHER
         ══════════════════════════════════════════════ --}}
-        <section class="solar-card" data-api-pagination-section="ambient" data-api-sync-section="ambient">
+        <section
+            class="solar-card"
+            id="api-panel-ambient"
+            role="tabpanel"
+            aria-labelledby="api-tab-ambient"
+            tabindex="0"
+            data-api-pagination-section="ambient"
+            data-api-sync-section="ambient"
+            data-api-tab-panel="ambient"
+            @if ($activeTab !== 'ambient') hidden @endif
+        >
             <div class="solar-page-header solar-api-section-header">
                 <div>
                     <p class="solar-kicker">Ambient Weather</p>
@@ -347,7 +383,17 @@
         {{-- ══════════════════════════════════════════════
              2. ESTACION METEOROLOGICA LOCAL
         ══════════════════════════════════════════════ --}}
-        <section class="solar-card" data-api-pagination-section="weather-station" data-api-sync-section="weather-station">
+        <section
+            class="solar-card"
+            id="api-panel-weather-station"
+            role="tabpanel"
+            aria-labelledby="api-tab-weather-station"
+            tabindex="0"
+            data-api-pagination-section="weather-station"
+            data-api-sync-section="weather-station"
+            data-api-tab-panel="weather-station"
+            @if ($activeTab !== 'weather-station') hidden @endif
+        >
             <div class="solar-page-header solar-api-section-header">
                 <div>
                     <p class="solar-kicker">Estacion local</p>
@@ -444,7 +490,17 @@
         {{-- ══════════════════════════════════════════════
              3. NASA POWER
         ══════════════════════════════════════════════ --}}
-        <section class="solar-card" data-api-pagination-section="nasa" data-api-sync-section="nasa">
+        <section
+            class="solar-card"
+            id="api-panel-nasa"
+            role="tabpanel"
+            aria-labelledby="api-tab-nasa"
+            tabindex="0"
+            data-api-pagination-section="nasa"
+            data-api-sync-section="nasa"
+            data-api-tab-panel="nasa"
+            @if ($activeTab !== 'nasa') hidden @endif
+        >
             <div class="solar-page-header">
                 <div>
                     <p class="solar-kicker">NASA power</p>

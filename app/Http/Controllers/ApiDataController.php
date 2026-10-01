@@ -26,25 +26,29 @@ class ApiDataController extends Controller
             ->orderByDesc('recorded_at')
             ->orderByDesc('id')
             ->paginate(15, ['*'], 'ambient_page')
-            ->withQueryString();
+            ->withQueryString()
+            ->appends('tab', 'ambient');
 
         $weatherStationRows = $this->weatherStationRowsQuery()
             ->orderByDesc('weather_station_readings.measured_at')
             ->orderByDesc('weather_station_readings.id')
             ->paginate(15, ['*'], 'station_page')
-            ->withQueryString();
+            ->withQueryString()
+            ->appends('tab', 'weather-station');
 
         $nasaRows = $this->nasaRowsQuery()
             ->orderByDesc('recorded_at')
             ->orderByDesc('record_id')
             ->paginate(15, ['*'], 'nasa_page')
-            ->withQueryString();
+            ->withQueryString()
+            ->appends('tab', 'nasa');
 
         $ambientCount         = $this->ambientRowsCount();
         $weatherStationCount  = $this->weatherStationRowsCount();
         $nasaCount            = $this->nasaRowsCount();
 
         return view('api-data.index', [
+            'activeTab'               => $this->activeTab($request),
             'ambientRows'             => $ambientRows,
             'ambientCount'            => $ambientCount,
             'ambientChartRows'        => $this->latestAmbientChartRows(),
@@ -54,6 +58,25 @@ class ApiDataController extends Controller
             'weatherStationCount'     => $weatherStationCount,
             'weatherStationChartRows' => $this->latestWeatherStationChartRows(),
         ]);
+    }
+
+    /**
+     * Source tab to show (ADR-0008): the explicit ?tab=, otherwise the source being paginated,
+     * so AJAX pagination (which swaps a whole section) keeps its tab open.
+     */
+    private function activeTab(Request $request): string
+    {
+        $tab = (string) $request->query('tab', '');
+
+        if (in_array($tab, ['ambient', 'weather-station', 'nasa'], true)) {
+            return $tab;
+        }
+
+        return match (true) {
+            $request->has('nasa_page') => 'nasa',
+            $request->has('station_page') => 'weather-station',
+            default => 'ambient',
+        };
     }
 
     public function fetchNasaData(

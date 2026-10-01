@@ -3,6 +3,7 @@
 @import './landing.css';
 @import './project-wizard.css';
 @import './appliance-picker.css';
+@import './data-tabs.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

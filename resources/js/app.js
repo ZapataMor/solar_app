@@ -1365,6 +1365,7 @@ const replaceApiPaginationSection = (html, sectionKey) => {
     currentSection.replaceWith(nextSection);
     initApiDataPagination();
     initApiDataSync();
+    showApiDataTab(sectionKey, { updateUrl: false });
 
     return true;
 };
@@ -1452,3 +1453,85 @@ window.addEventListener('popstate', () => {
 
 document.addEventListener('DOMContentLoaded', initApiDataPagination);
 document.addEventListener('livewire:navigated', initApiDataPagination);
+
+// One tab per climate source (ADR-0008). Tabs are real links (?tab=…); this only avoids the reload.
+function showApiDataTab(key, { updateUrl = true, focus = false } = {}) {
+    const tabs = Array.from(document.querySelectorAll('[data-api-tab]'));
+    const target = tabs.find((tab) => tab.dataset.apiTab === key);
+
+    if (!target) {
+        return;
+    }
+
+    tabs.forEach((tab) => {
+        const selected = tab === target;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+    });
+
+    document.querySelectorAll('[data-api-tab-panel]').forEach((panel) => {
+        panel.hidden = panel.dataset.apiTabPanel !== key;
+    });
+
+    // Charts drawn while their panel was hidden have no size yet.
+    activeSolarCharts.forEach((chart) => chart.resize());
+
+    if (focus) {
+        target.focus();
+    }
+
+    if (updateUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', key);
+        window.history.replaceState(window.history.state, '', url);
+    }
+}
+
+const initApiDataTabs = () => {
+    const tablist = document.querySelector('[data-api-tabs]');
+
+    if (!tablist || tablist.dataset.apiTabsBound) {
+        return;
+    }
+
+    const tabs = () => Array.from(tablist.querySelectorAll('[data-api-tab]'));
+
+    tablist.addEventListener('click', (event) => {
+        const tab = event.target.closest('[data-api-tab]');
+
+        if (!tab || event.metaKey || event.ctrlKey || event.shiftKey) {
+            return;
+        }
+
+        event.preventDefault();
+        showApiDataTab(tab.dataset.apiTab);
+    });
+
+    tablist.addEventListener('keydown', (event) => {
+        const list = tabs();
+        const index = list.indexOf(document.activeElement);
+
+        if (index === -1) {
+            return;
+        }
+
+        const next = {
+            ArrowRight: (index + 1) % list.length,
+            ArrowLeft: (index - 1 + list.length) % list.length,
+            Home: 0,
+            End: list.length - 1,
+        }[event.key];
+
+        if (next === undefined) {
+            return;
+        }
+
+        event.preventDefault();
+        showApiDataTab(list[next].dataset.apiTab, { focus: true });
+    });
+
+    tablist.dataset.apiTabsBound = 'true';
+};
+
+document.addEventListener('DOMContentLoaded', initApiDataTabs);
+document.addEventListener('livewire:navigated', initApiDataTabs);

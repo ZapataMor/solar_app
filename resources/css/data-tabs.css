@@ -1,0 +1,78 @@
+/* Climate data page: one tab per source (resources/views/api-data/index.blade.php, ADR-0008). */
+
+@layer components {
+    .solar-source-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.5rem;
+        padding: 0.35rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1.1rem;
+        background: var(--solar-surface-muted);
+    }
+
+    .solar-source-tab {
+        display: grid;
+        gap: 0.15rem;
+        min-width: 0;
+        padding: 0.7rem 1rem;
+        border: 1px solid transparent;
+        border-radius: 0.85rem;
+        color: var(--solar-text-muted);
+        text-decoration: none;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .solar-source-tab:hover {
+        color: var(--solar-text);
+        background: var(--solar-surface);
+    }
+
+    .solar-source-tab:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-source-tab[aria-selected='true'] {
+        border-color: var(--solar-sun);
+        background: var(--solar-surface-strong);
+        color: var(--solar-text);
+        box-shadow: 0 10px 28px -20px rgba(0, 0, 0, 0.6);
+    }
+
+    .solar-source-tab__label {
+        font-size: 0.98rem;
+        font-weight: 700;
+    }
+
+    .solar-source-tab[aria-selected='true'] .solar-source-tab__label {
+        color: var(--solar-sun);
+    }
+
+    .solar-source-tab__meta {
+        overflow: hidden;
+        font-size: 0.78rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    [data-api-tab-panel]:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 4px;
+    }
+
+    @media (max-width: 640px) {
+        .solar-source-tab {
+            padding: 0.6rem 0.5rem;
+            text-align: center;
+        }
+
+        .solar-source-tab__label {
+            font-size: 0.85rem;
+        }
+
+        .solar-source-tab__meta {
+            display: none;
+        }
+    }
+}
