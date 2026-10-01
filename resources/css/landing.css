@@ -201,9 +201,9 @@
     .landing-hero {
         position: relative;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         min-height: min(88vh, 760px);
-        padding: clamp(64px, 12vh, 120px) var(--landing-gutter);
+        padding: clamp(32px, 6vh, 60px) var(--landing-gutter) clamp(64px, 12vh, 120px);
         background:
             linear-gradient(90deg, rgba(12, 9, 7, 0.9) 0%, rgba(12, 9, 7, 0.62) 55%, rgba(12, 9, 7, 0.35) 100%),
             linear-gradient(180deg, rgba(12, 9, 7, 0) 60%, var(--landing-bg) 100%),
