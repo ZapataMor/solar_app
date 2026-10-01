@@ -388,9 +388,21 @@
         </div>
 
         <div class="solar-form-grid mt-6 md:grid-cols-2">
-            <label class="solar-field">
-                <span class="solar-field-label">¿Cuánto pagas por cada kWh?</span>
+            {{-- Not a <label> wrapper: the help button would steal the field's label. --}}
+            <div class="solar-field">
+                <div class="solar-field-label-row">
+                    <label for="energy_rate_cop_kwh" class="solar-field-label">¿Cuánto pagas por cada kWh?</label>
+                    <button
+                        type="button"
+                        class="solar-help-button"
+                        data-energy-guide-open
+                        data-tooltip="¿Dónde la encuentro en mi recibo?"
+                        aria-label="¿Dónde la encuentro en mi recibo?"
+                        aria-haspopup="dialog"
+                    >?</button>
+                </div>
                 <input
+                    id="energy_rate_cop_kwh"
                     type="number"
                     step="0.01"
                     min="0.01"
@@ -401,15 +413,9 @@
                     inputmode="decimal"
                 >
                 <span class="text-xs text-[color:var(--solar-text-muted)]">Tarifa en pesos por kWh; aparece en tu recibo de energía.</span>
-            </label>
-
-            <div class="flex items-end">
-                <button type="button" class="solar-button-ghost solar-energy-guide-trigger" data-energy-guide-open>
-                    ¿Dónde la encuentro en mi recibo?
-                </button>
             </div>
 
-            <label class="solar-field md:col-span-2">
+            <label class="solar-field">
                 <span class="solar-field-label">Nombre del proyecto</span>
                 <input
                     name="name"

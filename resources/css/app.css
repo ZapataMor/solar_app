@@ -2304,11 +2304,73 @@ select:focus[data-flux-control] {
         color: var(--solar-text-muted);
     }
 
-    .solar-energy-guide-trigger {
-        width: 100%;
-        justify-content: flex-start;
-        text-align: left;
-        color: var(--solar-text);
+    /* Field label with a small "?" next to it (e.g. where to find the tariff on the bill). */
+    .solar-field-label-row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .solar-help-button {
+        position: relative;
+        display: inline-grid;
+        flex-shrink: 0;
+        width: 1.35rem;
+        height: 1.35rem;
+        place-items: center;
+        padding: 0;
+        border: 1px solid color-mix(in srgb, var(--solar-sun) 55%, transparent);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-sun) 12%, transparent);
+        color: var(--solar-sun);
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .solar-help-button:hover {
+        background: color-mix(in srgb, var(--solar-sun) 24%, transparent);
+    }
+
+    .solar-help-button:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    /* The question it answers, on hover or keyboard focus. */
+    .solar-help-button::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + 0.5rem);
+        left: 50%;
+        z-index: 20;
+        width: max-content;
+        max-width: 16rem;
+        padding: 0.4rem 0.65rem;
+        border-radius: 0.55rem;
+        background: #1d1711;
+        color: #fff6ea;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.3;
+        white-space: normal;
+        pointer-events: none;
+        opacity: 0;
+        transform: translate(-50%, 0.25rem);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    .solar-help-button:hover::after,
+    .solar-help-button:focus-visible::after {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-help-button::after {
+            transition: none;
+        }
     }
 
     .solar-energy-guide-modal {
