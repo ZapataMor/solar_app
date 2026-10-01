@@ -124,6 +124,63 @@
         gap: 1rem;
     }
 
+    /* kWh or pesos: every figure is drawn in both units and the diary root shows one. */
+    .solar-diary:not([data-unit='money']) .solar-unit--money,
+    .solar-diary[data-unit='money'] .solar-unit--kwh {
+        display: none;
+    }
+
+    .solar-unit-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.75rem;
+    }
+
+    .solar-unit-toolbar__label {
+        color: var(--solar-text-muted);
+        font-size: 0.86rem;
+    }
+
+    .solar-unit-switch {
+        display: inline-flex;
+        padding: 0.2rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        background: var(--solar-surface);
+    }
+
+    .solar-unit-switch button {
+        padding: 0.3rem 0.9rem;
+        border: 0;
+        border-radius: 999px;
+        background: none;
+        color: var(--solar-text-muted);
+        font-size: 0.86rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .solar-unit-switch button[aria-pressed='true'] {
+        background: var(--solar-sun);
+        color: #fffaf2;
+    }
+
+    .solar-unit-switch button:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-unit-toolbar__note {
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    .solar-diary-preview__other {
+        margin-inline-start: 0.25rem;
+        font-size: 0.86rem;
+    }
+
     /* Re-rendered by the server after each save (no page reload). */
     .solar-diary-content {
         display: grid;

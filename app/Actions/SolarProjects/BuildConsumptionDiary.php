@@ -21,21 +21,27 @@ final class BuildConsumptionDiary
     ) {}
 
     /**
+     * Every kWh figure comes with its monthly cost in pesos (`cost`), at the project's tariff, for
+     * clients who understand money better than kWh. It is what that energy costs on the bill today.
+     *
      * @return array{
-     *     spaces: list<array{key: string, label: string, kwh: float, share: float, items: list<array<string, mixed>>}>,
+     *     spaces: list<array{key: string, label: string, kwh: float, cost: float, share: float, items: list<array<string, mixed>>}>,
      *     totalKwh: float,
+     *     totalCost: float,
      *     dailyKwh: float,
+     *     ratePerKwh: float,
      *     applianceCount: int,
-     *     biggest: array{label: string, kwh: float, share: float}|null
+     *     biggest: array{label: string, kwh: float, cost: float, share: float}|null
      * }
      */
     public function __invoke(SolarProject $solarProject): array
     {
         $type = $solarProject->property_type;
+        $rate = max(0.0, (float) $solarProject->energy_rate_cop_kwh);
         $spaces = [];
 
         foreach (PropertyType::spaces($type) as $key => $label) {
-            $spaces[$key] = ['key' => $key, 'label' => $label, 'kwh' => 0.0, 'share' => 0.0, 'items' => []];
+            $spaces[$key] = ['key' => $key, 'label' => $label, 'kwh' => 0.0, 'cost' => 0.0, 'share' => 0.0, 'items' => []];
         }
 
         $biggest = null;
@@ -43,14 +49,15 @@ final class BuildConsumptionDiary
             ->filter(fn (SolarProjectAppliance $appliance) => $this->catalog->hasVariant($appliance->appliance_key, $appliance->variant_key));
 
         foreach ($appliances as $appliance) {
-            $item = $this->item($appliance);
+            $item = $this->item($appliance, $rate);
             $space = PropertyType::spaceOf($type, $appliance->space);
 
             $spaces[$space]['items'][] = $item;
             $spaces[$space]['kwh'] += $item['kwh'];
+            $spaces[$space]['cost'] += $item['cost'];
 
             if ($biggest === null || $item['kwh'] > $biggest['kwh']) {
-                $biggest = ['label' => $item['label'], 'kwh' => $item['kwh'], 'share' => 0.0];
+                $biggest = ['label' => $item['label'], 'kwh' => $item['kwh'], 'cost' => $item['cost'], 'share' => 0.0];
             }
         }
 
@@ -67,7 +74,9 @@ final class BuildConsumptionDiary
         return [
             'spaces' => array_values($spaces),
             'totalKwh' => $total,
+            'totalCost' => $total * $rate,
             'dailyKwh' => $total / ApplianceCatalog::DAYS_PER_MONTH,
+            'ratePerKwh' => $rate,
             'applianceCount' => $appliances->count(),
             'biggest' => $biggest,
         ];
@@ -76,11 +85,12 @@ final class BuildConsumptionDiary
     /**
      * @return array<string, mixed> One diary row; also what the edit sheet is opened with.
      */
-    private function item(SolarProjectAppliance $appliance): array
+    private function item(SolarProjectAppliance $appliance, float $rate): array
     {
         $key = $appliance->appliance_key;
         $variant = $appliance->variant_key;
         $hoursPerDay = (float) $appliance->hours_per_day;
+        $kwh = $this->consumptionEstimator->monthlyKwh(new ApplianceLoad($key, $variant, (int) $appliance->quantity, $hoursPerDay));
 
         return [
             'id' => $appliance->id,
@@ -93,7 +103,8 @@ final class BuildConsumptionDiary
             'quantity' => (int) $appliance->quantity,
             'hoursPerDay' => $hoursPerDay,
             'usageText' => $this->usageText($key, $hoursPerDay),
-            'kwh' => $this->consumptionEstimator->monthlyKwh(new ApplianceLoad($key, $variant, (int) $appliance->quantity, $hoursPerDay)),
+            'kwh' => $kwh,
+            'cost' => $kwh * $rate,
         ];
     }
 

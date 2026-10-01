@@ -262,6 +262,43 @@ class ApplianceConsumptionTest extends TestCase
         $this->assertStringNotContainsString('id="espacio-kitchen"', $response->getContent());
     }
 
+    public function test_the_diary_can_also_show_what_each_appliance_costs_per_month(): void
+    {
+        // Tariff of the project: $900 per kWh.
+        [$user, $solarProject] = $this->project(['property_type' => 'business']);
+        $solarProject->appliances()->createMany([
+            ['space' => 'sales', 'appliance_key' => 'beverage_cooler', 'variant_key' => 'two_doors', 'quantity' => 1, 'hours_per_day' => 24],
+            ['space' => 'office', 'appliance_key' => 'computer', 'variant_key' => 'desktop', 'quantity' => 2, 'hours_per_day' => 10],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('solar-projects.consumption', $solarProject))
+            ->assertOk()
+            ->assertSee('data-unit-choice="money"', false)
+            ->assertSee('Con tu tarifa de $900 por kWh')
+            // Cooler 187.2 kWh × $900 = $168.480 → "$168.500"; computers 120 kWh → "$108.000".
+            ->assertSee('<strong>$168.500</strong> al mes', false)
+            ->assertSee('<strong>$108.000</strong> al mes', false)
+            // Total 307.2 kWh → $276.480: "$276.500 al mes", and "$276 mil" in the ring.
+            ->assertSee('<span class="solar-unit solar-unit--money">$276.500 al mes</span>', false)
+            ->assertSee('<span class="solar-unit solar-unit--money">$276 mil</span>', false)
+            // The kWh figures are still there: the viewer chooses which unit shows.
+            ->assertSee('<span class="solar-unit solar-unit--kwh">307 kWh al mes</span>', false);
+
+        $this->assertMatchesRegularExpression('/data-consumption-diary\s+data-unit="kwh"\s+data-rate="900"/', $response->getContent());
+    }
+
+    public function test_without_a_tariff_the_diary_only_speaks_kwh(): void
+    {
+        [$user, $solarProject] = $this->project(['energy_rate_cop_kwh' => 0]);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.consumption', $solarProject))
+            ->assertOk()
+            ->assertDontSee('data-unit-choice="money"', false)
+            ->assertDontSee('Con tu tarifa de');
+    }
+
     public function test_an_empty_diary_invites_to_add_appliances_and_a_bill_based_project_is_explained(): void
     {
         [$user, $solarProject] = $this->project();

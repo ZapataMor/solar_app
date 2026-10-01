@@ -67,6 +67,8 @@ Una pregunta por pantalla, con el mismo asistente del ADR-0007 (borrador al reca
   - el equipo que más consume;
   - botón Calcular cuando hace falta.
 - **El servidor recalcula el consumo** con el catálogo; nunca confía en el navegador.
+- **Ver en kWh o en pesos:** un selector cambia todas las cifras del diario (filas, espacios, total, anillo y vista previa) a **pesos al mes** con la tarifa del proyecto: es lo que esa energía cuesta hoy en el recibo. Cada navegador recuerda la elección. Sin tarifa, solo se muestra en kWh.
+- **Guardar sin recargar:** agregar, editar o quitar un equipo actualiza el diario con el HTML que devuelve el servidor, y el mensaje de éxito sale como una notificación pasajera. Sin JavaScript, la petición clásica sigue funcionando.
 - **Los equipos de un espacio que no existe** en el tipo actual, por ejemplo al cambiar de casa a negocio, aparecen en "Otros".
 
 ### 4. Los equipos son la base del cálculo

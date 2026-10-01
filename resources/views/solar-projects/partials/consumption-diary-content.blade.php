@@ -10,6 +10,17 @@
     // "374", "14,5", "36" (never "36,0").
     $kwh = fn (float $value): string => number_format($value, $value >= 100 || fmod(round($value, 1), 1.0) === 0.0 ? 0 : 1, ',', '.');
     $percent = fn (float $value): string => number_format($value, 0, ',', '.').' %';
+    // Pesos per month at the project's tariff, rounded to hundreds: "$348.000".
+    $money = fn (float $cop): string => '$'.number_format(round($cop, -2), 0, ',', '.');
+    // Short form for the ring center: "$1,1 M", "$348 mil".
+    $moneyShort = fn (float $cop): string => match (true) {
+        $cop >= 1_000_000 => '$'.number_format($cop / 1_000_000, 1, ',', '.').' M',
+        $cop >= 10_000 => '$'.number_format(round($cop / 1000), 0, ',', '.').' mil',
+        default => $money($cop),
+    };
+    // Each figure is drawn in both units; the diary root decides which one shows (kWh or pesos).
+    $unit = fn (string $kwhText, string $moneyText): string => '<span class="solar-unit solar-unit--kwh">'.e($kwhText).'</span>'
+        .'<span class="solar-unit solar-unit--money">'.e($moneyText).'</span>';
 
     // Ring: one color per space, in diary order ("Otros" keeps the neutral one).
     $spaceColors = [];
@@ -38,8 +49,8 @@
     <div class="solar-diary-ring" style="--ring: {{ $ringBackground }}" role="img"
          aria-label="{{ $ringDescription !== '' ? 'Consumo por espacio: '.$ringDescription : 'Todavía no hay equipos' }}">
         <div class="solar-diary-ring__center">
-            <strong>{{ $kwh($diary['totalKwh']) }}</strong>
-            <span>kWh/mes</span>
+            <strong>{!! $unit($kwh($diary['totalKwh']), $moneyShort($diary['totalCost'])) !!}</strong>
+            <span>{!! $unit('kWh/mes', 'al mes') !!}</span>
         </div>
     </div>
 
@@ -47,14 +58,14 @@
         <p class="solar-kicker">Consumo de tu {{ $propertyLabel }}</p>
         <h1 id="diary-total" class="solar-diary-total">
             @if ($diary['applianceCount'] > 0)
-                {{ $kwh($diary['totalKwh']) }} kWh al mes
+                {!! $unit($kwh($diary['totalKwh']).' kWh al mes', $money($diary['totalCost']).' al mes') !!}
             @else
                 Recorre tu {{ $propertyLabel }} y agrega tus equipos
             @endif
         </h1>
         <p class="solar-diary-summary__meta">
             @if ($diary['applianceCount'] > 0)
-                ≈ {{ $kwh($diary['dailyKwh']) }} kWh al día · {{ $diary['applianceCount'] }} {{ $diary['applianceCount'] === 1 ? 'equipo' : 'equipos' }}
+                ≈ {!! $unit($kwh($diary['dailyKwh']).' kWh al día', $money($diary['totalCost'] / 30).' al día') !!} · {{ $diary['applianceCount'] }} {{ $diary['applianceCount'] === 1 ? 'equipo' : 'equipos' }}
             @else
                 Espacio por espacio, como un diario: con tus equipos calculamos cuántos paneles necesitas.
             @endif
@@ -67,7 +78,7 @@
                     <li>
                         <span class="solar-diary-dot" style="--dot: {{ $spaceColors[$space['key']] }}" aria-hidden="true"></span>
                         {{ $space['label'] }}
-                        <strong>{{ $kwh($space['kwh']) }} kWh</strong>
+                        <strong>{!! $unit($kwh($space['kwh']).' kWh', $money($space['cost'])) !!}</strong>
                         <span>{{ $percent($space['share']) }}</span>
                     </li>
                 @endforeach
@@ -77,7 +88,7 @@
         @if ($diary['biggest'])
             <p class="solar-diary-biggest">
                 Lo que más consume: <strong>{{ $diary['biggest']['label'] }}</strong>,
-                {{ $kwh($diary['biggest']['kwh']) }} kWh al mes ({{ $percent($diary['biggest']['share']) }} del total).
+                {!! $unit($kwh($diary['biggest']['kwh']).' kWh al mes', $money($diary['biggest']['cost']).' al mes') !!} ({{ $percent($diary['biggest']['share']) }} del total).
             </p>
         @endif
     </div>
@@ -114,7 +125,7 @@
             <span class="solar-diary-dot" style="--dot: {{ $spaceColors[$space['key']] }}" aria-hidden="true"></span>
             <h2 id="espacio-{{ $space['key'] }}-titulo">{{ $space['label'] }}</h2>
             @if ($space['kwh'] > 0)
-                <span class="solar-diary-space__kwh">{{ $kwh($space['kwh']) }} kWh/mes</span>
+                <span class="solar-diary-space__kwh">{!! $unit($kwh($space['kwh']).' kWh/mes', $money($space['cost']).' al mes') !!}</span>
             @endif
             <button type="button" class="solar-diary-add" data-diary-add="{{ $space['key'] }}">
                 <span aria-hidden="true">+</span> Agregar<span class="sr-only"> equipo a {{ $space['label'] }}</span>
@@ -134,7 +145,10 @@
                                 @if ($item['variantLabel'] !== ''){{ $item['variantLabel'] }} · @endif{{ $item['quantity'] }} × {{ $item['usageText'] }}
                             </span>
                         </div>
-                        <span class="solar-diary-item__kwh"><strong>{{ $kwh($item['kwh']) }}</strong> kWh/mes</span>
+                        <span class="solar-diary-item__kwh">
+                            <span class="solar-unit solar-unit--kwh"><strong>{{ $kwh($item['kwh']) }}</strong> kWh/mes</span>
+                            <span class="solar-unit solar-unit--money"><strong>{{ $money($item['cost']) }}</strong> al mes</span>
+                        </span>
                         <div class="solar-diary-item__actions">
                             <button type="button" class="solar-diary-link" data-diary-edit='@json($item)'>Editar<span class="sr-only"> {{ $item['label'] }}</span></button>
                             <form method="POST" action="{{ route('solar-projects.appliances.destroy', [$solarProject, $item['id']]) }}" data-diary-remove="{{ $item['label'] }}">
