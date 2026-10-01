@@ -24,6 +24,13 @@ Contexto: preparaci√≥n del pitch de la primera etapa del reto (el proyecto naci√
 - [[cotizacion-y-costos-ocultos]]
 - [[recomendacion-del-sistema]]
 
+**Decisiones de software (ADRs propuestos)**
+- [[adr-0002-consumo-por-electrodomesticos]]
+- [[adr-0003-separar-datos-cliente-e-instalador]]
+- [[adr-0004-cotizacion-por-items-y-transporte-interno]]
+- [[adr-0005-marketplace-de-instaladores]]
+- [[adr-0006-recomendacion-del-sistema]]
+
 **Ideas aplazadas**
 - [[ideas-aplazadas-asesoria]]
 
