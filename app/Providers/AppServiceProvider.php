@@ -6,9 +6,11 @@ use App\Domain\Climate\ClimateSourceChain;
 use App\Infrastructure\Climate\AmbientWeatherClimateSource;
 use App\Infrastructure\Climate\LocalStationClimateSource;
 use App\Infrastructure\Climate\NasaPowerClimateSource;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -33,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        // Climate readings are shared by every project, so only admins may trigger a sync.
+        Gate::define('sync-climate-data', fn (User $user): bool => $user->isAdmin());
     }
 
     /**

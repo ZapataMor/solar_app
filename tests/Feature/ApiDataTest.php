@@ -24,7 +24,7 @@ class ApiDataTest extends TestCase
 
     public function test_user_can_view_data_from_both_apis(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $solarProject = $user->solarProjects()->create($this->projectAttributes());
 
         $solarProject->weatherData()->create([
@@ -123,7 +123,7 @@ class ApiDataTest extends TestCase
             ]),
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $solarProject = $user->solarProjects()->create($this->projectAttributes());
 
         $this->actingAs($user)
@@ -165,7 +165,7 @@ class ApiDataTest extends TestCase
             ]),
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $user->solarProjects()->create($this->projectAttributes());
 
         $this->actingAs($user)
@@ -184,7 +184,7 @@ class ApiDataTest extends TestCase
 
     public function test_user_can_fetch_weather_station_data_from_api_data_page(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $solarProject = $user->solarProjects()->create($this->projectAttributes());
 
         $this->app->instance(WeatherStationImportService::class, new class extends WeatherStationImportService
@@ -233,7 +233,7 @@ class ApiDataTest extends TestCase
 
     public function test_weather_station_data_can_be_fetched_as_json_for_ajax_refresh(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $solarProject = $user->solarProjects()->create($this->projectAttributes());
 
         $this->app->instance(WeatherStationImportService::class, new class extends WeatherStationImportService
@@ -273,7 +273,7 @@ class ApiDataTest extends TestCase
 
     public function test_ambient_data_can_be_fetched_as_json_for_dynamic_refresh(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $user->solarProjects()->create($this->projectAttributes());
 
         $this->app->instance(AmbientWeatherImportService::class, new class extends AmbientWeatherImportService

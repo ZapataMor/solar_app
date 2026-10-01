@@ -47,6 +47,11 @@ class User extends Authenticatable implements PasskeyUser
             ->implode('');
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
     public function solarProjects(): HasMany
     {
         return $this->hasMany(SolarProject::class);

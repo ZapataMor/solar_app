@@ -45,6 +45,8 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 - Las fechas de modelos son `CarbonImmutable` (`Date::use` en `AppServiceProvider`): tipa con
   `CarbonInterface`, no con `Carbon\Carbon`.
 - Autorización de proyectos: `authorizeOwner()` en `SolarProjectController` (dueño o `admin`).
+- Sincronizar datos climáticos (son globales) es solo de admin: Gate `sync-climate-data`
+  (`AppServiceProvider`), aplicado en las rutas con `can:` y en las vistas con `@can`.
 
 ## Trampas conocidas
 

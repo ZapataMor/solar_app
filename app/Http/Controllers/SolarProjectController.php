@@ -49,7 +49,7 @@ class SolarProjectController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $isAdmin = $user->role === 'admin';
+        $isAdmin = $user->isAdmin();
 
         $solarProjectsQuery = SolarProject::query()
             ->with([
@@ -583,7 +583,7 @@ class SolarProjectController extends Controller
     private function authorizeOwner(Request $request, SolarProject $solarProject): void
     {
         abort_unless(
-            $request->user()->role === 'admin' || $solarProject->user_id === $request->user()->id,
+            $request->user()->isAdmin() || $solarProject->user_id === $request->user()->id,
             403
         );
     }

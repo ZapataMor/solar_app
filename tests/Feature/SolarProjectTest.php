@@ -144,7 +144,7 @@ class SolarProjectTest extends TestCase
             ]),
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $solarProject = $user->solarProjects()->create($this->projectAttributes());
         $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
         $solarProject->weatherData()->create([
@@ -231,7 +231,7 @@ class SolarProjectTest extends TestCase
             ]),
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $solarProject = $user->solarProjects()->create([
             ...$this->projectAttributes(),
             'start_date' => '2017-01-01',
@@ -266,7 +266,7 @@ class SolarProjectTest extends TestCase
             ]),
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $solarProject = $user->solarProjects()->create([
             ...$this->projectAttributes(),
             'start_date' => '2026-05-21',
@@ -327,7 +327,7 @@ class SolarProjectTest extends TestCase
                 ]),
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $solarProject = $user->solarProjects()->create([
             ...$this->projectAttributes(),
             'start_date' => '2025-08-20',

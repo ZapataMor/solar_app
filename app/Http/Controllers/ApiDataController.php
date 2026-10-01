@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AmbientWeatherReading;
+use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use App\Services\AmbientWeatherImportService;
 use App\Services\NasaPowerService;
@@ -61,7 +62,8 @@ class ApiDataController extends Controller
         NasaWeatherDataService $nasaWeatherDataService,
     ): RedirectResponse|JsonResponse
     {
-        $projects = $request->user()->solarProjects()->get();
+        // Admin-only sync: cover the date range of every project on the platform.
+        $projects = SolarProject::query()->get(['start_date', 'end_date']);
 
         if ($projects->isEmpty()) {
             if ($request->wantsJson()) {

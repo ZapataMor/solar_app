@@ -270,10 +270,12 @@
                     <span class="solar-pill solar-pill-warn" data-ambient-count-pill>
                         {{ number_format($ambientCount, 0, ',', '.') }} registros
                     </span>
+                    @can('sync-climate-data')
                     <form method="POST" action="{{ route('api-data.fetch-ambient-data') }}" data-api-fetch-form="ambient">
                         @csrf
                         <button type="submit" class="solar-button-secondary">Sincronizar Ambient Weather</button>
                     </form>
+                    @endcan
                 </div>
             </div>
 
@@ -359,10 +361,12 @@
                     <span class="solar-pill solar-pill-warn" data-weather-station-count-pill>
                         {{ number_format($weatherStationCount, 0, ',', '.') }} registros
                     </span>
+                    @can('sync-climate-data')
                     <form method="POST" action="{{ route('api-data.fetch-weather-station-data') }}" data-api-fetch-form="weather-station">
                         @csrf
                         <button type="submit" class="solar-button-secondary">Obtener datos de estacion</button>
                     </form>
+                    @endcan
                 </div>
             </div>
 
@@ -447,15 +451,17 @@
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Fuente satelital</h2>
                     <p class="solar-subtitle mt-2">Datos climaticos sincronizados desde NASA POWER con una lectura tabular mas clara.</p>
                     <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-api-sync-status="nasa">
-                        Sincronizacion manual disponible.
+                        @can('sync-climate-data') Sincronizacion manual disponible. @else Actualizada por el administrador de la plataforma. @endcan
                     </p>
                 </div>
                 <div class="solar-api-actions">
                     <span class="solar-pill" data-api-data-nasa-count-pill>{{ number_format($nasaCount, 0, ',', '.') }} registros</span>
+                    @can('sync-climate-data')
                     <form method="POST" action="{{ route('api-data.fetch-nasa-data') }}" data-api-fetch-form="nasa">
                         @csrf
                         <button type="submit" class="solar-button">Obtener datos NASA POWER</button>
                     </form>
+                    @endcan
                 </div>
             </div>
 

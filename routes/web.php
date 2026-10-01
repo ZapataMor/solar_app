@@ -35,20 +35,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('solar-projects.calculate-weather-station');
     Route::post('solar-projects/{solarProject}/calculate-nasa', [SolarProjectController::class, 'calculateWithNasaPower'])
         ->name('solar-projects.calculate-nasa');
-    Route::post('solar-projects/{solarProject}/fetch-weather-data', [SolarProjectController::class, 'fetchWeatherData'])
-        ->name('solar-projects.fetch-weather-data');
-    Route::post('solar-projects/{solarProject}/fetch-weather-station-data', [SolarProjectController::class, 'fetchWeatherStationData'])
-        ->name('solar-projects.fetch-weather-station-data');
     Route::post('solar-projects/{solarProject}/calculate-ambient-weather', [SolarProjectController::class, 'calculateWithAmbientWeather'])
         ->name('solar-projects.calculate-ambient-weather');
 
     Route::get('api-data', ApiDataController::class)->name('api-data.index');
-    Route::post('api-data/fetch-nasa-data', [ApiDataController::class, 'fetchNasaData'])
-        ->name('api-data.fetch-nasa-data');
-    Route::post('api-data/fetch-weather-station-data', [ApiDataController::class, 'fetchWeatherStationData'])
-        ->name('api-data.fetch-weather-station-data');
-    Route::post('api-data/fetch-ambient-data', [ApiDataController::class, 'fetchAmbientData'])
-        ->name('api-data.fetch-ambient-data');
+
+    // Climate readings are global: only system administrators may sync them.
+    Route::middleware('can:sync-climate-data')->group(function () {
+        Route::post('solar-projects/{solarProject}/fetch-weather-data', [SolarProjectController::class, 'fetchWeatherData'])
+            ->name('solar-projects.fetch-weather-data');
+        Route::post('solar-projects/{solarProject}/fetch-weather-station-data', [SolarProjectController::class, 'fetchWeatherStationData'])
+            ->name('solar-projects.fetch-weather-station-data');
+        Route::post('api-data/fetch-nasa-data', [ApiDataController::class, 'fetchNasaData'])
+            ->name('api-data.fetch-nasa-data');
+        Route::post('api-data/fetch-weather-station-data', [ApiDataController::class, 'fetchWeatherStationData'])
+            ->name('api-data.fetch-weather-station-data');
+        Route::post('api-data/fetch-ambient-data', [ApiDataController::class, 'fetchAmbientData'])
+            ->name('api-data.fetch-ambient-data');
+    });
 });
 
 require __DIR__.'/settings.php';
