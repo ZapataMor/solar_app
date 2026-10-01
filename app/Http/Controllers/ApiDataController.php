@@ -104,8 +104,9 @@ class ApiDataController extends Controller
         $endDate = $projects->max('end_date');
 
         try {
-            $payload = $nasaPowerService->fetchHourlyData($startDate, $endDate);
-            ['created' => $created, 'updated' => $updated] = $nasaWeatherDataService->storeDailyData($payload);
+            // Daily data: NASA publishes real daily radiation within days; hourly radiation takes months (ADR-0009).
+            $payload = $nasaPowerService->fetchDailyData($startDate, $endDate);
+            ['created' => $created, 'updated' => $updated, 'promoted' => $promoted] = $nasaWeatherDataService->storeDailyData($payload);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -120,7 +121,7 @@ class ApiDataController extends Controller
             ]);
         }
 
-        $message = "NASA POWER sincronizado. Nuevos: {$created}. Existentes actualizados: {$updated}.";
+        $message = "NASA POWER sincronizado. Nuevos: {$created}. Existentes actualizados: {$updated}. Estimaciones confirmadas con dato real: {$promoted}.";
 
         if ($request->wantsJson()) {
             return response()->json([

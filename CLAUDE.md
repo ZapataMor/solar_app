@@ -66,5 +66,8 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 - Pint ya reporta estilo en archivos heredados (`SolarProjectController`,
   `ClimateSourceFallbackService`, …). No reformatees archivos enteros: solo lo que tocas.
 - Radiación: se guarda como **W/m² promedio de 24 h**. HSP (kWh/m²/día) = W/m² × 24 / 1000.
+- **NASA POWER se pide por día, nunca por hora** (ADR-0009): la radiación horaria llega en `-999`
+  durante meses. `nasa-power:fetch` reconsulta 45 días para confirmar estimaciones y nunca cambia
+  un dato real por uno estimado; `--rebuild` limpia filas horarias y descarga todo de nuevo.
 - `ProjectDashboardService`, `DashboardTimeScaleService`, `OpenAIRecommendationService` y
   `solar-projects/show.blade.php` son muy grandes: cambios pequeños y verificados.

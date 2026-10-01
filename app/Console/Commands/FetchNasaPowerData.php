@@ -12,9 +12,11 @@ use Throwable;
 
 class FetchNasaPowerData extends Command
 {
-    protected $signature = 'nasa-power:fetch {--days=45 : Ventana de dias hacia atras para refresco incremental}';
+    protected $signature = 'nasa-power:fetch
+        {--days=45 : Ventana de dias hacia atras que se reconsulta para confirmar estimaciones}
+        {--rebuild : Borra las filas horarias antiguas y descarga todo el periodo de los proyectos en datos diarios}';
 
-    protected $description = 'Fetch and upsert NASA POWER weather data for solar projects.';
+    protected $description = 'Fetch daily NASA POWER data for solar projects, upgrading estimates once NASA publishes them (ADR-0009).';
 
     public function handle(
         NasaPowerService $nasaPowerService,
@@ -35,6 +37,12 @@ class FetchNasaPowerData extends Command
         $defaultStart = $yesterday->subDays($days - 1);
         $projectMinStart = CarbonImmutable::parse((string) $projects->min('start_date'), $timezone)->startOfDay();
         $startDate = $projectMinStart->greaterThan($defaultStart) ? $projectMinStart : $defaultStart;
+
+        if ($this->option('rebuild')) {
+            $purged = $nasaWeatherDataService->purgeHourlyRows();
+            $startDate = $projectMinStart;
+            $this->info("Filas horarias eliminadas: {$purged}. Se descarga todo el periodo de los proyectos.");
+        }
         $endDate = $yesterday;
 
         if ($startDate->greaterThan($endDate)) {
@@ -55,8 +63,8 @@ class FetchNasaPowerData extends Command
         ]);
 
         try {
-            $payload = $nasaPowerService->fetchHourlyData($startDate, $endDate);
-            ['created' => $created, 'updated' => $updated] = $nasaWeatherDataService->storeDailyData($payload);
+            $payload = $nasaPowerService->fetchDailyData($startDate, $endDate);
+            ['created' => $created, 'updated' => $updated, 'promoted' => $promoted] = $nasaWeatherDataService->storeDailyData($payload);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -77,9 +85,10 @@ class FetchNasaPowerData extends Command
             'end' => $endDate->toDateString(),
             'created' => $created,
             'updated' => $updated,
+            'confirmed_estimates' => $promoted,
         ]);
 
-        $this->info("NASA POWER sincronizado. Nuevos: {$created}. Actualizados: {$updated}.");
+        $this->info("NASA POWER sincronizado. Nuevos: {$created}. Actualizados: {$updated}. Estimaciones confirmadas con dato real: {$promoted}.");
 
         return self::SUCCESS;
     }

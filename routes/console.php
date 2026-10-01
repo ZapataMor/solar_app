@@ -14,8 +14,9 @@ Schedule::command('weather-station:fetch')
     ->timezone(config('services.weather_station.schedule_timezone', 'America/Bogota'))
     ->withoutOverlapping();
 
+// NASA publishes daily data once a day; every 6 h re-checks the window and confirms estimates (ADR-0009).
 Schedule::command('nasa-power:fetch')
-    ->hourlyAt(1)
+    ->everySixHours()
     ->timezone(config('app.display_timezone', 'America/Bogota'))
     ->withoutOverlapping();
 

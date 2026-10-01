@@ -16,7 +16,7 @@ class NasaWeatherDataService
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array{created: int, updated: int}
+     * @return array{created: int, updated: int, promoted: int}
      */
     public function storeDailyData(array $payload): array
     {
@@ -38,8 +38,9 @@ class NasaWeatherDataService
 
         $created = 0;
         $updated = 0;
+        $promoted = 0;
 
-        DB::transaction(function () use ($parameters, $timestamps, &$created, &$updated): void {
+        DB::transaction(function () use ($parameters, $timestamps, &$created, &$updated, &$promoted): void {
             $allskyByTimestamp = collect($timestamps)->mapWithKeys(fn ($timestamp) => [
                 $timestamp => $this->cleanValue($parameters['ALLSKY_SFC_SW_DWN'][$timestamp] ?? null),
             ])->all();
@@ -90,17 +91,31 @@ class NasaWeatherDataService
                     ]);
                 }
 
+                // ADR-0009: a value NASA already confirmed is never replaced by an estimate,
+                // and an estimate is upgraded to the real value as soon as NASA publishes it.
+                $existing = ApiWeatherData::query()->where('date_time', $dateTime)->first();
+                $isReal = $radiation['method'] === 'nasa_real';
+                $keepExistingRadiation = $existing?->radiation_source === 'nasa_real' && ! $isReal;
+
+                $radiationAttributes = $keepExistingRadiation ? [] : [
+                    'allsky_sfc_sw_dwn' => $allsky,
+                    'radiation_source' => (string) $radiation['source'],
+                    'radiation_fallback_method' => (string) $radiation['method'],
+                    'radiation_confidence' => (float) $radiation['confidence'],
+                ];
+
+                if ($existing !== null && $existing->radiation_source !== 'nasa_real' && $isReal) {
+                    $promoted++;
+                }
+
                 $weatherData = ApiWeatherData::query()->updateOrCreate(
                     ['date_time' => $dateTime],
                     [
-                        'allsky_sfc_sw_dwn' => $allsky,
-                        'radiation_source' => (string) $radiation['source'],
-                        'radiation_fallback_method' => (string) $radiation['method'],
-                        'radiation_confidence' => (float) $radiation['confidence'],
-                        't2m' => $t2m,
-                        'rh2m' => $rh2m,
-                        'prectotcorr' => $prectotcorr,
-                        'ws10m' => $ws10m,
+                        ...$radiationAttributes,
+                        't2m' => $t2m ?? $existing?->t2m,
+                        'rh2m' => $rh2m ?? $existing?->rh2m,
+                        'prectotcorr' => $prectotcorr ?? $existing?->prectotcorr,
+                        'ws10m' => $ws10m ?? $existing?->ws10m,
                     ],
                 );
 
@@ -111,7 +126,18 @@ class NasaWeatherDataService
         return [
             'created' => $created,
             'updated' => $updated,
+            'promoted' => $promoted,
         ];
+    }
+
+    /**
+     * Removes hourly rows (any time other than 00:00) left by the former hourly sync (ADR-0009).
+     */
+    public function purgeHourlyRows(): int
+    {
+        return ApiWeatherData::query()
+            ->whereTime('date_time', '!=', '00:00:00')
+            ->delete();
     }
 
     public function dataForProject(SolarProject $solarProject): \Illuminate\Support\Collection
