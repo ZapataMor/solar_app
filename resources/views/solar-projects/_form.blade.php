@@ -594,7 +594,7 @@
     </section>
 
     <div class="solar-wizard-actions">
-        <a href="{{ route('solar-projects.index') }}" class="solar-button-ghost">
+        <a href="{{ $isCreating ? route('solar-projects.index') : route('solar-projects.show', $solarProject) }}" class="solar-button-ghost">
             Cancelar
         </a>
 

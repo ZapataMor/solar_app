@@ -90,6 +90,17 @@ class SolarProjectController extends Controller
         ];
     }
 
+    /**
+     * Portfolio URL that keeps the search and page the user came from.
+     */
+    private function portfolioUrl(Request $request): string
+    {
+        return route('solar-projects.index', array_filter([
+            'search' => trim((string) $request->query('search', '')),
+            'page' => $request->query('page'),
+        ], fn ($value) => filled($value)));
+    }
+
     public function create(): View
     {
         return view('solar-projects.create', [
@@ -132,11 +143,8 @@ class SolarProjectController extends Controller
         $generateAiRecommendations = $request->boolean('generate_ai');
         $aiFocus = $request->string('ai_focus')->toString();
 
-        $portfolio = $this->portfolioData($request);
-
         return view('solar-projects.show', [
-            ...$portfolio,
-            'portfolioUrl' => route('solar-projects.index', $portfolio['portfolioQuery']),
+            'portfolioUrl' => $this->portfolioUrl($request),
             'solarProject' => $solarProject,
             'generateAiRecommendations' => $generateAiRecommendations,
             'aiFocus' => $aiFocus,
@@ -170,11 +178,12 @@ class SolarProjectController extends Controller
     {
         $this->authorizeOwner($request, $solarProject);
 
-        $solarProject->load('technicalParameter');
+        $solarProject->load(['technicalParameter', 'appliances']);
 
         return view('solar-projects.edit', [
             'solarProject' => $solarProject,
             'municipalities' => $this->municipalityOptions(),
+            'portfolioUrl' => $this->portfolioUrl($request),
         ]);
     }
 

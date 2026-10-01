@@ -1,16 +1,20 @@
-<x-layouts::app :title="__('Editar proyecto solar')">
-    <div class="solar-page solar-page-narrow">
-        <section class="solar-hero">
-            <p class="solar-kicker">Ajuste tecnico</p>
-            <h1 class="solar-title">Editar proyecto solar</h1>
-            <p class="solar-subtitle">Refina el escenario energetico de <strong>{{ $solarProject->name }}</strong> sin perder continuidad en la simulacion ni en las vistas del dashboard.</p>
-        </section>
+<x-layouts::app :title="__('Editar').' · '.$solarProject->name">
+    <div class="solar-project-detail">
+        @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'edit', 'backUrl' => $portfolioUrl])
 
-        @include('solar-projects._form', [
-            'action' => route('solar-projects.update', $solarProject),
-            'method' => 'PUT',
-            'buttonText' => 'Actualizar proyecto',
-            'solarProject' => $solarProject,
-        ])
+        <div class="solar-page solar-page-narrow">
+            <section class="solar-hero">
+                <p class="solar-kicker">Editar datos</p>
+                <h1 class="solar-title">{{ $solarProject->name }}</h1>
+                <p class="solar-subtitle">Cambia lo que necesites en cualquier etapa y guarda. Al actualizar vuelves al panel del proyecto; recuerda recalcular para ver los nuevos resultados.</p>
+            </section>
+
+            @include('solar-projects._form', [
+                'action' => route('solar-projects.update', $solarProject),
+                'method' => 'PUT',
+                'buttonText' => 'Guardar cambios',
+                'solarProject' => $solarProject,
+            ])
+        </div>
     </div>
 </x-layouts::app>

@@ -22,7 +22,7 @@
         @endif
     </form>
 
-    @if (session('status') && ! ($inProjectModal ?? false))
+    @if (session('status'))
         <div class="solar-alert solar-alert-success">
             {{ session('status') }}
         </div>

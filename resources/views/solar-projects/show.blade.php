@@ -186,20 +186,8 @@
 @endphp
 
 <x-layouts::app :title="$solarProject->name">
-@include('solar-projects.partials.portfolio', ['inProjectModal' => true])
-
-{{-- Project detail modal: closes only with the X button (no backdrop click, no Escape) --}}
-<div class="solar-project-modal" role="dialog" aria-modal="true" aria-labelledby="solar-project-modal-title">
-<div class="solar-project-modal__panel">
-<header class="solar-project-modal__bar">
-    <h2 id="solar-project-modal-title" class="solar-project-modal__title">{{ $solarProject->name }}</h2>
-    <a href="{{ $portfolioUrl }}" class="solar-project-modal__close" aria-label="Cerrar proyecto" title="Cerrar" x-init="$el.focus()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <path d="M6 6l12 12M18 6 6 18" />
-        </svg>
-    </a>
-</header>
-<div class="solar-project-modal__body">
+<div class="solar-project-detail">
+@include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'panel', 'backUrl' => $portfolioUrl])
 <style>
 /* ── Design tokens & base ───────────────────────────────────── */
 .sdash {
@@ -2839,7 +2827,5 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
     <script type="application/json" id="weather-station-chart-data">@json($weatherStationChartData ?? ['labels' => [], 'radiation' => []])</script>
 
 </div>
-</div>{{-- /.solar-project-modal__body --}}
-</div>{{-- /.solar-project-modal__panel --}}
-</div>{{-- /.solar-project-modal --}}
+</div>{{-- /.solar-project-detail --}}
 </x-layouts::app>
