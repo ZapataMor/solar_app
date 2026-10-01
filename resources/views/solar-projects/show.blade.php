@@ -1649,12 +1649,6 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
 >
 
     {{-- ── Alerts ──────────────────────────────────────────── --}}
-    @if (session('status'))
-        <div class="sdash-alert sdash-alert--success" role="alert">
-            <span>✓</span>
-            <span>{{ session('status') }}</span>
-        </div>
-    @endif
     @if ($errors->any())
         <div class="sdash-alert sdash-alert--danger" role="alert">
             <span>⚠</span>

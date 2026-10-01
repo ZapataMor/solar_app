@@ -229,12 +229,6 @@
             </div>
         </section>
 
-        @if (session('status'))
-            <div class="solar-alert solar-alert-success">
-                {{ session('status') }}
-            </div>
-        @endif
-
         @if ($errors->has('ambient_data'))
             <div class="solar-alert solar-alert-danger">
                 {{ $errors->first('ambient_data') }}

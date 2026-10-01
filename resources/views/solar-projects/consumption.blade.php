@@ -4,35 +4,10 @@
 --}}
 @php
     use App\Domain\Property\PropertyType;
-    use App\Domain\Solar\CalculationFreshness;
 
     $spaces = PropertyType::spaces($solarProject->property_type);
-    // "374", "14,5", "36" (never "36,0").
-    $kwh = fn (float $value): string => number_format($value, $value >= 100 || fmod(round($value, 1), 1.0) === 0.0 ? 0 : 1, ',', '.');
-    $percent = fn (float $value): string => number_format($value, 0, ',', '.').' %';
 
-    // Ring: one color per space, in diary order ("Otros" keeps the neutral one).
-    $spaceColors = [];
-    $stops = [];
-    $start = 0.0;
-    foreach ($diary['spaces'] as $index => $space) {
-        $spaceColors[$space['key']] = $space['key'] === PropertyType::OTHER_SPACE ? 'var(--diary-other)' : 'var(--diary-c'.($index + 1).')';
-        if ($space['share'] > 0) {
-            $end = $start + $space['share'];
-            $stops[] = $spaceColors[$space['key']].' '.round($start, 2).'% '.round($end, 2).'%';
-            $start = $end;
-        }
-    }
-    $ringBackground = $stops === [] ? 'var(--solar-border)' : 'conic-gradient('.implode(', ', $stops).')';
-    $ringDescription = collect($diary['spaces'])
-        ->filter(fn ($space) => $space['kwh'] > 0)
-        ->map(fn ($space) => $space['label'].' '.$percent($space['share']))
-        ->implode(', ');
-
-    $propertyLabel = mb_strtolower(PropertyType::label($solarProject->property_type));
-    $status = $calculationFreshness->status;
-
-    // Validation errors of the sheet: reopen it with what was sent.
+    // Validation errors of the sheet (without JavaScript): reopen it with what was sent.
     $reopen = $errors->any() && old('key') !== null ? [
         'id' => old('_appliance') ? (int) old('_appliance') : null,
         'space' => old('space'),
@@ -50,132 +25,13 @@
         <div class="solar-page solar-diary" data-consumption-diary>
             @include('solar-projects.partials.appliance-icons')
 
-            @if (session('status'))
-                <div class="solar-alert solar-alert-success" role="status">{{ session('status') }}</div>
-            @endif
-
             @if ($errors->any() && $reopen === null)
                 <div class="solar-alert solar-alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
 
-            {{-- Summary: total, ring by space and the biggest consumer --}}
-            <section class="solar-card-strong solar-diary-summary" aria-labelledby="diary-total">
-                <div class="solar-diary-ring" style="--ring: {{ $ringBackground }}" role="img"
-                     aria-label="{{ $ringDescription !== '' ? 'Consumo por espacio: '.$ringDescription : 'Todavía no hay equipos' }}">
-                    <div class="solar-diary-ring__center">
-                        <strong>{{ $kwh($diary['totalKwh']) }}</strong>
-                        <span>kWh/mes</span>
-                    </div>
-                </div>
-
-                <div class="solar-diary-summary__body">
-                    <p class="solar-kicker">Consumo de tu {{ $propertyLabel }}</p>
-                    <h1 id="diary-total" class="solar-diary-total">
-                        @if ($diary['applianceCount'] > 0)
-                            {{ $kwh($diary['totalKwh']) }} kWh al mes
-                        @else
-                            Recorre tu {{ $propertyLabel }} y agrega tus equipos
-                        @endif
-                    </h1>
-                    <p class="solar-diary-summary__meta">
-                        @if ($diary['applianceCount'] > 0)
-                            ≈ {{ $kwh($diary['dailyKwh']) }} kWh al día · {{ $diary['applianceCount'] }} {{ $diary['applianceCount'] === 1 ? 'equipo' : 'equipos' }}
-                        @else
-                            Espacio por espacio, como un diario: con tus equipos calculamos cuántos paneles necesitas.
-                        @endif
-                    </p>
-
-                    @if ($diary['applianceCount'] > 0)
-                        <ul class="solar-diary-legend">
-                            @foreach ($diary['spaces'] as $space)
-                                @continue($space['kwh'] <= 0)
-                                <li>
-                                    <span class="solar-diary-dot" style="--dot: {{ $spaceColors[$space['key']] }}" aria-hidden="true"></span>
-                                    {{ $space['label'] }}
-                                    <strong>{{ $kwh($space['kwh']) }} kWh</strong>
-                                    <span>{{ $percent($space['share']) }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @endif
-
-                    @if ($diary['biggest'])
-                        <p class="solar-diary-biggest">
-                            Lo que más consume: <strong>{{ $diary['biggest']['label'] }}</strong>,
-                            {{ $kwh($diary['biggest']['kwh']) }} kWh al mes ({{ $percent($diary['biggest']['share']) }} del total).
-                        </p>
-                    @endif
-                </div>
-
-                <div class="solar-diary-summary__cta">
-                    @if ($calculationFreshness->needsRecalculation())
-                        <form method="POST" action="{{ route('solar-projects.calculate', $solarProject) }}">
-                            @csrf
-                            <input type="hidden" name="then" value="panel">
-                            <button type="submit" class="solar-button solar-recalc-anchor" data-test="diary-calculate">
-                                {{ $status === CalculationFreshness::PENDING ? 'Calcular mi sistema' : 'Recalcular mi sistema' }}
-                                <span class="solar-recalc-badge solar-recalc-badge--floating" aria-hidden="true">!</span>
-                            </button>
-                        </form>
-                        <p>{{ $status === CalculationFreshness::PENDING ? 'Tus equipos están listos para calcular.' : ($calculationFreshness->reasons[0] ?? 'Tus datos cambiaron desde el último cálculo.') }}</p>
-                    @elseif ($status === CalculationFreshness::FRESH)
-                        <a href="{{ route('solar-projects.show', $solarProject) }}" class="solar-button-ghost" wire:navigate>Ver mis resultados</a>
-                        <p>El cálculo está al día con tus equipos.</p>
-                    @endif
-                </div>
-            </section>
-
-            @if ($usesBillConsumption)
-                <div class="solar-alert solar-alert-warning" role="note">
-                    Este proyecto usa un consumo de <strong>{{ $kwh($solarProject->monthlyConsumption()) }} kWh al mes</strong> tomado del recibo.
-                    Cuando agregues tu primer equipo, el cálculo pasará a basarse en tus equipos, que reflejan mejor tu uso real.
-                </div>
-            @endif
-
-            {{-- Spaces --}}
-            @foreach ($diary['spaces'] as $space)
-                <section class="solar-card solar-diary-space" id="espacio-{{ $space['key'] }}" aria-labelledby="espacio-{{ $space['key'] }}-titulo">
-                    <header class="solar-diary-space__header">
-                        <span class="solar-diary-dot" style="--dot: {{ $spaceColors[$space['key']] }}" aria-hidden="true"></span>
-                        <h2 id="espacio-{{ $space['key'] }}-titulo">{{ $space['label'] }}</h2>
-                        @if ($space['kwh'] > 0)
-                            <span class="solar-diary-space__kwh">{{ $kwh($space['kwh']) }} kWh/mes</span>
-                        @endif
-                        <button type="button" class="solar-diary-add" data-diary-add="{{ $space['key'] }}">
-                            <span aria-hidden="true">+</span> Agregar<span class="sr-only"> equipo a {{ $space['label'] }}</span>
-                        </button>
-                    </header>
-
-                    @if ($space['items'] === [])
-                        <p class="solar-diary-empty">Sin equipos todavía.</p>
-                    @else
-                        <ul class="solar-diary-items">
-                            @foreach ($space['items'] as $item)
-                                <li class="solar-diary-item">
-                                    <svg viewBox="0 0 24 24" class="solar-diary-item__icon" aria-hidden="true"><use href="#appliance-{{ $item['icon'] }}"></use></svg>
-                                    <div class="solar-diary-item__body">
-                                        <strong>{{ $item['label'] }}</strong>
-                                        <span>
-                                            @if ($item['variantLabel'] !== ''){{ $item['variantLabel'] }} · @endif{{ $item['quantity'] }} × {{ $item['usageText'] }}
-                                        </span>
-                                    </div>
-                                    <span class="solar-diary-item__kwh"><strong>{{ $kwh($item['kwh']) }}</strong> kWh/mes</span>
-                                    <div class="solar-diary-item__actions">
-                                        <button type="button" class="solar-diary-link" data-diary-edit='@json($item)'>Editar<span class="sr-only"> {{ $item['label'] }}</span></button>
-                                        <form method="POST" action="{{ route('solar-projects.appliances.destroy', [$solarProject, $item['id']]) }}" data-diary-remove="{{ $item['label'] }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="solar-diary-link solar-diary-link--danger">Quitar<span class="sr-only"> {{ $item['label'] }}</span></button>
-                                        </form>
-                                    </div>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @endif
-                </section>
-            @endforeach
-
-            <p class="solar-diary-footnote">Usamos consumos de referencia por tipo y tamaño de equipo. El consumo real cambia con la marca, la antigüedad y el uso.</p>
+            <div class="solar-diary-content" data-diary-content>
+                @include('solar-projects.partials.consumption-diary-content')
+            </div>
         </div>
 
         {{-- Sheet: pick an appliance, then its options, quantity and hours --}}
@@ -263,13 +119,14 @@
 
                     <p class="solar-diary-preview" aria-live="polite">≈ <strong data-diary-kwh>0</strong> kWh al mes</p>
 
-                    @if ($reopen !== null)
-                        <ul class="solar-diary-errors" role="alert">
+                    {{-- Server-side errors: from the redirect (no JavaScript) or from the 422 of a save without reload. --}}
+                    <ul class="solar-diary-errors" role="alert" data-diary-errors @if ($reopen === null) hidden @endif>
+                        @if ($reopen !== null)
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
-                        </ul>
-                    @endif
+                        @endif
+                    </ul>
 
                     <footer class="solar-diary-sheet__footer">
                         <button type="button" class="solar-button-ghost" data-diary-close>Cancelar</button>
@@ -284,11 +141,13 @@
         <script type="application/json" data-diary-reopen>@json($reopen)</script>
     </div>
 
+
     <script>
     (() => {
+        const root = document.querySelector('[data-consumption-diary]');
         const sheet = document.querySelector('[data-diary-sheet]');
 
-        if (!sheet || sheet.dataset.ready) {
+        if (!root || !sheet || sheet.dataset.ready) {
             return;
         }
         sheet.dataset.ready = '1';
@@ -297,6 +156,7 @@
         const catalog = read('[data-diary-catalog]');
         const spaces = read('[data-diary-spaces]');
         const reopen = read('[data-diary-reopen]');
+        const content = root.querySelector('[data-diary-content]');
         const form = sheet.querySelector('[data-diary-form]');
         const $ = (selector) => form.querySelector(selector);
         const pickStep = $('[data-diary-step="pick"]');
@@ -307,10 +167,12 @@
         const noResults = $('[data-diary-noresults]');
         const quantityInput = $('[data-diary-quantity]');
         const hoursInput = $('[data-diary-hours]');
+        const errorsBox = $('[data-diary-errors]');
+        const submitButton = $('[data-diary-submit]');
         const kwhFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
         const DAYS_PER_MONTH = 30;
         let showAll = false;
-        let state = null; // { id, key, choices: [], usage }
+        let state = null; // { id, key, choices: [] }
 
         const normalize = (text) => String(text).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
         const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -327,6 +189,11 @@
         const iconOf = () => {
             const group = catalog[state.key].groups[0];
             return group?.choices.find((choice) => choice.key === state.choices[0])?.icon ?? catalog[state.key].icon;
+        };
+
+        const showErrors = (messages) => {
+            errorsBox.innerHTML = messages.map((message) => `<li>${escapeHtml(message)}</li>`).join('');
+            errorsBox.hidden = messages.length === 0;
         };
 
         const refreshPreview = () => {
@@ -405,8 +272,11 @@
             showConfig();
         };
 
-        const open = ({ space, item = null }) => {
+        const open = ({ space, item = null, keepErrors = false }) => {
             form.reset();
+            if (!keepErrors) {
+                showErrors([]);
+            }
             state = { id: item?.id ?? null, key: null, choices: [] };
             showAll = false;
             search.value = '';
@@ -415,7 +285,7 @@
             $('[data-diary-appliance]').value = item?.id ?? '';
             $('[data-diary-method]').value = item?.id ? 'PUT' : 'POST';
             form.action = item?.id ? form.dataset.updateAction.replace('__ID__', item.id) : form.dataset.storeAction;
-            $('[data-diary-submit]').textContent = item?.id ? 'Guardar cambios' : 'Agregar';
+            submitButton.textContent = item?.id ? 'Guardar cambios' : 'Agregar';
             $('[data-diary-title]').textContent = item?.id
                 ? `Editar ${catalog[item.key]?.label ?? 'equipo'}`
                 : `Agregar a ${spaces[space] ?? 'tu proyecto'}`;
@@ -432,15 +302,66 @@
             }
         };
 
-        // Open from a space ("+ Agregar") or from a row ("Editar").
-        document.querySelectorAll('[data-diary-add]').forEach((button) => {
-            button.addEventListener('click', () => open({ space: button.dataset.diaryAdd }));
-        });
-        document.querySelectorAll('[data-diary-edit]').forEach((button) => {
-            button.addEventListener('click', () => {
-                const item = JSON.parse(button.dataset.diaryEdit);
-                open({ space: item.space, item });
+        // Save without reloading: the server answers with the re-rendered diary (summary, ring, spaces).
+        const send = async (targetForm) => {
+            const response = await fetch(targetForm.action, {
+                method: 'POST', // the _method field inside the form says PUT or DELETE
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(targetForm),
             });
+            const payload = await response.json().catch(() => ({}));
+
+            return { ok: response.ok, status: response.status, payload };
+        };
+
+        const applyUpdate = (payload) => {
+            content.innerHTML = payload.html;
+            window.solarToast?.(payload.message);
+
+            const row = payload.appliance ? content.querySelector(`[data-diary-item="${payload.appliance}"]`) : null;
+            const target = row ?? content.querySelector(`#espacio-${CSS.escape(payload.space ?? '')}`);
+            target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            row?.classList.add('is-updated');
+        };
+
+        // Delegated: the diary content is replaced after each save, and its buttons with it.
+        content.addEventListener('click', (event) => {
+            const add = event.target.closest('[data-diary-add]');
+            if (add) {
+                open({ space: add.dataset.diaryAdd });
+                return;
+            }
+
+            const edit = event.target.closest('[data-diary-edit]');
+            if (edit) {
+                const item = JSON.parse(edit.dataset.diaryEdit);
+                open({ space: item.space, item });
+            }
+        });
+
+        content.addEventListener('submit', async (event) => {
+            const removeForm = event.target.closest('[data-diary-remove]');
+            if (!removeForm) {
+                return; // e.g. "Calcular mi sistema": a normal submit that goes to the panel.
+            }
+
+            event.preventDefault();
+            if (!window.confirm(`¿Quitar ${removeForm.dataset.diaryRemove} del proyecto?`)) {
+                return;
+            }
+
+            content.setAttribute('aria-busy', 'true');
+            try {
+                const { ok, payload } = await send(removeForm);
+                if (!ok || !payload.html) {
+                    throw new Error('remove failed');
+                }
+                applyUpdate(payload);
+            } catch (_error) {
+                removeForm.submit(); // Fall back to the classic request: it reloads, but it works.
+            } finally {
+                content.removeAttribute('aria-busy');
+            }
         });
 
         search.addEventListener('input', filterCards);
@@ -475,15 +396,42 @@
         quantityInput.addEventListener('input', refreshPreview);
         hoursInput.addEventListener('input', refreshPreview);
 
-        form.addEventListener('submit', (event) => {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
             if (!state?.key) {
-                event.preventDefault();
                 search.focus();
                 return;
             }
+
             $('[data-diary-key]').value = state.key;
             $('[data-diary-variant]').value = variantOf();
             $('[data-diary-hours-per-day]').value = Math.round(hoursPerDay() * 100) / 100;
+
+            const label = submitButton.textContent;
+            submitButton.disabled = true;
+            submitButton.textContent = 'Guardando…';
+            showErrors([]);
+
+            try {
+                const { ok, status, payload } = await send(form);
+
+                if (status === 422) {
+                    showErrors(Object.values(payload.errors ?? {}).flat());
+                    return;
+                }
+                if (!ok || !payload.html) {
+                    throw new Error(`HTTP ${status}`);
+                }
+
+                sheet.close();
+                applyUpdate(payload);
+            } catch (_error) {
+                form.submit(); // Fall back to the classic request: it reloads, but it works.
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = label;
+            }
         });
 
         // Close: buttons, Esc (native) and a click on the backdrop.
@@ -494,17 +442,9 @@
             }
         });
 
-        document.querySelectorAll('[data-diary-remove]').forEach((removeForm) => {
-            removeForm.addEventListener('submit', (event) => {
-                if (!window.confirm(`¿Quitar ${removeForm.dataset.diaryRemove} del proyecto?`)) {
-                    event.preventDefault();
-                }
-            });
-        });
-
-        // The server rejected the sheet: open it again with what was sent.
+        // The server rejected the sheet in a classic request: open it again with what was sent.
         if (reopen?.key && catalog[reopen.key]) {
-            open({ space: reopen.space, item: reopen.id ? { ...reopen } : null });
+            open({ space: reopen.space, item: reopen.id ? { ...reopen } : null, keepErrors: true });
             if (!reopen.id) {
                 choose(reopen.key, reopen);
             }

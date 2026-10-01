@@ -138,6 +138,60 @@ class ApplianceConsumptionTest extends TestCase
         $this->assertSame(0, $solarProject->appliances()->count());
     }
 
+    public function test_the_page_saves_without_reloading_and_gets_the_updated_diary(): void
+    {
+        [$user, $solarProject] = $this->project();
+
+        $response = $this->actingAs($user)
+            ->postJson(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'bedrooms', 'key' => 'air_conditioner', 'variant' => '12000.inverter', 'quantity' => 1, 'hours_per_day' => 8,
+            ])
+            ->assertOk()
+            ->assertJson(['message' => 'Se agregó Aire acondicionado a Habitaciones.', 'space' => 'bedrooms']);
+
+        $applianceId = $solarProject->appliances()->value('id');
+        $this->assertSame($applianceId, $response->json('appliance'));
+        // The re-rendered diary: new total, the row and the ring, without the page around it.
+        $this->assertStringContainsString('192 kWh al mes', $response->json('html'));
+        $this->assertStringContainsString('data-diary-item="'.$applianceId.'"', $response->json('html'));
+        $this->assertStringNotContainsString('<html', $response->json('html'));
+
+        $this->actingAs($user)
+            ->deleteJson(route('solar-projects.appliances.destroy', [$solarProject, $applianceId]))
+            ->assertOk()
+            ->assertJson(['message' => 'Se quitó Aire acondicionado del proyecto.', 'space' => 'bedrooms', 'appliance' => null]);
+
+        $this->assertSame(0, $solarProject->appliances()->count());
+    }
+
+    public function test_saving_without_reloading_reports_validation_errors_as_json(): void
+    {
+        [$user, $solarProject] = $this->project();
+
+        $this->actingAs($user)
+            ->postJson(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'living', 'key' => 'tv', 'variant' => '99', 'quantity' => 1, 'hours_per_day' => 5,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['variant' => 'Elige una opción válida para ese equipo.']);
+    }
+
+    public function test_success_messages_are_flashes_shown_as_a_toast(): void
+    {
+        [$user, $solarProject] = $this->project();
+
+        $response = $this->actingAs($user)
+            ->followingRedirects()
+            ->post(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'living', 'key' => 'tv', 'variant' => '43', 'quantity' => 1, 'hours_per_day' => 5,
+            ])
+            ->assertOk();
+
+        // Not an inline alert: the layout hands it to app.js, which shows a Flux toast for a moment.
+        $this->assertMatchesRegularExpression('/<div hidden data-flash-toast data-variant="success">Se agregó Televisor a Sala y comedor\.<\/div>/', $response->getContent());
+        $this->assertStringNotContainsString('solar-alert-success', $response->getContent());
+    }
+
     public function test_a_rejected_sheet_opens_again_with_what_was_sent(): void
     {
         [$user, $solarProject] = $this->project();

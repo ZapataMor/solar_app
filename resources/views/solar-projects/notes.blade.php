@@ -4,10 +4,6 @@
         @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'notes'])
 
         <div class="solar-page solar-page-narrow">
-            @if (session('status'))
-                <div class="solar-alert solar-alert-success" role="status">{{ session('status') }}</div>
-            @endif
-
             <section class="solar-card">
                 <div class="solar-page-header">
                     <div>

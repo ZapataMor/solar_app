@@ -1641,3 +1641,29 @@ document.addEventListener('flux-sidebar-toggle', () => {
     window.clearTimeout(sidebarAnimationTimer);
     sidebarAnimationTimer = window.setTimeout(() => sidebar.removeAttribute('data-sidebar-animating'), 400);
 });
+
+// Flash notifications: a success message shows as a Flux toast for a moment instead of an inline alert.
+// window.solarToast(text) is also used by screens that save without reloading (e.g. the consumption diary).
+const FLASH_TOAST_DURATION_MS = 3500;
+
+window.solarToast = (text, variant = 'success') => {
+    if (!text || !window.Flux?.toast) {
+        return false;
+    }
+
+    window.Flux.toast({ text, variant, duration: FLASH_TOAST_DURATION_MS });
+
+    return true;
+};
+
+// The layout leaves the session flash in [data-flash-toast]; show it once Alpine is listening.
+const showFlashToasts = () => {
+    document.querySelectorAll('[data-flash-toast]').forEach((flash) => {
+        if (window.solarToast(flash.textContent.trim(), flash.dataset.variant || 'success')) {
+            flash.remove();
+        }
+    });
+};
+
+document.addEventListener('livewire:navigated', showFlashToasts);
+document.addEventListener('alpine:initialized', () => window.setTimeout(showFlashToasts));

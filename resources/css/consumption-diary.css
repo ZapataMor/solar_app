@@ -124,6 +124,33 @@
         gap: 1rem;
     }
 
+    /* Re-rendered by the server after each save (no page reload). */
+    .solar-diary-content {
+        display: grid;
+        gap: 1rem;
+        transition: opacity 0.15s ease;
+    }
+
+    .solar-diary-content[aria-busy='true'] {
+        opacity: 0.6;
+    }
+
+    /* The row that was just added or changed. */
+    .solar-diary-item.is-updated {
+        animation: solar-diary-flash 1.6s ease-out;
+    }
+
+    @keyframes solar-diary-flash {
+        0% { background: color-mix(in srgb, var(--solar-sun) 22%, transparent); }
+        100% { background: transparent; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-diary-item.is-updated {
+            animation: none;
+        }
+    }
+
     .solar-diary-summary {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;

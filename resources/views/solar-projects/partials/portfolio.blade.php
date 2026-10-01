@@ -45,12 +45,6 @@
         @endif
     </form>
 
-    @if (session('status'))
-        <div class="solar-alert solar-alert-success">
-            {{ session('status') }}
-        </div>
-    @endif
-
     @if ($solarProjects->isEmpty() && $search !== '')
         <div class="solar-empty-state">
             <p class="solar-kicker">Sin resultados</p>
