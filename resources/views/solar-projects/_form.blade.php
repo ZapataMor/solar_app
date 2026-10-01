@@ -101,10 +101,19 @@
     data-project-wizard
     data-wizard-initial="{{ $initialStep }}"
     data-wizard-furthest="{{ $furthestStep }}"
+    @if ($errors->any()) data-wizard-has-errors @endif
+    @if ($isCreating) data-draft-key="natalia:project-draft:{{ auth()->id() }}" @endif
 >
     @csrf
     @if ($method !== 'POST')
         @method($method)
+    @endif
+
+    @if ($isCreating)
+        <div class="solar-alert solar-alert-success solar-draft-notice" data-draft-notice hidden>
+            <p>Recuperamos el proyecto que estabas creando.</p>
+            <button type="button" class="solar-button-ghost" data-draft-discard>Empezar de cero</button>
+        </div>
     @endif
 
     <nav class="solar-wizard-nav" aria-label="Etapas del proyecto" data-wizard-nav hidden>
@@ -594,7 +603,7 @@
     </section>
 
     <div class="solar-wizard-actions">
-        <a href="{{ $isCreating ? route('solar-projects.index') : route('solar-projects.show', $solarProject) }}" class="solar-button-ghost">
+        <a href="{{ $isCreating ? route('solar-projects.index') : route('solar-projects.show', $solarProject) }}" class="solar-button-ghost" data-wizard-cancel>
             Cancelar
         </a>
 
@@ -607,6 +616,124 @@
         </div>
     </div>
 </form>
+
+<script>
+(() => {
+    // New-project draft: what the user typed survives a reload. It runs before the other scripts
+    // so the appliance picker, simulator and map start from the restored values.
+    const form = document.querySelector('[data-project-wizard][data-draft-key]');
+
+    if (!form) {
+        return;
+    }
+
+    const key = form.dataset.draftKey;
+    const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    const notice = form.querySelector('[data-draft-notice]');
+    const read = () => {
+        try {
+            const draft = JSON.parse(localStorage.getItem(key) ?? 'null');
+            return draft && Date.now() - draft.savedAt < MAX_AGE_MS ? draft : null;
+        } catch (_error) {
+            return null;
+        }
+    };
+    const clear = () => {
+        try {
+            localStorage.removeItem(key);
+        } catch (_error) {
+            // Storage unavailable: nothing to clear.
+        }
+    };
+
+    // The appliance rows live in generated hidden inputs (appliances[0][key], …).
+    const snapshot = () => {
+        const fields = {};
+        const appliances = [];
+
+        Array.from(form.elements).forEach((field) => {
+            if (!field.name || ['_token', '_method'].includes(field.name) || field.disabled) {
+                return;
+            }
+
+            const row = field.name.match(/^appliances\[(\d+)\]\[(\w+)\]$/);
+            if (row) {
+                appliances[Number(row[1])] = { ...appliances[Number(row[1])], [row[2]]: field.value };
+            } else if (field.name && !field.name.startsWith('appliances[')) {
+                fields[field.name] = field.value;
+            }
+        });
+
+        return { fields, appliances: appliances.filter(Boolean) };
+    };
+
+    const pristine = JSON.stringify(snapshot());
+    let saveTimer = null;
+
+    const save = () => {
+        const current = snapshot();
+
+        try {
+            if (JSON.stringify(current) === pristine) {
+                localStorage.removeItem(key);
+            } else {
+                localStorage.setItem(key, JSON.stringify({ ...current, savedAt: Date.now() }));
+            }
+        } catch (_error) {
+            // Private mode or full storage: the form still works, it just is not remembered.
+        }
+    };
+    // Debounced so generated inputs (appliance rows, computed kWh) are written before the snapshot.
+    const scheduleSave = () => {
+        window.clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(save, 300);
+    };
+
+    // Server validation errors bring back the submitted values (old input), which are fresher.
+    const draft = form.hasAttribute('data-wizard-has-errors') ? null : read();
+
+    if (draft) {
+        Object.entries(draft.fields ?? {}).forEach(([name, value]) => {
+            const field = form.elements[name];
+            if (field && !(field instanceof RadioNodeList)) {
+                field.value = value;
+            }
+        });
+
+        const initialLoads = form.querySelector('[data-appliance-initial]');
+        if (initialLoads && Array.isArray(draft.appliances)) {
+            initialLoads.textContent = JSON.stringify(draft.appliances);
+        }
+
+        if (notice) {
+            notice.hidden = false;
+        }
+    }
+
+    ['input', 'change', 'click'].forEach((type) => form.addEventListener(type, scheduleSave));
+
+    notice?.querySelector('[data-draft-discard]')?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        window.clearTimeout(saveTimer);
+        clear();
+        window.location.replace(window.location.pathname);
+    });
+
+    form.querySelector('[data-wizard-cancel]')?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        window.clearTimeout(saveTimer);
+        clear();
+    });
+
+    // Once the form is really sent (the wizard did not stop it), the draft is no longer needed.
+    form.addEventListener('submit', (event) => queueMicrotask(() => {
+        if (!event.defaultPrevented) {
+            window.clearTimeout(saveTimer);
+            clear();
+        }
+    }));
+})();
+</script>
 
 <script>
 (() => {
@@ -719,6 +846,12 @@
             fillSummary();
         }
 
+        // The stage lives in the URL (#paso-3), so a reload reopens it.
+        const url = `${window.location.pathname}${window.location.search}${current > 0 ? `#paso-${current + 1}` : ''}`;
+        if (url !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+            history.replaceState(history.state, '', url);
+        }
+
         form.dispatchEvent(new CustomEvent('wizard:step-shown', { detail: { index: current, key: stepKeys[current] } }));
 
         if (focus) {
@@ -784,6 +917,22 @@
 
     nav.hidden = false;
     form.classList.add('is-wizard');
+
+    // Reopen the stage from the URL once every stage registered its validators (called at the end of
+    // this partial). Server errors win; on a new project the stages before it must be complete.
+    const requestedStep = Number(window.location.hash.match(/^#paso-(\d+)$/)?.[1] ?? 0) - 1;
+
+    form.wizardStart = () => {
+        if (form.hasAttribute('data-wizard-has-errors')) {
+            show(current, { focus: false });
+            return;
+        }
+
+        const firstGap = firstInvalidUntil(lastStep - 1);
+        furthest = Math.max(furthest, firstGap ? firstGap.step : lastStep);
+        show(requestedStep > 0 ? Math.min(requestedStep, furthest) : current, { focus: false });
+    };
+
     show(current, { focus: false });
 })();
 </script>
@@ -1671,30 +1820,50 @@
                 onEachFeature: onEachMunicipality,
             }).addTo(map);
             map.fitBounds(municipalityLayer.getBounds());
+            // Editing, a restored draft or old input: the municipality is already chosen.
+            highlightSelectedMunicipality();
         } catch (_error) {
             console.error(_error);
             out.message.textContent = 'No fue posible cargar los límites reales de los municipios de La Guajira. Verifique que el archivo public/maps/la_guajira_municipios.geojson exista y sea un GeoJSON válido.';
         }
     };
 
+    // Paints on the map the municipality chosen in the select (or clears the paint when there is none).
+    function highlightSelectedMunicipality() {
+        if (!municipalityLayer) {
+            return;
+        }
+
+        const selectedCode = currentOption()?.dataset.daneCode || '';
+        const selectedName = selectedMunicipalityId() ? normalizeText(selectedMunicipalityName()) : '';
+        let match = null;
+
+        municipalityLayer.eachLayer((layer) => {
+            if (match || !selectedName) {
+                return;
+            }
+
+            if (
+                normalizeText(municipalityNameFromFeature(layer.feature)) === selectedName
+                || (selectedCode && daneCodeFromFeature(layer.feature) === selectedCode)
+            ) {
+                match = layer;
+            }
+        });
+
+        if (match) {
+            highlightLayer(match);
+        } else if (selectedLayer) {
+            normalizeLayerStyle(selectedLayer);
+            selectedLayer = null;
+        }
+    }
+
     municipalitySelect.addEventListener('change', () => {
         latitudeInput.value = '';
         longitudeInput.value = '';
         syncCoordinatesFromOption();
-        if (municipalityLayer) {
-            municipalityLayer.eachLayer((layer) => {
-                const layerName = municipalityNameFromFeature(layer.feature);
-                const layerCode = daneCodeFromFeature(layer.feature);
-                const selectedCode = currentOption()?.dataset.daneCode || '';
-
-                if (
-                    normalizeText(layerName) === normalizeText(selectedMunicipalityName())
-                    || (selectedCode && layerCode === selectedCode)
-                ) {
-                    highlightLayer(layer);
-                }
-            });
-        }
+        highlightSelectedMunicipality();
         updatePrice();
     });
     locationTypeSelect.addEventListener('change', updatePrice);
@@ -1716,4 +1885,9 @@
     updatePrice();
     initMap();
 })();
+</script>
+
+<script>
+    // Every stage registered its validators by now: reopen the stage from the URL (#paso-N).
+    document.querySelector('[data-project-wizard]')?.wizardStart?.();
 </script>

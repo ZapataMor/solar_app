@@ -28,6 +28,33 @@ class SolarProjectFormTest extends TestCase
             ->assertSee('data-wizard-furthest="0"', false);
     }
 
+    public function test_only_a_new_project_keeps_a_per_user_draft(): void
+    {
+        $user = User::factory()->create();
+
+        $create = $this->actingAs($user)
+            ->get(route('solar-projects.create'))
+            ->assertOk()
+            ->assertSee('data-draft-key="natalia:project-draft:'.$user->id.'"', false)
+            ->assertSee('Recuperamos el proyecto que estabas creando');
+        $this->assertDoesNotMatchRegularExpression('/<form[^>]*data-wizard-has-errors/', $create->getContent());
+
+        $solarProject = $user->solarProjects()->create([
+            'name' => 'Casa en Maicao',
+            'location_name' => SolarProject::LOCATION_NAME,
+            'start_date' => '2025-03-01',
+            'end_date' => '2025-03-31',
+            'monthly_consumption_kwh' => 320,
+            'energy_rate_cop_kwh' => 910,
+        ]);
+
+        $edit = $this->actingAs($user)
+            ->get(route('solar-projects.edit', $solarProject))
+            ->assertOk()
+            ->assertDontSee('Recuperamos el proyecto que estabas creando');
+        $this->assertDoesNotMatchRegularExpression('/<form[^>]*data-draft-key/', $edit->getContent());
+    }
+
     public function test_create_form_prefills_technical_defaults_and_todays_date(): void
     {
         $today = now(config('app.display_timezone', config('app.timezone')))->toDateString();
@@ -93,6 +120,9 @@ class SolarProjectFormTest extends TestCase
             ->assertSee('Revisa las etapas marcadas en rojo')
             ->assertSee('data-wizard-initial="1"', false)
             ->assertSee('data-wizard-furthest="4"', false);
+
+        // Old input is fresher than any saved draft or stage in the URL.
+        $this->assertMatchesRegularExpression('/<form[^>]*data-wizard-has-errors/', $response->getContent());
     }
 
     public function test_errors_in_advanced_parameters_open_the_advanced_block(): void

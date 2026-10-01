@@ -2,6 +2,15 @@
    Uses the app's --solar-* tokens, so it follows light and dark themes. */
 
 @layer components {
+    /* "We restored your draft" notice on a new project */
+    .solar-draft-notice {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+    }
+
     .solar-wizard-nav {
         display: grid;
         gap: 0.6rem;
