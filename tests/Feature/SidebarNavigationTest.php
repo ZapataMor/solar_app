@@ -33,6 +33,16 @@ class SidebarNavigationTest extends TestCase
             ->assertSee(route('api-data.index'), false);
     }
 
+    public function test_the_sidebar_has_a_visible_collapse_control(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('solar-projects.index'))
+            ->assertOk()
+            ->assertSee('data-test="sidebar-collapse-button"', false)
+            ->assertSee('Recoger menú')
+            ->assertSee('Expandir menú');
+    }
+
     public function test_resource_pages_are_available_to_regular_users(): void
     {
         $this->actingAs(User::factory()->create());

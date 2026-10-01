@@ -3600,6 +3600,15 @@ select:focus[data-flux-control] {
         display: none;
     }
 
+    /* Collapse control: the arrow points the way the menu will move */
+    .solar-sidebar-collapse [data-flux-icon] {
+        transition: transform 300ms ease;
+    }
+
+    [data-flux-sidebar-collapsed-desktop] .solar-sidebar-collapse [data-flux-icon] {
+        transform: rotate(180deg);
+    }
+
     [data-flux-sidebar-collapsed-desktop] .solar-sidebar-brand .solar-brand-logo-icon {
         display: block;
         width: 2.25rem;
@@ -3635,7 +3644,8 @@ select:focus[data-flux-control] {
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .solar-shell-sidebar[data-flux-sidebar-on-desktop] {
+        .solar-shell-sidebar[data-flux-sidebar-on-desktop],
+        .solar-sidebar-collapse [data-flux-icon] {
             transition: none !important;
         }
     }

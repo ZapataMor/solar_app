@@ -38,6 +38,19 @@
 
             <flux:spacer />
 
+            {{-- Visible collapse control (the logo also toggles, but nobody discovers that). Flux persists the state. --}}
+            <flux:sidebar.item
+                as="button"
+                type="button"
+                class="solar-nav-item solar-sidebar-collapse"
+                icon="chevron-double-left"
+                :tooltip="__('Expandir menú')"
+                x-on:click="$dispatch('flux-sidebar-toggle')"
+                data-test="sidebar-collapse-button"
+            >
+                {{ __('Recoger menú') }}
+            </flux:sidebar.item>
+
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
