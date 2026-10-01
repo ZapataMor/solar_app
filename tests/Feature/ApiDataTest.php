@@ -65,7 +65,7 @@ class ApiDataTest extends TestCase
 
     public function test_nasa_power_table_shows_unique_rows_without_project_names(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $firstProject = $user->solarProjects()->create([
             ...$this->projectAttributes(),
             'name' => 'Proyecto solar norte',
@@ -463,7 +463,7 @@ class ApiDataTest extends TestCase
 
     public function test_user_can_view_global_weather_station_data_even_if_it_was_created_from_another_project(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $otherUser = User::factory()->create();
         $otherProject = $otherUser->solarProjects()->create([
             ...$this->projectAttributes(),

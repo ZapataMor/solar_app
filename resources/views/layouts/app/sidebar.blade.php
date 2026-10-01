@@ -10,13 +10,30 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
+                @php($projectsLabel = auth()->user()->isAdmin() ? __('Todos los proyectos') : __('Mis proyectos'))
+
                 <div class="solar-nav-label">{{ __('Centro solar') }}</div>
-                <flux:sidebar.item class="solar-nav-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*')" :tooltip="__('Proyectos solares')" wire:navigate>
-                    {{ __('Proyectos solares') }}
+                <flux:sidebar.item class="solar-nav-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*') && ! request()->routeIs('solar-projects.create')" :tooltip="$projectsLabel" wire:navigate>
+                    {{ $projectsLabel }}
                 </flux:sidebar.item>
-                <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" :tooltip="__('Datos APIs')" wire:navigate>
-                    {{ __('Datos APIs') }}
+                <flux:sidebar.item class="solar-nav-item" icon="plus-circle" :href="route('solar-projects.create')" :current="request()->routeIs('solar-projects.create')" :tooltip="__('Nuevo proyecto')" wire:navigate>
+                    {{ __('Nuevo proyecto') }}
                 </flux:sidebar.item>
+
+                <div class="solar-nav-label solar-nav-label--group">{{ __('Recursos') }}</div>
+                <flux:sidebar.item class="solar-nav-item" icon="document-text" :href="route('guides.energy-bill')" :current="request()->routeIs('guides.energy-bill')" :tooltip="__('Guía del recibo')" wire:navigate>
+                    {{ __('Guía del recibo') }}
+                </flux:sidebar.item>
+                <flux:sidebar.item class="solar-nav-item" icon="wrench-screwdriver" :href="route('installers.index')" :current="request()->routeIs('installers.*')" :tooltip="__('Instaladores')" badge="Pronto" wire:navigate>
+                    {{ __('Instaladores') }}
+                </flux:sidebar.item>
+
+                @can('administer-platform')
+                    <div class="solar-nav-label solar-nav-label--group">{{ __('Administración') }}</div>
+                    <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" :tooltip="__('Datos climáticos')" wire:navigate>
+                        {{ __('Datos climáticos') }}
+                    </flux:sidebar.item>
+                @endcan
             </flux:sidebar.nav>
 
             <flux:spacer />

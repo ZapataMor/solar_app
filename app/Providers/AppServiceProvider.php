@@ -36,6 +36,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
 
+        // Platform administration (raw data, future users/prices screens).
+        Gate::define('administer-platform', fn (User $user): bool => $user->isAdmin());
+
         // Climate readings are shared by every project, so only admins may trigger a sync.
         Gate::define('sync-climate-data', fn (User $user): bool => $user->isAdmin());
     }

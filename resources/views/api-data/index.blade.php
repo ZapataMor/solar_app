@@ -451,7 +451,7 @@
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Fuente satelital</h2>
                     <p class="solar-subtitle mt-2">Datos climaticos sincronizados desde NASA POWER con una lectura tabular mas clara.</p>
                     <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-api-sync-status="nasa">
-                        @can('sync-climate-data') Sincronizacion manual disponible. @else Actualizada por el administrador de la plataforma. @endcan
+                        Sincronizacion manual disponible.
                     </p>
                 </div>
                 <div class="solar-api-actions">

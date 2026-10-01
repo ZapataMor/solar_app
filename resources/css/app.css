@@ -3578,6 +3578,10 @@ select:focus[data-flux-control] {
         text-transform: uppercase;
     }
 
+    .solar-nav-label--group {
+        margin-top: 1rem;
+    }
+
     /* Collapsed (desktop): icon-only rail */
     [data-flux-sidebar-collapsed-desktop] [data-flux-sidebar-header] {
         padding-bottom: 0.5rem !important;

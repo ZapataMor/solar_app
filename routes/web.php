@@ -38,7 +38,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('solar-projects/{solarProject}/calculate-ambient-weather', [SolarProjectController::class, 'calculateWithAmbientWeather'])
         ->name('solar-projects.calculate-ambient-weather');
 
-    Route::get('api-data', ApiDataController::class)->name('api-data.index');
+    Route::view('guia-recibo', 'guides.energy-bill')->name('guides.energy-bill');
+    Route::view('instaladores', 'installers.index')->name('installers.index');
+
+    Route::get('api-data', ApiDataController::class)
+        ->middleware('can:administer-platform')
+        ->name('api-data.index');
 
     // Climate readings are global: only system administrators may sync them.
     Route::middleware('can:sync-climate-data')->group(function () {

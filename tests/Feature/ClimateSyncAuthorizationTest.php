@@ -29,13 +29,11 @@ class ClimateSyncAuthorizationTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_regular_users_see_the_data_page_without_sync_buttons(): void
+    public function test_regular_users_cannot_open_the_climate_data_page(): void
     {
         $this->actingAs(User::factory()->create())
             ->get(route('api-data.index'))
-            ->assertOk()
-            ->assertDontSee('data-api-fetch-form', false)
-            ->assertSee('Actualizada por el administrador de la plataforma.');
+            ->assertForbidden();
     }
 
     public function test_admins_see_the_sync_buttons(): void
