@@ -24,6 +24,15 @@ class ProjectExplainerTest extends TestCase
         $this->assertSame('not-calculated', $questions[0]->key);
     }
 
+    public function test_without_appliances_it_asks_for_them_before_calculating(): void
+    {
+        $questions = (new ProjectExplainer)->explain(new ProjectFigures(calculated: false, monthlyConsumptionKwh: 0, energyRateCopKwh: 900));
+
+        $this->assertCount(1, $questions);
+        $this->assertSame('no-appliances', $questions[0]->key);
+        $this->assertSame('Faltan tus equipos', $questions[0]->headline);
+    }
+
     public function test_answers_use_the_project_numbers_in_plain_language(): void
     {
         $answers = $this->answersByKey($this->figures());

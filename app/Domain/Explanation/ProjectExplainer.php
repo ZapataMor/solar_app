@@ -22,7 +22,7 @@ final class ProjectExplainer
     public function explain(ProjectFigures $figures): array
     {
         if (! $figures->calculated) {
-            return [$this->notCalculated()];
+            return [$figures->monthlyConsumptionKwh > 0 ? $this->notCalculated() : $this->noAppliances()];
         }
 
         return [
@@ -49,6 +49,24 @@ final class ProjectExplainer
             paragraphs: [
                 'Para responder cuánto cuesta, cuánto ahorras y si te conviene, primero hay que calcular el proyecto con los datos de sol de tu zona.',
                 'Pulsa "Calcular" en el panel y vuelve aquí: todas las preguntas tendrán respuesta.',
+            ],
+            tone: ExplainedQuestion::TONE_WARNING,
+        );
+    }
+
+    /**
+     * The appliances are the base of the calculation (ADR-0013): without them there is nothing to answer.
+     */
+    private function noAppliances(): ExplainedQuestion
+    {
+        return new ExplainedQuestion(
+            key: 'no-appliances',
+            question: '¿Por qué no veo respuestas?',
+            headline: 'Faltan tus equipos',
+            caption: 'con ellos calculamos tu sistema',
+            paragraphs: [
+                'Para saber cuántos paneles necesitas y cuánto ahorras, primero hay que saber cuánta energía usas.',
+                'En la pestaña Consumo recorre cada espacio (cocina, sala, habitaciones…) y agrega lo que tienes. Luego calcula y vuelve aquí.',
             ],
             tone: ExplainedQuestion::TONE_WARNING,
         );

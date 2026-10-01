@@ -6,6 +6,7 @@ use App\Domain\Climate\ClimateSeries;
 use App\Domain\Climate\ClimateSourceChain;
 use App\Domain\Climate\NoClimateData;
 use App\Domain\Solar\EnergyProfile;
+use App\Domain\Solar\MissingConsumption;
 use App\Domain\Solar\MissingTechnicalParameters;
 use App\Domain\Solar\MonthlyGeneration;
 use App\Domain\Solar\SolarCalculator;
@@ -31,6 +32,7 @@ final class CalculateSolarProject
      * @return ClimateSeries The climate data the calculation was based on.
      *
      * @throws MissingTechnicalParameters
+     * @throws MissingConsumption
      * @throws NoClimateData
      */
     public function __invoke(SolarProject $solarProject, ?string $source = null): ClimateSeries
@@ -39,6 +41,11 @@ final class CalculateSolarProject
 
         if ($technicalParameter === null) {
             throw new MissingTechnicalParameters;
+        }
+
+        // Appliances are the base of the calculation (ADR-0013): without them there is nothing to size.
+        if ($solarProject->monthlyConsumption() <= 0) {
+            throw new MissingConsumption;
         }
 
         $start = $solarProject->start_date->copy()->startOfDay();

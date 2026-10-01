@@ -37,6 +37,13 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 - **Equipos y consumos de referencia:** `App\Domain\Consumption\ApplianceCatalog` (cada combinación
   de opciones debe tener potencia; lo verifica `ConsumptionEstimatorTest`). Los dibujos están en
   `resources/views/solar-projects/partials/appliance-icons.blade.php` (`#appliance-<icon>`).
+- **Creación y consumo (ADR-0013):** el formulario (`_form.blade.php`) pregunta tipo de inmueble,
+  ubicación, techo, tarifa y nombre; **no** pide consumo. Los equipos se agregan después, por espacio,
+  en la pestaña Consumo (`SolarProjectConsumptionController`). Tipos y espacios:
+  `App\Domain\Property\PropertyType`. **Los equipos son la base del cálculo:** cada cambio pasa por
+  `SaveProjectAppliance`/`RemoveProjectAppliance` → `SyncProjectConsumption` (consumo, potencia
+  sugerida y cotización). Sin consumo, calcular lanza `MissingConsumption` y la vigencia queda
+  *NOT_READY*. La descripción vive en la pestaña Notas.
 - **Cambios en el cálculo:** van en `SolarCalculator` / `InstallationCostCalculator`, con test
   en `tests/Unit/Domain` (extienden `PHPUnit\Framework\TestCase`, sin base de datos).
 - Decisiones de arquitectura: registra un ADR en `natal-ia-vault/03-diseno/decisiones-adr/`.
@@ -47,7 +54,8 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 - Textos visibles al usuario en español; código e identificadores en inglés.
 - Las fechas de modelos son `CarbonImmutable` (`Date::use` en `AppServiceProvider`): tipa con
   `CarbonInterface`, no con `Carbon\Carbon`.
-- Autorización de proyectos: `authorizeOwner()` en `SolarProjectController` (dueño o `admin`).
+- Autorización de proyectos: `SolarProjectPolicy::manage` (dueño o `admin`); en controladores,
+  `abort_unless($request->user()->can('manage', $solarProject), 403)`.
 - Roles: `user` (cliente) y `admin`. Gates en `AppServiceProvider`: `administer-platform`
   (pantallas de administración, p. ej. Datos climáticos) y `sync-climate-data` (los datos son
   globales). Aplícalos con `can:` en rutas y `@can` en vistas.
@@ -67,6 +75,9 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   fallaban con "unable to open database file". `AppServiceProvider` fija `PRAGMA temp_store = MEMORY`.
 - Resultados mensuales: la generación cubre solo los días con datos (`days_in_month`); compara
   meses **por día**, no por total, o un mes con pocos datos parecerá sin sol.
+- Tests de vistas: los `data-*` y nombres de campos también aparecen en el JS inline de la página, así
+  que `assertDontSee('data-x')` falla aunque el atributo no esté. Comprueba la etiqueta con una regex
+  (`/<form[^>]*data-x/`).
 - Pint ya reporta estilo en archivos heredados (`SolarProjectController`,
   `ClimateSourceFallbackService`, …). No reformatees archivos enteros: solo lo que tocas.
 - Radiación: se guarda como **W/m² promedio de 24 h**. HSP (kWh/m²/día) = W/m² × 24 / 1000.

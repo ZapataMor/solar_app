@@ -30,26 +30,23 @@ class SolarProjectTest extends TestCase
 
         $solarProject = SolarProject::query()->first();
 
-        $response->assertRedirect(route('solar-projects.show', $solarProject));
+        // ADR-0013: the project opens its consumption diary to add the appliances.
+        $response->assertRedirect(route('solar-projects.consumption', $solarProject));
 
         $this->assertDatabaseHas('solar_projects', [
             'user_id' => $user->id,
             'name' => 'Sistema solar institucional',
+            'property_type' => 'institution',
             'location_name' => 'Maicao, La Guajira, Colombia',
             'municipality_id' => $municipality->id,
             'latitude' => 11.3778,
             'longitude' => -72.2389,
             'location_type' => 'urbana',
-            'required_power_kw' => 5,
             'base_price_per_kw' => 4000000,
             'logistic_factor_used' => 1,
             'final_price_per_kw_used' => 4000000,
-            'estimated_installation_cost' => 20000000,
-            'monthly_consumption_kwh' => 2000,
-            'annual_consumption_kwh' => 24000,
+            'monthly_consumption_kwh' => 0,
         ]);
-
-        $this->assertSame(66.67, round((float) $solarProject->daily_consumption_kwh, 2));
 
         $this->assertDatabaseHas('technical_parameters', [
             'solar_project_id' => $solarProject->id,
@@ -69,22 +66,37 @@ class SolarProjectTest extends TestCase
 
         $solarProject = SolarProject::query()->first();
 
-        $response->assertRedirect(route('solar-projects.show', $solarProject));
+        $response->assertRedirect(route('solar-projects.consumption', $solarProject));
         $this->assertSame('2017-01-01', $solarProject->end_date->format('Y-m-d'));
     }
 
-    public function test_user_can_create_a_solar_project_without_required_power_kw(): void
+    public function test_power_and_total_cost_wait_for_the_appliances_and_then_follow_them(): void
     {
         $user = User::factory()->create();
-        $payload = $this->validPayload();
-        unset($payload['required_power_kw']);
 
-        $response = $this->actingAs($user)->post(route('solar-projects.store'), $payload);
+        $this->actingAs($user)->post(route('solar-projects.store'), $this->validPayload())->assertSessionHasNoErrors();
+        $solarProject = SolarProject::query()->firstOrFail();
 
-        $solarProject = SolarProject::query()->first();
+        // A new project has no consumption yet: only the price per kW of its municipality is known.
+        $this->assertNull($solarProject->required_power_kw);
+        $this->assertNull($solarProject->estimated_installation_cost);
 
-        $response->assertRedirect(route('solar-projects.show', $solarProject));
-        $this->assertSame(13.37, round((float) $solarProject->required_power_kw, 2));
+        // 2 inverter air conditioners, 8 h: 2 × 800 W × 8 h × 30 = 384 kWh/month.
+        $this->actingAs($user)
+            ->post(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'classrooms',
+                'key' => 'air_conditioner',
+                'variant' => '12000.inverter',
+                'quantity' => 2,
+                'hours_per_day' => 8,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $solarProject->refresh();
+        // 384 / (5.8 HSP × 30 × 0.86) = 2.57 kW, at 4.000.000 COP/kW.
+        $this->assertEquals(384, $solarProject->monthly_consumption_kwh);
+        $this->assertEquals(2.57, $solarProject->required_power_kw);
+        $this->assertEquals(10280000, $solarProject->estimated_installation_cost);
     }
 
     public function test_user_cannot_view_another_users_project(): void
@@ -407,6 +419,9 @@ class SolarProjectTest extends TestCase
             ->assertRedirect();
 
         $solarProject = SolarProject::query()->firstOrFail();
+        $this->actingAs($user)->post(route('solar-projects.appliances.store', $solarProject), [
+            'space' => 'offices', 'key' => 'air_conditioner', 'variant' => '12000.inverter', 'quantity' => 2, 'hours_per_day' => 8,
+        ])->assertSessionHasNoErrors();
 
         $municipality->solarPrices()->first()->update([
             'base_price_per_kw' => 5000000,
@@ -418,7 +433,7 @@ class SolarProjectTest extends TestCase
         $this->assertSame('4000000.00', $solarProject->base_price_per_kw);
         $this->assertSame('1.000', $solarProject->logistic_factor_used);
         $this->assertSame('4000000.00', $solarProject->final_price_per_kw_used);
-        $this->assertSame('20000000.00', $solarProject->estimated_installation_cost);
+        $this->assertSame('10280000.00', $solarProject->estimated_installation_cost);
     }
 
     /**
@@ -428,13 +443,15 @@ class SolarProjectTest extends TestCase
     {
         $technicalParameters = $this->technicalParameterAttributes();
         unset($technicalParameters['performance_ratio']);
+        $project = $this->projectAttributes();
+        unset($project['monthly_consumption_kwh']); // The consumption comes from the diary (ADR-0013).
 
         return [
-            ...$this->projectAttributes(),
+            ...$project,
             ...$technicalParameters,
+            'property_type' => 'institution',
             'municipality_id' => $this->seedMunicipalityPrice('Maicao', 'Media Guajira', 'Base urbana', 'urbana', 4000000, 1.00)->id,
             'location_type' => 'urbana',
-            'required_power_kw' => 5,
         ];
     }
 

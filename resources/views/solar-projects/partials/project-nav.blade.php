@@ -1,11 +1,15 @@
 {{--
-    Navigation shared by a project's own pages (detail panel and edit).
-    Params: $solarProject, $active ('panel'|'edit'), $backUrl (portfolio URL, keeps search/page).
+    Navigation shared by a project's own pages (panel, consumption diary, notes and edit).
+    Params: $solarProject, $active ('panel'|'consumption'|'notes'|'edit'),
+    $backUrl (optional: portfolio URL that keeps search/page).
 --}}
 @php
     $backLabel = auth()->user()?->isAdmin() ? 'Todos los proyectos' : 'Mis proyectos';
+    $backUrl = $backUrl ?? route('solar-projects.index');
     $tabs = [
         'panel' => ['label' => 'Panel', 'url' => route('solar-projects.show', $solarProject)],
+        'consumption' => ['label' => 'Consumo', 'url' => route('solar-projects.consumption', $solarProject)],
+        'notes' => ['label' => 'Notas', 'url' => route('solar-projects.notes', $solarProject)],
         'edit' => ['label' => 'Editar datos', 'url' => route('solar-projects.edit', $solarProject)],
     ];
 @endphp

@@ -1,7 +1,9 @@
 @php
-    $description = filled($solarProject->description)
-        ? \Illuminate\Support\Str::limit(trim($solarProject->description), 160)
-        : 'Escenario solar para consumo, cobertura y ahorro en Riohacha.';
+    // ADR-0013: the description became internal notes; the card says what the project is and how far it got.
+    $monthlyConsumption = $solarProject->monthlyConsumption();
+    $description = \App\Domain\Property\PropertyType::label($solarProject->property_type).' · '.($monthlyConsumption > 0
+        ? number_format($monthlyConsumption, 0, ',', '.').' kWh al mes'
+        : 'falta agregar sus equipos');
 @endphp
 
 @php

@@ -24,6 +24,11 @@ final class CheckCalculationFreshness
             return new CalculationFreshness(CalculationFreshness::NOT_READY, ['El proyecto no tiene periodo de análisis.']);
         }
 
+        // Appliances are the base of the calculation (ADR-0013): without consumption it cannot run yet.
+        if ($solarProject->monthlyConsumption() <= 0) {
+            return new CalculationFreshness(CalculationFreshness::NOT_READY, ['Agrega tus equipos en la pestaña Consumo para calcular.']);
+        }
+
         $solarProject->loadMissing(['calculationResult', 'technicalParameter']);
 
         $start = $solarProject->start_date->copy()->startOfDay();

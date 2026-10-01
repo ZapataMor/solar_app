@@ -320,4 +320,61 @@ final class ApplianceCatalog
     {
         return self::APPLIANCES[$key]['label'] ?? $key;
     }
+
+    /**
+     * "day", "week" or "always" (see the class docblock).
+     */
+    public function usage(string $key): string
+    {
+        return self::APPLIANCES[$key]['usage'] ?? 'day';
+    }
+
+    /**
+     * Human label of the chosen options, e.g. "12.000 BTU · Inverter" ("" when the appliance has no options).
+     */
+    public function variantLabel(string $key, string $variant): string
+    {
+        $labels = [];
+
+        foreach ($this->chosenOptions($key, $variant) as $choice) {
+            $labels[] = $choice['label'];
+        }
+
+        return implode(' · ', $labels);
+    }
+
+    /**
+     * The drawing for an appliance and variant: the first chosen option may have its own (e.g. upright freezer).
+     */
+    public function icon(string $key, string $variant): string
+    {
+        return $this->chosenOptions($key, $variant)[0]['icon'] ?? (self::APPLIANCES[$key]['icon'] ?? 'lightbulb');
+    }
+
+    /**
+     * @param  list<string>  $segments
+     */
+    public function belongsToAnySegment(string $key, array $segments): bool
+    {
+        return array_intersect(self::APPLIANCES[$key]['segments'] ?? [], $segments) !== [];
+    }
+
+    /**
+     * @return list<array<string, mixed>> The option chosen in each group, in group order.
+     */
+    private function chosenOptions(string $key, string $variant): array
+    {
+        $parts = explode('.', $variant);
+        $chosen = [];
+
+        foreach (self::APPLIANCES[$key]['groups'] ?? [] as $index => $group) {
+            foreach ($group['choices'] as $choice) {
+                if ($choice['key'] === ($parts[$index] ?? null)) {
+                    $chosen[] = $choice;
+                }
+            }
+        }
+
+        return $chosen;
+    }
 }

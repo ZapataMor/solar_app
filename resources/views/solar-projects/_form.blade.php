@@ -1,8 +1,7 @@
 @php
+    use App\Domain\Property\PropertyType;
+
     $technicalParameter = $solarProject?->technicalParameter;
-    $investmentCostPerKwpCop = 5000000;
-    $referenceDailyHsp = 5.8;
-    $ambientContextUrl = route('solar-projects.simulator.ambient-context');
     $municipalities = $municipalities ?? collect();
     $locationTypes = [
         'urbana' => 'Urbana',
@@ -27,9 +26,9 @@
         'Urumita' => '44855',
         'Villanueva' => '44874',
     ];
+    $selectedPropertyType = old('property_type', $solarProject?->property_type);
     $selectedMunicipalityId = old('municipality_id', $solarProject?->municipality_id);
     $selectedLocationType = old('location_type', $solarProject?->location_type ?? 'urbana');
-    $selectedRequiredPower = old('required_power_kw', $solarProject?->required_power_kw);
     $isCreating = strtoupper($method) === 'POST';
     $solarPriceUrlTemplate = route('municipalities.solar-price', ['municipality' => '__MUNICIPALITY__']);
 
@@ -43,44 +42,30 @@
         'start_date' => now(config('app.display_timezone', config('app.timezone')))->toDateString(),
     ] : [];
 
-    // Wizard stages and the fields each one owns, used to reopen the stage with server errors.
-    $wizardSteps = [
-        ['key' => 'project', 'label' => 'Tu proyecto', 'fields' => ['name', 'description']],
-        ['key' => 'location', 'label' => 'Ubicación', 'fields' => ['municipality_id', 'location_type', 'latitude', 'longitude']],
-        ['key' => 'consumption', 'label' => 'Consumo', 'fields' => ['consumption_mode', 'appliances', 'monthly_consumption_kwh', 'energy_rate_cop_kwh', 'required_power_kw']],
-        ['key' => 'space', 'label' => 'Espacio disponible', 'fields' => ['available_area_m2', 'usable_area_percentage', 'panel_power_w', 'panel_area_m2', 'system_losses_percentage', 'start_date', 'end_date']],
-        ['key' => 'summary', 'label' => 'Resumen', 'fields' => []],
+    // Roof size shortcuts (m²) for clients who do not know the exact area.
+    $roofPresets = [
+        ['area' => 20, 'label' => 'Pequeño', 'hint' => 'unos 20 m²'],
+        ['area' => 40, 'label' => 'Mediano', 'hint' => 'unos 40 m²'],
+        ['area' => 80, 'label' => 'Grande', 'hint' => '80 m² o más'],
     ];
-    // "appliances" also owns its row errors (appliances.0.variant, …).
+
+    // Guided stages (ADR-0013) and the fields each one owns, used to reopen the stage with server errors.
+    $wizardSteps = [
+        ['key' => 'property', 'label' => 'Tu lugar', 'fields' => ['property_type']],
+        ['key' => 'location', 'label' => 'Ubicación', 'fields' => ['municipality_id', 'location_type', 'latitude', 'longitude']],
+        ['key' => 'roof', 'label' => 'Techo', 'fields' => ['available_area_m2', 'usable_area_percentage', 'panel_power_w', 'panel_area_m2', 'system_losses_percentage', 'start_date', 'end_date']],
+        ['key' => 'details', 'label' => 'Tu proyecto', 'fields' => ['energy_rate_cop_kwh', 'name']],
+    ];
     $errorKeys = collect($errors->keys());
     $stepsWithErrors = collect($wizardSteps)
         ->keys()
-        ->filter(fn (int $index) => $errorKeys->contains(fn (string $key) => collect($wizardSteps[$index]['fields'])
-            ->contains(fn (string $field) => $key === $field || str_starts_with($key, $field.'.'))))
-        ->values();
-
-    // Consumption by appliances (ADR-0002).
-    $applianceCatalog = (new \App\Domain\Consumption\ApplianceCatalog)->all();
-    $storedAppliances = $solarProject?->appliances ?? collect();
-    $consumptionMode = old('consumption_mode', ($isCreating || $storedAppliances->isNotEmpty()) ? 'appliances' : 'bill');
-    $initialLoads = collect(is_array(old('appliances')) ? old('appliances') : $storedAppliances->map(fn ($appliance) => [
-        'key' => $appliance->appliance_key,
-        'variant' => $appliance->variant_key,
-        'quantity' => $appliance->quantity,
-        'hours_per_day' => $appliance->hours_per_day,
-    ])->all())
-        ->filter(fn ($row) => is_array($row) && isset($applianceCatalog[$row['key'] ?? '']))
-        ->map(fn (array $row) => [
-            'key' => (string) $row['key'],
-            'variant' => (string) ($row['variant'] ?? ''),
-            'quantity' => (int) ($row['quantity'] ?? 1),
-            'hours_per_day' => (float) ($row['hours_per_day'] ?? 0),
-        ])
+        ->filter(fn (int $index) => $errorKeys->contains(fn (string $key) => in_array($key, $wizardSteps[$index]['fields'], true)))
         ->values();
     $initialStep = $stepsWithErrors->first() ?? 0;
     $furthestStep = ($isCreating && ! $errors->any()) ? 0 : count($wizardSteps) - 1;
     $advancedOpen = $errors->hasAny(['usable_area_percentage', 'panel_power_w', 'panel_area_m2', 'system_losses_percentage', 'start_date', 'end_date']);
     $coordinatesOpen = $errors->hasAny(['latitude', 'longitude']);
+    $lastStepNumber = count($wizardSteps);
 @endphp
 
 @if ($errors->any())
@@ -135,37 +120,47 @@
         <p class="solar-wizard-progress" data-wizard-progress aria-live="polite"></p>
     </nav>
 
-    {{-- 1 · Tu proyecto --}}
-    <section class="solar-card-strong" data-wizard-step="project" data-wizard-label="Tu proyecto">
+    {{-- 1 · Tu lugar --}}
+    <section class="solar-card-strong" data-wizard-step="property" data-wizard-label="Tu lugar">
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Etapa 1 · Tu proyecto</p>
-                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Cómo se llama tu proyecto?</h2>
-                <p class="solar-subtitle mt-2">Un nombre que te ayude a reconocerlo, por ejemplo «Casa Riohacha» o «Tienda del barrio».</p>
+                <p class="solar-kicker">Paso 1 de {{ $lastStepNumber }} · Tu lugar</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Para qué lugar quieres energía solar?</h2>
+                <p class="solar-subtitle mt-2">Con esto te mostramos los espacios y equipos que tienen sentido para ti.</p>
             </div>
         </div>
 
-        <div class="solar-form-grid mt-6">
-            <label class="solar-field">
-                <span class="solar-field-label">Nombre del proyecto</span>
-                <input
-                    name="name"
-                    value="{{ old('name', $solarProject?->name) }}"
-                    required
-                    maxlength="255"
-                    class="solar-input"
-                >
-            </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Descripción <span class="text-[color:var(--solar-text-muted)]">(opcional)</span></span>
-                <textarea
-                    name="description"
-                    rows="3"
-                    class="solar-textarea"
-                >{{ old('description', $solarProject?->description) }}</textarea>
-            </label>
-        </div>
+        <fieldset class="solar-property-options mt-6">
+            <legend class="sr-only">Tipo de lugar</legend>
+            @foreach (PropertyType::ALL as $propertyType)
+                <label class="solar-property-option">
+                    <input
+                        type="radio"
+                        name="property_type"
+                        value="{{ $propertyType }}"
+                        required
+                        data-property-option="{{ PropertyType::optionLabel($propertyType) }}"
+                        @checked($selectedPropertyType === $propertyType)
+                    >
+                    <span class="solar-property-option__icon" aria-hidden="true">
+                        @switch($propertyType)
+                            @case(PropertyType::HOUSE)
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg>
+                                @break
+                            @case(PropertyType::BUSINESS)
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.5-5h-15z"/><path d="M4 9v12h16V9"/><path d="M3 9c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3"/><path d="M9 21v-5h6v5"/></svg>
+                                @break
+                            @default
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5z"/><path d="M6 10.2V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.8"/><path d="M22 8v6"/></svg>
+                        @endswitch
+                    </span>
+                    <span class="solar-property-option__text">
+                        <strong>{{ PropertyType::optionLabel($propertyType) }}</strong>
+                        <span>{{ PropertyType::hint($propertyType) }}</span>
+                    </span>
+                </label>
+            @endforeach
+        </fieldset>
     </section>
 
     {{-- 2 · Ubicación --}}
@@ -173,8 +168,8 @@
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Etapa 2 · Ubicación</p>
-                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Dónde se instalaría?</h2>
+                <p class="solar-kicker">Paso 2 de {{ $lastStepNumber }} · Ubicación</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Dónde está?</h2>
                 <p class="solar-subtitle mt-2">Elige tu municipio en el listado o haz clic en el mapa. El precio de instalación se ajusta a cada municipio.</p>
             </div>
             <span class="solar-pill solar-pill-success">La Guajira</span>
@@ -223,22 +218,16 @@
                     @endforeach
                 </select>
             </label>
-
-            <input type="hidden" name="required_power_kw" value="{{ $selectedRequiredPower }}" data-required-power>
         </div>
 
         <div class="solar-location-layout">
             <div id="la-guajira-map" class="solar-location-map"></div>
             <aside class="solar-location-summary">
-                <div class="solar-location-row"><span>Municipio seleccionado</span><strong data-price-municipality>--</strong></div>
+                <div class="solar-location-row"><span>Municipio</span><strong data-price-municipality>--</strong></div>
                 <div class="solar-location-row"><span>Zona</span><strong data-price-zone>--</strong></div>
-                <div class="solar-location-row"><span>Tipo de ubicacion</span><strong data-price-location-type>--</strong></div>
-                <div class="solar-location-row"><span>Precio base por kW</span><strong data-price-base>--</strong></div>
-                <div class="solar-location-row"><span>Factor logistico</span><strong data-price-factor>--</strong></div>
-                <div class="solar-location-row"><span>Precio final por kW</span><strong data-price-final>--</strong></div>
-                <div class="solar-location-row"><span>Potencia requerida</span><strong data-price-power>--</strong></div>
-                <div class="solar-location-row"><span>Costo estimado</span><strong data-price-estimated>--</strong></div>
-                <p class="solar-location-message" data-price-message>Selecciona municipio, tipo de ubicacion y potencia para calcular.</p>
+                <div class="solar-location-row"><span>Tipo de ubicación</span><strong data-price-location-type>--</strong></div>
+                <div class="solar-location-row"><span>Precio por kW instalado</span><strong data-price-final>--</strong></div>
+                <p class="solar-location-message" data-price-message>Selecciona tu municipio para ver el precio de instalación de la zona.</p>
             </aside>
         </div>
 
@@ -258,165 +247,28 @@
         </details>
     </section>
 
-    {{-- 3 · Consumo (ADR-0002: por equipos, o con el kWh del recibo) --}}
-    <section
-        class="solar-card"
-        data-wizard-step="consumption"
-        data-wizard-label="Consumo"
-        data-consumption-picker
-    >
-        @include('solar-projects.partials.appliance-icons')
-        <script type="application/json" data-appliance-catalog>@json($applianceCatalog)</script>
-        <script type="application/json" data-appliance-initial>@json($initialLoads)</script>
-
+    {{-- 3 · Techo --}}
+    <section class="solar-card" data-wizard-step="roof" data-wizard-label="Techo" data-roof>
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Etapa 3 · Consumo</p>
-                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Qué quieres alimentar con energía solar?</h2>
-                <p class="solar-subtitle mt-2">Elige tus equipos y cuánto los usas; calculamos tu consumo por ti. Si ya sabes tu consumo en kWh, también puedes escribirlo.</p>
+                <p class="solar-kicker">Paso 3 de {{ $lastStepNumber }} · Techo</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Cuánto espacio tienes en el techo?</h2>
+                <p class="solar-subtitle mt-2">El área del techo o terreno donde podrían ir los paneles. Si no la sabes exacta, elige el tamaño más parecido.</p>
             </div>
         </div>
 
-        <input type="hidden" name="consumption_mode" value="{{ $consumptionMode }}" data-consumption-mode>
-
-        <div class="solar-consumption-modes mt-6" role="group" aria-label="Cómo quieres indicar tu consumo">
-            <button type="button" class="solar-consumption-mode" data-consumption-mode-btn="appliances" aria-pressed="{{ $consumptionMode === 'appliances' ? 'true' : 'false' }}">
-                <strong>Con mis equipos</strong>
-                <span>Recomendado · eliges neveras, aires, abanicos…</span>
-            </button>
-            <button type="button" class="solar-consumption-mode" data-consumption-mode-btn="bill" aria-pressed="{{ $consumptionMode === 'bill' ? 'true' : 'false' }}">
-                <strong>Ya sé mi consumo</strong>
-                <span>Escribo los kWh de mi recibo</span>
-            </button>
-        </div>
-
-        <div class="mt-6" data-consumption-panel="appliances" @if ($consumptionMode !== 'appliances') hidden @endif>
-            <div class="solar-appliance-toolbar">
-                <div class="solar-appliance-segments" role="group" aria-label="Tipo de lugar">
-                    <button type="button" class="solar-appliance-segment" data-appliance-segment="home" aria-pressed="true">Hogar</button>
-                    <button type="button" class="solar-appliance-segment" data-appliance-segment="business" aria-pressed="false">Negocio</button>
-                </div>
-                <p class="solar-appliance-help">Toca un equipo para agregarlo. Puedes repetirlo, por ejemplo, dos aires de distinto tamaño.</p>
-            </div>
-
-            <div class="solar-appliance-grid" data-appliance-grid>
-                @foreach ($applianceCatalog as $applianceKey => $appliance)
-                    <button
-                        type="button"
-                        class="solar-appliance-card"
-                        data-add-appliance="{{ $applianceKey }}"
-                        data-segments="{{ implode(' ', $appliance['segments']) }}"
-                        aria-label="Agregar {{ $appliance['label'] }}"
-                    >
-                        <svg viewBox="0 0 24 24" class="solar-appliance-card-icon" aria-hidden="true"><use href="#appliance-{{ $appliance['icon'] }}"></use></svg>
-                        <span class="solar-appliance-card-label">{{ $appliance['label'] }}</span>
-                        <span class="solar-appliance-card-count" data-appliance-count="{{ $applianceKey }}" hidden></span>
-                    </button>
-                @endforeach
-            </div>
-
-            <div class="solar-appliance-selection">
-                <h3 class="solar-appliance-selection-title">Tus equipos</h3>
-                <p class="solar-appliance-empty" data-appliance-empty>Aún no has agregado equipos.</p>
-                <ul class="solar-appliance-loads" data-appliance-loads></ul>
-                <p class="solar-appliance-error" data-appliance-error role="alert" hidden></p>
-                <div data-appliance-hidden></div>
-            </div>
-
-            <div class="solar-appliance-total" aria-live="polite">
-                <div>
-                    <span class="solar-appliance-total-label">Consumo estimado</span>
-                    <strong class="solar-appliance-total-value" data-appliance-total>0 kWh/mes</strong>
-                </div>
-                <span class="solar-appliance-total-daily" data-appliance-total-daily>≈ 0 kWh al día</span>
-            </div>
-            <p class="mt-2 text-xs text-[color:var(--solar-text-muted)]">Usamos consumos de referencia por tipo y tamaño de equipo. El consumo real cambia con la marca, la antigüedad y el uso.</p>
-        </div>
-
-        <div class="solar-form-grid mt-6 md:grid-cols-2" data-consumption-panel="bill" @if ($consumptionMode !== 'bill') hidden @endif>
-            <label class="solar-field">
-                <span class="solar-field-label">Consumo mensual en kWh</span>
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    name="monthly_consumption_kwh"
-                    value="{{ old('monthly_consumption_kwh', $solarProject?->monthly_consumption_kwh ?? ($solarProject?->annual_consumption_kwh ? $solarProject->annual_consumption_kwh / 12 : null)) }}"
-                    required
-                    class="solar-input"
-                    @if ($consumptionMode === 'appliances') readonly @endif
-                >
-                <span class="text-xs text-[color:var(--solar-text-muted)]">
-                    El sistema derivara automaticamente consumo diario aproximado y consumo anual.
-                </span>
-            </label>
-        </div>
-
-        <div class="solar-form-grid mt-6 md:grid-cols-2">
-            <label class="solar-field">
-                <span class="solar-field-label">Tarifa energetica en COP/kWh</span>
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    name="energy_rate_cop_kwh"
-                    value="{{ old('energy_rate_cop_kwh', $solarProject?->energy_rate_cop_kwh) }}"
-                    required
-                    class="solar-input"
-                >
-                <span class="text-xs text-[color:var(--solar-text-muted)]">Lo que pagas por cada kWh; aparece en tu recibo.</span>
-            </label>
-
-            <div class="flex items-end">
-                <button type="button" class="solar-button-ghost solar-energy-guide-trigger" data-energy-guide-open>
-                    ¿Dónde encuentro estos datos en mi recibo?
+        <div class="solar-roof-presets mt-6" role="group" aria-label="Tamaño aproximado del techo">
+            @foreach ($roofPresets as $preset)
+                <button type="button" class="solar-roof-preset" data-roof-preset="{{ $preset['area'] }}" aria-pressed="false">
+                    <strong>{{ $preset['label'] }}</strong>
+                    <span>{{ $preset['hint'] }}</span>
                 </button>
-            </div>
-        </div>
-    </section>
-
-    <div
-        class="solar-energy-guide-modal"
-        data-energy-guide-modal
-        hidden
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="energy-guide-title"
-    >
-        <div class="solar-energy-guide-backdrop" data-energy-guide-close></div>
-        <div class="solar-energy-guide-panel" role="document">
-            <div class="solar-energy-guide-header">
-                <h3 id="energy-guide-title" class="solar-energy-guide-title">
-                    En la segunda hoja de tu recibo de energía encontrarás este apartado, aquí podrás ver tu consumo en kWh y tu tarifa energética en COP/kWh.
-                </h3>
-                <button type="button" class="solar-button-ghost solar-energy-guide-close" data-energy-guide-close aria-label="Cerrar guia del recibo">
-                    Cerrar
-                </button>
-            </div>
-
-            <div class="solar-energy-guide-body">
-                <img
-                    src="{{ asset('images/guia-recibo-energia.jpeg') }}"
-                    alt="Guia visual del recibo de energia donde se encuentran la tarifa y el consumo en kWh"
-                    class="solar-energy-guide-image"
-                >
-            </div>
-        </div>
-    </div>
-
-    {{-- 4 · Espacio disponible --}}
-    <section class="solar-card" data-wizard-step="space" data-wizard-label="Espacio disponible">
-        <div class="solar-page-header">
-            <div>
-                <p class="solar-kicker">Etapa 4 · Espacio disponible</p>
-                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Cuánto espacio tienes para los paneles?</h2>
-                <p class="solar-subtitle mt-2">El área del techo o terreno donde podrían ir. Si no la sabes exacta, una aproximación sirve para empezar.</p>
-            </div>
+            @endforeach
         </div>
 
-        <div class="solar-form-grid mt-6 md:grid-cols-2">
+        <div class="solar-form-grid mt-4 md:grid-cols-2">
             <label class="solar-field">
-                <span class="solar-field-label">Area total disponible en m2</span>
+                <span class="solar-field-label">Área disponible en m²</span>
                 <input
                     type="number"
                     step="0.01"
@@ -425,7 +277,9 @@
                     value="{{ old('available_area_m2', $technicalParameter?->available_area_m2) }}"
                     required
                     class="solar-input"
+                    data-roof-area
                 >
+                <span class="text-xs text-[color:var(--solar-text-muted)]" data-roof-hint aria-live="polite"></span>
             </label>
         </div>
 
@@ -436,7 +290,7 @@
 
                 <div class="solar-form-grid mt-4 md:grid-cols-2">
                     <label class="solar-field">
-                        <span class="solar-field-label">Area utilizable %</span>
+                        <span class="solar-field-label">Área utilizable %</span>
                         <input
                             type="number"
                             step="0.01"
@@ -463,7 +317,7 @@
                     </label>
 
                     <label class="solar-field">
-                        <span class="solar-field-label">Area del panel en m2</span>
+                        <span class="solar-field-label">Área del panel en m²</span>
                         <input
                             type="number"
                             step="0.01"
@@ -476,12 +330,12 @@
                     </label>
 
                     <label class="solar-field">
-                        <span class="solar-field-label">Perdidas del sistema %</span>
+                        <span class="solar-field-label">Pérdidas del sistema %</span>
                         <input
                             type="number"
                             step="0.01"
                             min="0"
-                            max="100"
+                            max="99"
                             name="system_losses_percentage"
                             value="{{ old('system_losses_percentage', $technicalParameter?->system_losses_percentage ?? ($defaults['system_losses_percentage'] ?? null)) }}"
                             required
@@ -517,90 +371,102 @@
         </details>
     </section>
 
-    {{-- 5 · Resumen y estimación --}}
-    <section class="solar-card" data-wizard-step="summary" data-wizard-label="Resumen">
+    {{-- 4 · Tu proyecto: tarifa, nombre y resumen --}}
+    <section class="solar-card" data-wizard-step="details" data-wizard-label="Tu proyecto">
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Etapa 5 · Resumen</p>
-                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">Revisa tu proyecto</h2>
-                <p class="solar-subtitle mt-2">Si algo no está bien, edítalo antes de guardar.</p>
+                <p class="solar-kicker">Paso 4 de {{ $lastStepNumber }} · Tu proyecto</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">Últimos datos</h2>
+                <p class="solar-subtitle mt-2">
+                    @if ($isCreating)
+                        Después de crearlo agregarás tus equipos, espacio por espacio, para calcular tu sistema.
+                    @else
+                        Tus equipos se cambian en la pestaña Consumo.
+                    @endif
+                </p>
             </div>
         </div>
 
-        <dl class="solar-wizard-summary mt-4">
+        <div class="solar-form-grid mt-6 md:grid-cols-2">
+            <label class="solar-field">
+                <span class="solar-field-label">¿Cuánto pagas por cada kWh?</span>
+                <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    name="energy_rate_cop_kwh"
+                    value="{{ old('energy_rate_cop_kwh', $solarProject?->energy_rate_cop_kwh) }}"
+                    required
+                    class="solar-input"
+                    inputmode="decimal"
+                >
+                <span class="text-xs text-[color:var(--solar-text-muted)]">Tarifa en pesos por kWh; aparece en tu recibo de energía.</span>
+            </label>
+
+            <div class="flex items-end">
+                <button type="button" class="solar-button-ghost solar-energy-guide-trigger" data-energy-guide-open>
+                    ¿Dónde la encuentro en mi recibo?
+                </button>
+            </div>
+
+            <label class="solar-field md:col-span-2">
+                <span class="solar-field-label">Nombre del proyecto</span>
+                <input
+                    name="name"
+                    value="{{ old('name', $solarProject?->name) }}"
+                    required
+                    maxlength="255"
+                    class="solar-input"
+                    data-project-name
+                >
+                <span class="text-xs text-[color:var(--solar-text-muted)]">Te sugerimos uno; puedes cambiarlo.</span>
+            </label>
+        </div>
+
+        <dl class="solar-wizard-summary mt-6">
             <div class="solar-wizard-summary-row">
-                <dt>Proyecto</dt>
-                <dd><span data-summary="name">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="0">Editar</button></dd>
+                <dt>Lugar</dt>
+                <dd><span data-summary="property">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="0">Editar</button></dd>
             </div>
             <div class="solar-wizard-summary-row">
                 <dt>Ubicación</dt>
                 <dd><span data-summary="location">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="1">Editar</button></dd>
             </div>
             <div class="solar-wizard-summary-row">
-                <dt>Consumo y tarifa</dt>
-                <dd><span data-summary="consumption">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="2">Editar</button></dd>
-            </div>
-            <div class="solar-wizard-summary-row">
-                <dt>Área disponible</dt>
-                <dd><span data-summary="area">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="3">Editar</button></dd>
+                <dt>Techo</dt>
+                <dd><span data-summary="area">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="2">Editar</button></dd>
             </div>
         </dl>
     </section>
 
-    <section class="solar-card" data-project-simulator data-wizard-step="summary" data-wizard-companion>
-        <div class="solar-page-header">
-            <div>
-                <p class="solar-kicker">Pre-simulacion</p>
-                <h2 class="text-2xl text-[color:var(--solar-text)]">Impacto energetico y financiero estimado</h2>
-                <p class="solar-subtitle mt-2">
-                    Vista previa basada en parametros del formulario para comparar generacion esperada vs consumo y estimar inversion/retorno.
-                </p>
+    <div
+        class="solar-energy-guide-modal"
+        data-energy-guide-modal
+        hidden
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="energy-guide-title"
+    >
+        <div class="solar-energy-guide-backdrop" data-energy-guide-close></div>
+        <div class="solar-energy-guide-panel" role="document">
+            <div class="solar-energy-guide-header">
+                <h3 id="energy-guide-title" class="solar-energy-guide-title">
+                    En la segunda hoja de tu recibo de energía encontrarás este apartado: ahí aparece tu tarifa en pesos por kWh.
+                </h3>
+                <button type="button" class="solar-button-ghost solar-energy-guide-close" data-energy-guide-close aria-label="Cerrar guía del recibo">
+                    Cerrar
+                </button>
             </div>
-            <span class="solar-pill solar-pill-warn">Estimado previo</span>
-        </div>
 
-        <div class="flex items-center gap-2 mt-4" role="group" aria-label="Escala del simulador">
-            <button type="button" class="solar-button-ghost" data-sim-scale-btn="monthly" aria-pressed="true">Mensual</button>
-            <button type="button" class="solar-button-ghost" data-sim-scale-btn="annual" aria-pressed="false">Anual</button>
+            <div class="solar-energy-guide-body">
+                <img
+                    src="{{ asset('images/guia-recibo-energia.jpeg') }}"
+                    alt="Guía visual del recibo de energía donde se encuentran la tarifa y el consumo en kWh"
+                    class="solar-energy-guide-image"
+                >
+            </div>
         </div>
-
-        <div class="solar-form-grid mt-6 md:grid-cols-3">
-            <article class="solar-metric-card min-w-0">
-                <p class="solar-metric-label">Capacidad instalada estimada</p>
-                <p class="solar-metric-value" data-sim-capacity>—</p>
-                <p class="solar-metric-copy" data-sim-panels>Paneles estimados: —</p>
-            </article>
-            <article class="solar-metric-card min-w-0">
-                <p class="solar-metric-label" data-sim-generation-label>Generacion mensual estimada</p>
-                <p class="solar-metric-value" data-sim-generation>—</p>
-                <p class="solar-metric-copy" data-sim-generation-alt>Equivalente anual: —</p>
-            </article>
-            <article class="solar-metric-card min-w-0">
-                <p class="solar-metric-label">Cobertura estimada</p>
-                <p class="solar-metric-value" data-sim-coverage>—</p>
-                <p class="solar-metric-copy" data-sim-balance>Balance mensual: —</p>
-            </article>
-            <article class="solar-metric-card min-w-0">
-                <p class="solar-metric-label">Inversion estimada</p>
-                <p class="solar-metric-value" data-sim-investment>—</p>
-                <p class="solar-metric-copy">Base: {{ number_format($investmentCostPerKwpCop, 0, ',', '.') }} COP/kWp</p>
-            </article>
-            <article class="solar-metric-card min-w-0">
-                <p class="solar-metric-label" data-sim-savings-label>Ahorro mensual estimado</p>
-                <p class="solar-metric-value" data-sim-savings>—</p>
-                <p class="solar-metric-copy" data-sim-savings-alt>Equivalente anual: —</p>
-            </article>
-            <article class="solar-metric-card min-w-0">
-                <p class="solar-metric-label">Retorno de inversion</p>
-                <p class="solar-metric-value" data-sim-payback>—</p>
-                <p class="solar-metric-copy" data-sim-status>Completa los datos para estimar el payback.</p>
-            </article>
-        </div>
-
-        <p class="text-xs text-[color:var(--solar-text-muted)] mt-4" data-sim-radiation-context>
-            Cargando contexto de radiacion desde Ambient Weather...
-        </p>
-    </section>
+    </div>
 
     <div class="solar-wizard-actions">
         <a href="{{ $isCreating ? route('solar-projects.index') : route('solar-projects.show', $solarProject) }}" class="solar-button-ghost" data-wizard-cancel>
@@ -620,7 +486,7 @@
 <script>
 (() => {
     // New-project draft: what the user typed survives a reload. It runs before the other scripts
-    // so the appliance picker, simulator and map start from the restored values.
+    // so the map and the summary start from the restored values.
     const form = document.querySelector('[data-project-wizard][data-draft-key]');
 
     if (!form) {
@@ -646,25 +512,26 @@
         }
     };
 
-    // The appliance rows live in generated hidden inputs (appliances[0][key], …).
     const snapshot = () => {
         const fields = {};
-        const appliances = [];
 
         Array.from(form.elements).forEach((field) => {
             if (!field.name || ['_token', '_method'].includes(field.name) || field.disabled) {
                 return;
             }
 
-            const row = field.name.match(/^appliances\[(\d+)\]\[(\w+)\]$/);
-            if (row) {
-                appliances[Number(row[1])] = { ...appliances[Number(row[1])], [row[2]]: field.value };
-            } else if (field.name && !field.name.startsWith('appliances[')) {
-                fields[field.name] = field.value;
+            // A radio group (kind of property) only counts its checked option.
+            if (field.type === 'radio') {
+                if (field.checked) {
+                    fields[field.name] = field.value;
+                }
+                return;
             }
+
+            fields[field.name] = field.value;
         });
 
-        return { fields, appliances: appliances.filter(Boolean) };
+        return { fields };
     };
 
     const pristine = JSON.stringify(snapshot());
@@ -683,7 +550,6 @@
             // Private mode or full storage: the form still works, it just is not remembered.
         }
     };
-    // Debounced so generated inputs (appliance rows, computed kWh) are written before the snapshot.
     const scheduleSave = () => {
         window.clearTimeout(saveTimer);
         saveTimer = window.setTimeout(save, 300);
@@ -695,15 +561,10 @@
     if (draft) {
         Object.entries(draft.fields ?? {}).forEach(([name, value]) => {
             const field = form.elements[name];
-            if (field && !(field instanceof RadioNodeList)) {
-                field.value = value;
+            if (field) {
+                field.value = value; // Also checks the right radio of a RadioNodeList.
             }
         });
-
-        const initialLoads = form.querySelector('[data-appliance-initial]');
-        if (initialLoads && Array.isArray(draft.appliances)) {
-            initialLoads.textContent = JSON.stringify(draft.appliances);
-        }
 
         if (notice) {
             notice.hidden = false;
@@ -737,7 +598,7 @@
 
 <script>
 (() => {
-    // Project wizard (ADR-0007): client-side stages over a single form.
+    // Project wizard (ADR-0007, stages of ADR-0013): client-side stages over a single form.
     const form = document.querySelector('[data-project-wizard]');
 
     if (!form) {
@@ -757,8 +618,7 @@
     let current = Number(form.dataset.wizardInitial ?? 0);
     let furthest = Math.max(current, Number(form.dataset.wizardFurthest ?? 0));
 
-    // Fields inside a hidden panel of a stage (e.g. the unused consumption mode) are not validated;
-    // the stage section itself may be hidden, that one does not count.
+    // Fields inside a hidden panel of a stage are not validated; the stage section itself may be hidden.
     const isInHiddenPanel = (field) => {
         const hiddenAncestor = field.parentElement?.closest('[hidden]');
         return Boolean(hiddenAncestor) && ! hiddenAncestor.matches('[data-wizard-step]');
@@ -796,6 +656,7 @@
     };
     const numberFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
     const formatNumber = (value) => (value === '' ? '' : numberFormatter.format(Number(value)));
+    const propertyOption = () => form.querySelector('[name="property_type"]:checked')?.dataset.propertyOption ?? '';
 
     const fillSummary = () => {
         const set = (key, text) => {
@@ -805,18 +666,25 @@
             }
         };
         const municipality = fieldValue('municipality_id') ? selectedText('municipality_id') : '';
-        const consumption = fieldValue('monthly_consumption_kwh');
-        const rate = fieldValue('energy_rate_cop_kwh');
         const area = fieldValue('available_area_m2');
 
-        set('name', fieldValue('name'));
+        set('property', propertyOption());
         set('location', municipality ? `${municipality} · ${selectedText('location_type')}` : '');
-        const applianceCount = form.querySelectorAll('[data-appliance-load]').length;
-        const consumptionSource = fieldValue('consumption_mode') === 'appliances'
-            ? `${applianceCount} ${applianceCount === 1 ? 'equipo' : 'equipos'} · `
-            : '';
-        set('consumption', consumption && rate ? `${consumptionSource}${formatNumber(consumption)} kWh/mes · ${formatNumber(rate)} COP/kWh` : '');
         set('area', area ? `${formatNumber(area)} m²` : '');
+    };
+
+    // The name is suggested from the answers ("Mi casa en Maicao") until the user writes their own.
+    const nameInput = form.querySelector('[data-project-name]');
+    const suggestName = () => {
+        const municipality = fieldValue('municipality_id') ? selectedText('municipality_id') : '';
+        const suggestion = [propertyOption(), municipality].filter(Boolean).join(' en ');
+        const untouched = nameInput.value.trim() === '' || nameInput.value === nameInput.dataset.suggested;
+
+        if (suggestion && untouched) {
+            nameInput.value = suggestion;
+            nameInput.dataset.suggested = suggestion;
+            nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     };
 
     const show = (index, { focus = true } = {}) => {
@@ -843,6 +711,7 @@
         progress.textContent = `Paso ${current + 1} de ${stepKeys.length} · ${labelOf(current)}`;
 
         if (current === lastStep) {
+            suggestName();
             fillSummary();
         }
 
@@ -894,6 +763,16 @@
         button.addEventListener('click', () => show(Number(button.dataset.wizardEdit)));
     });
 
+    // Creating: choosing the kind of place is the whole first question, so a tap moves on by itself.
+    // Only real pointer clicks (detail > 0): arrow keys also select radios and must not jump ahead.
+    if (form.hasAttribute('data-draft-key')) {
+        form.querySelectorAll('.solar-property-option').forEach((option) => option.addEventListener('click', (event) => {
+            if (current === 0 && event.detail > 0) {
+                window.setTimeout(() => goTo(1), 250);
+            }
+        }));
+    }
+
     // Enter on an intermediate stage advances instead of submitting the whole form.
     form.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' || current === lastStep || event.target.tagName === 'TEXTAREA' || event.target.type === 'button' || event.target.type === 'submit') {
@@ -939,290 +818,38 @@
 
 <script>
 (() => {
-    // Appliance picker (ADR-0002): builds the consumption from appliances, variants, quantity and hours.
-    // The server recomputes the same total from the catalog; this one only drives the live preview.
-    const root = document.querySelector('[data-consumption-picker]');
+    // Roof stage: size shortcuts fill the area, and a hint says how many panels would fit.
+    const root = document.querySelector('[data-roof]');
 
     if (!root) {
         return;
     }
 
     const form = root.closest('form');
-    const catalog = JSON.parse(root.querySelector('[data-appliance-catalog]').textContent);
-    const initialLoads = JSON.parse(root.querySelector('[data-appliance-initial]').textContent);
-    const modeInput = root.querySelector('[data-consumption-mode]');
-    const monthlyInput = form.elements.monthly_consumption_kwh;
-    const list = root.querySelector('[data-appliance-loads]');
-    const hiddenBox = root.querySelector('[data-appliance-hidden]');
-    const emptyState = root.querySelector('[data-appliance-empty]');
-    const errorBox = root.querySelector('[data-appliance-error]');
-    const totalOut = root.querySelector('[data-appliance-total]');
-    const dailyOut = root.querySelector('[data-appliance-total-daily]');
-    const cards = Array.from(root.querySelectorAll('[data-add-appliance]'));
-    const kwhFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
-    const DAYS_PER_MONTH = 30;
-    let loads = [];
-    let sequence = 0;
-
-    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-    const icon = (name, className = '') => `<svg viewBox="0 0 24 24" class="${className}" aria-hidden="true"><use href="#appliance-${escapeHtml(name)}"></use></svg>`;
-
-    const defaultChoices = (key) => {
-        const appliance = catalog[key];
-        return appliance.groups.length ? String(appliance.default_variant).split('.') : [];
-    };
-    const choicesFromVariant = (key, variant) => {
-        const appliance = catalog[key];
-        const parts = String(variant ?? '').split('.');
-        const defaults = defaultChoices(key);
-        return appliance.groups.map((group, index) => (group.choices.some((choice) => choice.key === parts[index]) ? parts[index] : defaults[index]));
-    };
-    const variantOf = (load) => (catalog[load.key].groups.length ? load.choices.join('.') : 'default');
-    const hoursPerDayOf = (load) => (catalog[load.key].usage === 'always' ? 24 : Math.min(24, Math.max(0, load.hoursPerDay)));
-    const kwhOf = (load) => (Number(catalog[load.key].watts[variantOf(load)] ?? 0) * load.quantity * hoursPerDayOf(load) * DAYS_PER_MONTH) / 1000;
-    const totalKwh = () => loads.reduce((sum, load) => sum + kwhOf(load), 0);
-
-    // The drawing follows the chosen variant when the variant has its own (e.g. vertical freezer).
-    const iconOf = (load) => {
-        const appliance = catalog[load.key];
-        const group = appliance.groups[0];
-        const choice = group?.choices.find((candidate) => candidate.key === load.choices[0]);
-        return choice?.icon ?? appliance.icon;
-    };
-
-    const shownHours = (load) => {
-        const usage = catalog[load.key].usage;
-        const hours = usage === 'week' ? load.hoursPerDay * 7 : load.hoursPerDay;
-        return Math.round(hours * 100) / 100;
-    };
-
-    const rowHtml = (load) => {
-        const appliance = catalog[load.key];
-        const groups = appliance.groups.map((group, groupIndex) => `
-            <div class="solar-appliance-group">
-                <span class="solar-appliance-group-label">${escapeHtml(group.label)}</span>
-                <div class="solar-appliance-chips" role="radiogroup" aria-label="${escapeHtml(group.label)}">
-                    ${group.choices.map((choice) => `
-                        <button type="button" class="solar-appliance-chip" role="radio"
-                            aria-checked="${load.choices[groupIndex] === choice.key}"
-                            data-group="${groupIndex}" data-choice="${escapeHtml(choice.key)}">
-                            ${choice.icon || choice.scale ? icon(choice.icon ?? appliance.icon, `solar-appliance-chip-icon solar-appliance-scale-${choice.scale ?? 2}`) : ''}
-                            <span>${escapeHtml(choice.label)}</span>
-                        </button>`).join('')}
-                </div>
-            </div>`).join('');
-
-        const usage = appliance.usage === 'always'
-            ? '<p class="solar-appliance-always">Encendido las 24 horas</p>'
-            : `<label class="solar-appliance-field">
-                   <span>${appliance.usage === 'week' ? 'Horas a la semana' : 'Horas al día'}</span>
-                   <input type="number" class="solar-input" min="0" max="${appliance.usage === 'week' ? 168 : 24}" step="0.5"
-                       value="${shownHours(load)}" required data-hours>
-               </label>`;
-
-        return `
-            <span class="solar-appliance-load-icon" data-load-icon>${icon(iconOf(load))}</span>
-            <div class="solar-appliance-load-body">
-                <div class="solar-appliance-load-head">
-                    <strong>${escapeHtml(appliance.label)}</strong>
-                    <button type="button" class="solar-appliance-remove" data-remove aria-label="Quitar ${escapeHtml(appliance.label)}">Quitar</button>
-                </div>
-                ${appliance.hint ? `<p class="solar-appliance-hint">${escapeHtml(appliance.hint)}</p>` : ''}
-                ${groups}
-                <div class="solar-appliance-controls">
-                    <div class="solar-appliance-field">
-                        <span>Cantidad</span>
-                        <div class="solar-appliance-stepper">
-                            <button type="button" data-step-quantity="-1" aria-label="Uno menos">−</button>
-                            <input type="number" min="1" max="100" step="1" value="${load.quantity}" required data-quantity aria-label="Cantidad de ${escapeHtml(appliance.label)}">
-                            <button type="button" data-step-quantity="1" aria-label="Uno más">+</button>
-                        </div>
-                    </div>
-                    ${usage}
-                </div>
-            </div>
-            <div class="solar-appliance-load-kwh"><strong data-load-kwh>0</strong><span>kWh/mes</span></div>`;
-    };
-
-    const findLoad = (element) => {
-        const row = element.closest('[data-appliance-load]');
-        return row ? { row, load: loads.find((candidate) => candidate.id === Number(row.dataset.applianceLoad)) } : {};
-    };
-
-    const renderRow = (load, row = document.createElement('li')) => {
-        row.className = 'solar-appliance-load';
-        row.dataset.applianceLoad = String(load.id);
-        row.innerHTML = rowHtml(load);
-        return row;
-    };
-
-    const writeHiddenInputs = () => {
-        hiddenBox.innerHTML = modeInput.value !== 'appliances' ? '' : loads.map((load, index) => [
-            ['key', load.key],
-            ['variant', variantOf(load)],
-            ['quantity', load.quantity],
-            ['hours_per_day', Math.round(hoursPerDayOf(load) * 100) / 100],
-        ].map(([field, value]) => `<input type="hidden" name="appliances[${index}][${field}]" value="${escapeHtml(value)}">`).join('')).join('');
-    };
+    const areaInput = root.querySelector('[data-roof-area]');
+    const hint = root.querySelector('[data-roof-hint]');
+    const presets = Array.from(root.querySelectorAll('[data-roof-preset]'));
+    const number = (name) => Number(String(form.elements[name]?.value ?? '').replace(',', '.')) || 0;
 
     const refresh = () => {
-        loads.forEach((load) => {
-            const row = list.querySelector(`[data-appliance-load="${load.id}"]`);
-            row?.querySelector('[data-load-kwh]')?.replaceChildren(kwhFormatter.format(kwhOf(load)));
-        });
+        const area = number('available_area_m2');
+        presets.forEach((preset) => preset.setAttribute('aria-pressed', String(Number(preset.dataset.roofPreset) === area)));
 
-        const total = totalKwh();
-        totalOut.textContent = `${kwhFormatter.format(total)} kWh/mes`;
-        dailyOut.textContent = `≈ ${kwhFormatter.format(total / DAYS_PER_MONTH)} kWh al día`;
-        emptyState.hidden = loads.length > 0;
-
-        cards.forEach((card) => {
-            const count = loads.filter((load) => load.key === card.dataset.addAppliance).reduce((sum, load) => sum + load.quantity, 0);
-            const badge = card.querySelector('[data-appliance-count]');
-            badge.hidden = count === 0;
-            badge.textContent = count > 0 ? `×${count}` : '';
-            card.classList.toggle('is-selected', count > 0);
-        });
-
-        if (loads.length > 0 && total > 0) {
-            errorBox.hidden = true;
-        }
-
-        if (modeInput.value === 'appliances') {
-            monthlyInput.value = total > 0 ? total.toFixed(2) : '';
-            monthlyInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        writeHiddenInputs();
+        const panelArea = number('panel_area_m2');
+        const panels = panelArea > 0 ? Math.floor((area * number('usable_area_percentage') / 100) / panelArea) : 0;
+        hint.textContent = area > 0 && panels > 0
+            ? `Ahí caben unos ${panels} ${panels === 1 ? 'panel' : 'paneles'} (un panel ocupa unos ${String(panelArea).replace('.', ',')} m²).`
+            : '';
     };
 
-    const addLoad = (key, { variant = null, quantity = null, hoursPerDay = null } = {}) => {
-        const appliance = catalog[key];
-        const defaultHoursPerDay = appliance.usage === 'week' ? appliance.default_hours / 7 : appliance.default_hours;
-        const load = {
-            id: ++sequence,
-            key,
-            choices: variant ? choicesFromVariant(key, variant) : defaultChoices(key),
-            quantity: Math.max(1, Math.min(100, Number(quantity ?? appliance.default_quantity) || 1)),
-            hoursPerDay: hoursPerDay ?? defaultHoursPerDay,
-        };
-        loads.push(load);
-        list.append(renderRow(load));
-        return load;
-    };
-
-    // Catalog cards
-    cards.forEach((card) => card.addEventListener('click', () => {
-        const load = addLoad(card.dataset.addAppliance);
-        refresh();
-        const row = list.querySelector(`[data-appliance-load="${load.id}"]`);
-        row.classList.add('is-new');
-        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        window.setTimeout(() => row.classList.remove('is-new'), 1200);
+    presets.forEach((preset) => preset.addEventListener('click', () => {
+        areaInput.value = preset.dataset.roofPreset;
+        areaInput.dispatchEvent(new Event('input', { bubbles: true }));
     }));
-
-    // Row interactions (delegated)
-    list.addEventListener('click', (event) => {
-        const { row, load } = findLoad(event.target);
-        if (!load) {
-            return;
-        }
-
-        const chip = event.target.closest('[data-choice]');
-        if (chip) {
-            load.choices[Number(chip.dataset.group)] = chip.dataset.choice;
-            renderRow(load, row);
-            refresh();
-            row.querySelector(`[data-group="${chip.dataset.group}"][data-choice="${CSS.escape(chip.dataset.choice)}"]`)?.focus();
-            return;
-        }
-
-        const stepButton = event.target.closest('[data-step-quantity]');
-        if (stepButton) {
-            load.quantity = Math.max(1, Math.min(100, load.quantity + Number(stepButton.dataset.stepQuantity)));
-            row.querySelector('[data-quantity]').value = load.quantity;
-            refresh();
-            return;
-        }
-
-        if (event.target.closest('[data-remove]')) {
-            loads = loads.filter((candidate) => candidate !== load);
-            row.remove();
-            refresh();
-        }
-    });
-
-    list.addEventListener('input', (event) => {
-        const { load } = findLoad(event.target);
-        if (!load) {
-            return;
-        }
-
-        if (event.target.matches('[data-quantity]')) {
-            const quantity = Math.round(Number(event.target.value));
-            load.quantity = Number.isFinite(quantity) && quantity >= 1 ? Math.min(100, quantity) : 1;
-        }
-
-        if (event.target.matches('[data-hours]')) {
-            const hours = Number(String(event.target.value).replace(',', '.'));
-            const perDay = catalog[load.key].usage === 'week' ? hours / 7 : hours;
-            load.hoursPerDay = Number.isFinite(perDay) ? Math.max(0, Math.min(24, perDay)) : 0;
-        }
-
-        refresh();
-    });
-
-    // Home / business filter
-    const segmentButtons = Array.from(root.querySelectorAll('[data-appliance-segment]'));
-    const setSegment = (segment) => {
-        segmentButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.applianceSegment === segment)));
-        cards.forEach((card) => {
-            card.hidden = !card.dataset.segments.split(' ').includes(segment);
-        });
-    };
-    segmentButtons.forEach((button) => button.addEventListener('click', () => setSegment(button.dataset.applianceSegment)));
-
-    // Appliances vs. bill mode
-    const modeButtons = Array.from(root.querySelectorAll('[data-consumption-mode-btn]'));
-    const setMode = (mode) => {
-        modeInput.value = mode;
-        modeButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.consumptionModeBtn === mode)));
-        root.querySelectorAll('[data-consumption-panel]').forEach((panel) => {
-            panel.hidden = panel.dataset.consumptionPanel !== mode;
-        });
-        // In appliance mode the kWh field is filled from the list, so it is not validated as user input.
-        monthlyInput.readOnly = mode === 'appliances';
-        if (mode === 'appliances') {
-            errorBox.hidden = true;
-        }
-        refresh();
-    };
-    modeButtons.forEach((button) => button.addEventListener('click', () => setMode(button.dataset.consumptionModeBtn)));
-
-    // Wizard check: appliance mode needs at least one appliance with some consumption.
-    form.wizardValidators = form.wizardValidators ?? {};
-    form.wizardValidators.consumption = () => {
-        if (modeInput.value !== 'appliances' || (loads.length > 0 && totalKwh() > 0)) {
-            return null;
-        }
-
-        return () => {
-            errorBox.textContent = loads.length === 0
-                ? 'Agrega al menos un equipo para calcular tu consumo.'
-                : 'Tus equipos suman 0 kWh: revisa las horas de uso.';
-            errorBox.hidden = false;
-            errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        };
-    };
-
-    // Initial state (edit, or old input after a validation error)
-    initialLoads.forEach((row) => addLoad(row.key, { variant: row.variant, quantity: row.quantity, hoursPerDay: Number(row.hours_per_day) }));
-    const onlyBusiness = loads.some((load) => !catalog[load.key].segments.includes('home'));
-    setSegment(onlyBusiness ? 'business' : 'home');
-    setMode(modeInput.value === 'bill' ? 'bill' : 'appliances');
+    form.addEventListener('input', refresh);
+    refresh();
 })();
 </script>
-
 
 <script>
 (() => {
@@ -1265,276 +892,6 @@
 
 <script>
 (() => {
-    const form = document.querySelector('form[action="{{ $action }}"]');
-
-    if (!form) {
-        return;
-    }
-
-    const numberFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
-    const moneyFormatter = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-    const toNumber = (value) => {
-        const normalized = String(value ?? '').trim().replace(',', '.');
-        const number = Number(normalized);
-        return Number.isFinite(number) ? number : 0;
-    };
-
-    const investmentCostPerKwp = {{ $investmentCostPerKwpCop }};
-    const defaultDailyHsp = {{ $referenceDailyHsp }};
-    const ambientContextUrl = @json($ambientContextUrl);
-    let activeScale = 'monthly';
-    let ambientDailyHsp = defaultDailyHsp;
-    let ambientSourceLabel = 'Referencia local fija';
-
-    const fields = {
-        startDate: form.querySelector('[name="start_date"]'),
-        endDate: form.querySelector('[name="end_date"]'),
-        monthlyConsumption: form.querySelector('[name="monthly_consumption_kwh"]'),
-        energyRate: form.querySelector('[name="energy_rate_cop_kwh"]'),
-        availableArea: form.querySelector('[name="available_area_m2"]'),
-        usableAreaPct: form.querySelector('[name="usable_area_percentage"]'),
-        panelPower: form.querySelector('[name="panel_power_w"]'),
-        panelArea: form.querySelector('[name="panel_area_m2"]'),
-        systemLossesPct: form.querySelector('[name="system_losses_percentage"]'),
-        requiredPower: form.querySelector('[name="required_power_kw"]'),
-    };
-
-    const out = {
-        capacity: form.querySelector('[data-sim-capacity]'),
-        panels: form.querySelector('[data-sim-panels]'),
-        generation: form.querySelector('[data-sim-generation]'),
-        generationLabel: form.querySelector('[data-sim-generation-label]'),
-        generationAlt: form.querySelector('[data-sim-generation-alt]'),
-        coverage: form.querySelector('[data-sim-coverage]'),
-        balance: form.querySelector('[data-sim-balance]'),
-        investment: form.querySelector('[data-sim-investment]'),
-        savings: form.querySelector('[data-sim-savings]'),
-        savingsLabel: form.querySelector('[data-sim-savings-label]'),
-        savingsAlt: form.querySelector('[data-sim-savings-alt]'),
-        payback: form.querySelector('[data-sim-payback]'),
-        status: form.querySelector('[data-sim-status]'),
-        radiationContext: form.querySelector('[data-sim-radiation-context]'),
-        requiredPowerHint: form.querySelector('[data-required-power-hint]'),
-    };
-
-    const scaleButtons = Array.from(form.querySelectorAll('[data-sim-scale-btn]'));
-    let requiredPowerManuallyEdited = fields.requiredPower?.type !== 'hidden' && Boolean(fields.requiredPower?.value);
-
-    const sourceCopy = () => `${ambientSourceLabel}: ${numberFormatter.format(ambientDailyHsp)} HSP/dia. Sin degradacion anual ni costos O&M.`;
-
-    const syncRequiredPowerSuggestion = (monthlyConsumption, performanceRatio) => {
-        if (!fields.requiredPower || !monthlyConsumption || performanceRatio <= 0 || ambientDailyHsp <= 0) {
-            return;
-        }
-
-        if (fields.requiredPower.type !== 'hidden' && requiredPowerManuallyEdited && toNumber(fields.requiredPower.value) > 0) {
-            return;
-        }
-
-        const recommendedPowerKw = monthlyConsumption / (ambientDailyHsp * 30 * performanceRatio);
-
-        if (!Number.isFinite(recommendedPowerKw) || recommendedPowerKw <= 0) {
-            return;
-        }
-
-        fields.requiredPower.dataset.autoUpdating = 'true';
-        fields.requiredPower.value = recommendedPowerKw.toFixed(2);
-        fields.requiredPower.dispatchEvent(new Event('input', { bubbles: true }));
-        delete fields.requiredPower.dataset.autoUpdating;
-
-        if (out.requiredPowerHint) {
-            out.requiredPowerHint.textContent = `Sugerencia automatica: ${numberFormatter.format(recommendedPowerKw)} kW para cubrir aproximadamente el consumo mensual registrado. Puedes ajustarla si quieres simular otra meta.`;
-        }
-    };
-
-    const setDefaultState = () => {
-        out.capacity.textContent = '—';
-        out.panels.textContent = 'Paneles estimados: —';
-        out.generationLabel.textContent = activeScale === 'annual' ? 'Generacion anual estimada' : 'Generacion mensual estimada';
-        out.generation.textContent = '—';
-        out.generationAlt.textContent = activeScale === 'annual' ? 'Equivalente mensual: —' : 'Equivalente anual: —';
-        out.coverage.textContent = '—';
-        out.balance.textContent = activeScale === 'annual' ? 'Balance anual: —' : 'Balance mensual: —';
-        out.investment.textContent = '—';
-        out.savingsLabel.textContent = activeScale === 'annual' ? 'Ahorro anual estimado' : 'Ahorro mensual estimado';
-        out.savings.textContent = '—';
-        out.savingsAlt.textContent = activeScale === 'annual' ? 'Equivalente mensual: —' : 'Equivalente anual: —';
-        out.payback.textContent = '—';
-        out.status.textContent = 'Completa los datos para estimar el payback.';
-        if (out.radiationContext) {
-            out.radiationContext.textContent = sourceCopy();
-        }
-    };
-
-    const setScale = (scale) => {
-        activeScale = scale === 'annual' ? 'annual' : 'monthly';
-        scaleButtons.forEach((button) => {
-            const pressed = button.dataset.simScaleBtn === activeScale;
-            button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
-            button.classList.toggle('solar-button', pressed);
-            button.classList.toggle('solar-button-ghost', !pressed);
-        });
-        update();
-    };
-
-    const resolveSourceLabel = (source) => {
-        if (source === 'ambient_range') {
-            return 'Ambient Weather (rango del proyecto)';
-        }
-        if (source === 'ambient_recent_fallback') {
-            return 'Ambient Weather (historico reciente)';
-        }
-        return 'Referencia local fija';
-    };
-
-    const fetchAmbientContext = async () => {
-        const startDate = fields.startDate?.value;
-        const endDate = fields.endDate?.value || startDate;
-
-        if (!startDate || !endDate) {
-            ambientDailyHsp = defaultDailyHsp;
-            ambientSourceLabel = 'Referencia local fija';
-            update();
-            return;
-        }
-
-        try {
-            const url = new URL(ambientContextUrl, window.location.origin);
-            url.searchParams.set('start_date', startDate);
-            url.searchParams.set('end_date', endDate);
-
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const payload = await response.json();
-            const hsp = Number(payload?.avg_daily_hsp);
-            ambientDailyHsp = Number.isFinite(hsp) && hsp > 0 ? hsp : defaultDailyHsp;
-            ambientSourceLabel = resolveSourceLabel(payload?.source);
-        } catch (_error) {
-            ambientDailyHsp = defaultDailyHsp;
-            ambientSourceLabel = 'Referencia local fija';
-        }
-
-        update();
-    };
-
-    const update = () => {
-        const monthlyConsumption = toNumber(fields.monthlyConsumption?.value);
-        const annualConsumption = monthlyConsumption * 12;
-        const energyRate = toNumber(fields.energyRate?.value);
-        const availableArea = toNumber(fields.availableArea?.value);
-        const usableAreaPct = toNumber(fields.usableAreaPct?.value);
-        const panelPowerW = toNumber(fields.panelPower?.value);
-        const panelArea = toNumber(fields.panelArea?.value);
-        const systemLossesPct = toNumber(fields.systemLossesPct?.value);
-        const performanceRatio = systemLossesPct >= 0 && systemLossesPct <= 100
-            ? 1 - (systemLossesPct / 100)
-            : 0;
-
-        syncRequiredPowerSuggestion(monthlyConsumption, performanceRatio);
-
-        if (!monthlyConsumption || !energyRate || !availableArea || !usableAreaPct || !panelPowerW || !panelArea || systemLossesPct < 0 || systemLossesPct > 100) {
-            setDefaultState();
-            return;
-        }
-
-        const usableArea = availableArea * (usableAreaPct / 100);
-        const panels = panelArea > 0 ? Math.floor(usableArea / panelArea) : 0;
-        const capacityKwp = (panels * panelPowerW) / 1000;
-        const monthlyGeneration = capacityKwp * ambientDailyHsp * 30 * performanceRatio;
-        const annualGeneration = monthlyGeneration * 12;
-        const annualSavings = annualGeneration * energyRate;
-        const monthlySavings = annualSavings / 12;
-        const coverage = annualConsumption > 0 ? (annualGeneration / annualConsumption) * 100 : 0;
-        const annualBalance = annualGeneration - annualConsumption;
-        const monthlyBalance = monthlyGeneration - monthlyConsumption;
-        const investment = capacityKwp * investmentCostPerKwp;
-        const paybackYears = annualSavings > 0 ? (investment / annualSavings) : null;
-        const scopedGeneration = activeScale === 'annual' ? annualGeneration : monthlyGeneration;
-        const altGeneration = activeScale === 'annual' ? monthlyGeneration : annualGeneration;
-        const scopedSavings = activeScale === 'annual' ? annualSavings : monthlySavings;
-        const altSavings = activeScale === 'annual' ? monthlySavings : annualSavings;
-        const scopedBalance = activeScale === 'annual' ? annualBalance : monthlyBalance;
-
-        out.capacity.textContent = `${numberFormatter.format(capacityKwp)} kWp`;
-        out.panels.textContent = `Paneles estimados: ${numberFormatter.format(panels)}`;
-        out.generationLabel.textContent = activeScale === 'annual' ? 'Generacion anual estimada' : 'Generacion mensual estimada';
-        out.generation.textContent = `${numberFormatter.format(scopedGeneration)} kWh`;
-        out.generationAlt.textContent = activeScale === 'annual'
-            ? `Equivalente mensual: ${numberFormatter.format(altGeneration)} kWh`
-            : `Equivalente anual: ${numberFormatter.format(altGeneration)} kWh`;
-        out.coverage.textContent = `${numberFormatter.format(coverage)}%`;
-        out.balance.textContent = activeScale === 'annual'
-            ? `Balance anual: ${numberFormatter.format(scopedBalance)} kWh`
-            : `Balance mensual: ${numberFormatter.format(scopedBalance)} kWh`;
-        out.investment.textContent = moneyFormatter.format(investment);
-        out.savingsLabel.textContent = activeScale === 'annual' ? 'Ahorro anual estimado' : 'Ahorro mensual estimado';
-        out.savings.textContent = moneyFormatter.format(scopedSavings);
-        out.savingsAlt.textContent = activeScale === 'annual'
-            ? `Equivalente mensual: ${moneyFormatter.format(altSavings)}`
-            : `Equivalente anual: ${moneyFormatter.format(altSavings)}`;
-        if (out.radiationContext) {
-            out.radiationContext.textContent = sourceCopy();
-        }
-
-        if (paybackYears === null || !Number.isFinite(paybackYears) || paybackYears <= 0) {
-            out.payback.textContent = 'N/A';
-            out.status.textContent = 'Con estos datos no se puede estimar un retorno valido.';
-            return;
-        }
-
-        out.payback.textContent = `${numberFormatter.format(paybackYears)} anos`;
-        out.status.textContent = paybackYears <= 6
-            ? 'Retorno atractivo en el escenario actual.'
-            : (paybackYears <= 10 ? 'Retorno moderado; revisa eficiencia y costos.' : 'Retorno largo; conviene optimizar dimensionamiento o tarifa.');
-    };
-
-    Object.entries(fields).forEach(([name, field]) => {
-        if (name === 'requiredPower') {
-            return;
-        }
-
-        if (field) {
-            field.addEventListener('input', update);
-        }
-    });
-
-    if (fields.requiredPower) {
-        fields.requiredPower.addEventListener('input', () => {
-            if (fields.requiredPower.dataset.autoUpdating === 'true') {
-                return;
-            }
-
-            requiredPowerManuallyEdited = fields.requiredPower.type !== 'hidden' && toNumber(fields.requiredPower.value) > 0;
-        });
-    }
-
-    if (fields.startDate) {
-        fields.startDate.addEventListener('change', fetchAmbientContext);
-    }
-    if (fields.endDate) {
-        fields.endDate.addEventListener('change', fetchAmbientContext);
-    }
-    scaleButtons.forEach((button) => {
-        button.addEventListener('click', () => setScale(button.dataset.simScaleBtn));
-    });
-
-    setScale('monthly');
-    fetchAmbientContext();
-})();
-</script>
-
-<script>
-(() => {
     const root = document.querySelector('[data-location-quote]');
 
     if (!root) {
@@ -1545,11 +902,9 @@
     const geoJsonUrl = '/maps/la_guajira_municipios.geojson';
     const municipalitySelect = root.querySelector('[data-location-municipality]');
     const locationTypeSelect = root.querySelector('[data-location-type]');
-    const requiredPowerInput = root.querySelector('[data-required-power]');
     const latitudeInput = root.querySelector('[data-location-latitude]');
     const longitudeInput = root.querySelector('[data-location-longitude]');
     const moneyFormatter = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-    const numberFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
     const locationTypeLabels = @json($locationTypes);
     let municipalityLayer = null;
     let selectedLayer = null;
@@ -1559,28 +914,19 @@
         municipality: root.querySelector('[data-price-municipality]'),
         zone: root.querySelector('[data-price-zone]'),
         locationType: root.querySelector('[data-price-location-type]'),
-        base: root.querySelector('[data-price-base]'),
-        factor: root.querySelector('[data-price-factor]'),
         final: root.querySelector('[data-price-final]'),
-        power: root.querySelector('[data-price-power]'),
-        estimated: root.querySelector('[data-price-estimated]'),
         message: root.querySelector('[data-price-message]'),
     };
 
     const currentOption = () => municipalitySelect.options[municipalitySelect.selectedIndex] ?? null;
     const selectedMunicipalityName = () => currentOption()?.dataset.name ?? '';
     const selectedMunicipalityId = () => municipalitySelect.value;
-    const requiredPower = () => Number(String(requiredPowerInput.value || '').replace(',', '.'));
 
-    const resetPrice = (message = 'Selecciona municipio, tipo de ubicacion y potencia para calcular.') => {
+    const resetPrice = (message = 'Selecciona tu municipio para ver el precio de instalación de la zona.') => {
         out.municipality.textContent = selectedMunicipalityName() || '--';
         out.zone.textContent = currentOption()?.dataset.zone || '--';
         out.locationType.textContent = locationTypeLabels[locationTypeSelect.value] || '--';
-        out.base.textContent = '--';
-        out.factor.textContent = '--';
         out.final.textContent = '--';
-        out.power.textContent = requiredPower() > 0 ? `${numberFormatter.format(requiredPower())} kW` : '--';
-        out.estimated.textContent = '--';
         out.message.textContent = message;
     };
 
@@ -1597,8 +943,9 @@
         }
     };
 
+    // Price per installed kW of the municipality; the total comes once the appliances are known (ADR-0013).
     const updatePrice = async () => {
-        if (!selectedMunicipalityId() || !(requiredPower() > 0)) {
+        if (!selectedMunicipalityId()) {
             resetPrice();
             return;
         }
@@ -1606,7 +953,6 @@
         syncCoordinatesFromOption();
         const url = new URL(endpointTemplate.replace('__MUNICIPALITY__', selectedMunicipalityId()), window.location.origin);
         url.searchParams.set('location_type', locationTypeSelect.value);
-        url.searchParams.set('required_power_kw', requiredPower());
 
         try {
             const response = await fetch(url.toString(), {
@@ -1621,20 +967,16 @@
             out.municipality.textContent = payload.municipality_name;
             out.zone.textContent = payload.zone_name || currentOption()?.dataset.zone || '--';
             out.locationType.textContent = locationTypeLabels[payload.location_type] || payload.location_type;
-            out.base.textContent = moneyFormatter.format(payload.base_price_per_kw);
-            out.factor.textContent = Number(payload.logistic_factor).toFixed(2);
             out.final.textContent = moneyFormatter.format(payload.final_price_per_kw);
-            out.power.textContent = `${numberFormatter.format(requiredPower())} kW`;
-            out.estimated.textContent = moneyFormatter.format(payload.estimated_installation_cost);
-            out.message.textContent = payload.notes || 'Precio calculado con la matriz municipal vigente.';
+            out.message.textContent = 'El costo total lo calculamos cuando agregues tus equipos.';
         } catch (_error) {
-            resetPrice('No hay precio disponible para esa ubicacion.');
+            resetPrice('No hay precio disponible para esa ubicación.');
         }
     };
 
     const normalizeText = (value) => String(value || '')
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[̀-ͯ]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
         .toUpperCase();
@@ -1701,6 +1043,8 @@
         municipalitySelect.value = option.value;
         latitudeInput.value = option.dataset.latitude || latitudeInput.value;
         longitudeInput.value = option.dataset.longitude || longitudeInput.value;
+        // Tell the rest of the form (draft, suggested name) that the municipality changed.
+        municipalitySelect.dispatchEvent(new Event('input', { bubbles: true }));
         updatePrice();
     };
 
@@ -1767,6 +1111,37 @@
         }
     };
 
+    // Paints on the map the municipality chosen in the select (or clears the paint when there is none).
+    function highlightSelectedMunicipality() {
+        if (!municipalityLayer) {
+            return;
+        }
+
+        const selectedCode = currentOption()?.dataset.daneCode || '';
+        const selectedName = selectedMunicipalityId() ? normalizeText(selectedMunicipalityName()) : '';
+        let match = null;
+
+        municipalityLayer.eachLayer((layer) => {
+            if (match || !selectedName) {
+                return;
+            }
+
+            if (
+                normalizeText(municipalityNameFromFeature(layer.feature)) === selectedName
+                || (selectedCode && daneCodeFromFeature(layer.feature) === selectedCode)
+            ) {
+                match = layer;
+            }
+        });
+
+        if (match) {
+            highlightLayer(match);
+        } else if (selectedLayer) {
+            normalizeLayerStyle(selectedLayer);
+            selectedLayer = null;
+        }
+    }
+
     const loadLeaflet = () => new Promise((resolve, reject) => {
         if (window.L) {
             resolve(window.L);
@@ -1809,11 +1184,6 @@
             }
 
             const geoJson = await geoResponse.json();
-            const detectedNames = (geoJson.features || [])
-                .map((feature) => municipalityNameFromFeature(feature))
-                .filter(Boolean);
-
-            console.debug('Municipios detectados en GeoJSON de La Guajira:', detectedNames);
 
             municipalityLayer = L.geoJSON(geoJson, {
                 style: municipalityStyle,
@@ -1828,37 +1198,6 @@
         }
     };
 
-    // Paints on the map the municipality chosen in the select (or clears the paint when there is none).
-    function highlightSelectedMunicipality() {
-        if (!municipalityLayer) {
-            return;
-        }
-
-        const selectedCode = currentOption()?.dataset.daneCode || '';
-        const selectedName = selectedMunicipalityId() ? normalizeText(selectedMunicipalityName()) : '';
-        let match = null;
-
-        municipalityLayer.eachLayer((layer) => {
-            if (match || !selectedName) {
-                return;
-            }
-
-            if (
-                normalizeText(municipalityNameFromFeature(layer.feature)) === selectedName
-                || (selectedCode && daneCodeFromFeature(layer.feature) === selectedCode)
-            ) {
-                match = layer;
-            }
-        });
-
-        if (match) {
-            highlightLayer(match);
-        } else if (selectedLayer) {
-            normalizeLayerStyle(selectedLayer);
-            selectedLayer = null;
-        }
-    }
-
     municipalitySelect.addEventListener('change', () => {
         latitudeInput.value = '';
         longitudeInput.value = '';
@@ -1867,7 +1206,6 @@
         updatePrice();
     });
     locationTypeSelect.addEventListener('change', updatePrice);
-    requiredPowerInput.addEventListener('input', updatePrice);
 
     // Leaflet cannot measure a hidden container: redraw when the wizard shows this stage.
     root.closest('form')?.addEventListener('wizard:step-shown', (event) => {

@@ -22,6 +22,7 @@ class SolarProject extends Model
     protected $fillable = [
         'name',
         'description',
+        'property_type',
         'location_name',
         'start_date',
         'end_date',
@@ -146,9 +147,10 @@ class SolarProject extends Model
             $annualConsumption = $monthlyConsumption * 12;
         }
 
-        $this->monthly_consumption_kwh = $monthlyConsumption;
-        $this->daily_consumption_kwh = $dailyConsumption;
-        $this->annual_consumption_kwh = $annualConsumption;
+        // No consumption yet (a new project before its appliances): 0, never null (NOT NULL column).
+        $this->monthly_consumption_kwh = $monthlyConsumption ?? 0;
+        $this->daily_consumption_kwh = $dailyConsumption ?? 0;
+        $this->annual_consumption_kwh = $annualConsumption ?? 0;
     }
 
     public function monthlyConsumption(): float

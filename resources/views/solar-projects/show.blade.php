@@ -207,6 +207,16 @@
             <button type="submit" class="solar-button">{{ $calculationFreshness->status === \App\Domain\Solar\CalculationFreshness::PENDING ? 'Calcular ahora' : 'Recalcular ahora' }}</button>
         </form>
     </div>
+@elseif ($solarProject->monthlyConsumption() <= 0)
+    {{-- ADR-0013: the appliances are the base of the calculation. --}}
+    <div class="solar-recalc-banner solar-recalc-banner--start" role="status" data-test="needs-appliances">
+        <span class="solar-recalc-banner__icon" aria-hidden="true">+</span>
+        <div class="solar-recalc-banner__body">
+            <strong>Agrega tus equipos para ver tus resultados.</strong>
+            <ul><li>Recorre cada espacio y suma lo que usas: con eso calculamos cuántos paneles necesitas, cuánto cuestan y cuánto ahorras.</li></ul>
+        </div>
+        <a href="{{ route('solar-projects.consumption', $solarProject) }}" class="solar-button" wire:navigate>Agregar mis equipos</a>
+    </div>
 @endif
 <style>
 /* ── Design tokens & base ───────────────────────────────────── */

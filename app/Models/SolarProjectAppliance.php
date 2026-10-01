@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SolarProjectAppliance extends Model
 {
     protected $fillable = [
+        'space',
         'appliance_key',
         'variant_key',
         'quantity',

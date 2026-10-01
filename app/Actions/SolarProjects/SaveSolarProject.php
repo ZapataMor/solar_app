@@ -2,22 +2,23 @@
 
 namespace App\Actions\SolarProjects;
 
-use App\Domain\Consumption\ConsumptionMode;
 use App\Domain\Pricing\PriceNotAvailable;
 use App\Models\Municipality;
 use App\Models\SolarProject;
 use App\Models\User;
-use App\Services\SolarInstallationCostService;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Use case: create or update a project with its technical parameters and
- * the installation cost quoted for its municipality.
+ * Use case: create or update a project from the guided form (ADR-0013): kind of property,
+ * location, roof, tariff and name, with the installation quoted for its municipality.
+ *
+ * The consumption is not part of this form: it comes from the appliances of the consumption
+ * diary (SaveProjectAppliance), so a new project starts at 0 kWh and an edit keeps it.
  */
 final class SaveSolarProject
 {
     public function __construct(
-        private readonly SolarInstallationCostService $installationCost,
+        private readonly QuoteInstallation $quoteInstallation,
     ) {}
 
     /**
@@ -28,20 +29,22 @@ final class SaveSolarProject
     public function __invoke(User $owner, array $data, ?SolarProject $solarProject = null): SolarProject
     {
         $municipality = Municipality::query()->findOrFail($data['municipality_id']);
-        $cost = $this->installationCost->calculate(
+        $quote = ($this->quoteInstallation)(
             $municipality,
             (string) $data['location_type'],
-            (float) $data['required_power_kw'],
+            $solarProject?->monthlyConsumption() ?? 0.0,
+            (float) $data['system_losses_percentage'],
         );
 
-        return DB::transaction(function () use ($owner, $data, $solarProject, $municipality, $cost): SolarProject {
+        return DB::transaction(function () use ($owner, $data, $solarProject, $municipality, $quote): SolarProject {
             $attributes = [
                 ...$this->projectAttributes($data),
-                ...$this->locationAttributes($data, $municipality, $cost),
+                ...$this->locationAttributes($data, $municipality),
+                ...$quote,
             ];
 
             if ($solarProject === null) {
-                $solarProject = $owner->solarProjects()->create($attributes);
+                $solarProject = $owner->solarProjects()->create([...$attributes, 'monthly_consumption_kwh' => 0]);
             } else {
                 $solarProject->update($attributes);
             }
@@ -51,51 +54,8 @@ final class SaveSolarProject
                 $this->technicalParameterAttributes($data),
             );
 
-            $this->syncAppliances($solarProject, $data);
-
             return $solarProject;
         });
-    }
-
-    /**
-     * Appliance mode replaces the stored appliances; bill mode clears them. Without a mode
-     * (e.g. older clients) the appliances are left untouched.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    private function syncAppliances(SolarProject $solarProject, array $data): void
-    {
-        $mode = $data['consumption_mode'] ?? null;
-
-        if ($mode === null) {
-            return;
-        }
-
-        $wanted = $mode === ConsumptionMode::APPLIANCES
-            ? array_map(fn (array $row) => [
-                'appliance_key' => (string) $row['key'],
-                'variant_key' => (string) $row['variant'],
-                'quantity' => (int) $row['quantity'],
-                'hours_per_day' => round((float) $row['hours_per_day'], 2),
-            ], array_values($data['appliances'] ?? []))
-            : [];
-
-        // Untouched list: keep the rows, so saving without changes does not mark the calculation stale.
-        $current = $solarProject->appliances()->orderBy('id')->get()
-            ->map(fn ($appliance) => [
-                'appliance_key' => $appliance->appliance_key,
-                'variant_key' => $appliance->variant_key,
-                'quantity' => (int) $appliance->quantity,
-                'hours_per_day' => round((float) $appliance->hours_per_day, 2),
-            ])
-            ->all();
-
-        if ($current === $wanted) {
-            return;
-        }
-
-        $solarProject->appliances()->delete();
-        $solarProject->appliances()->createMany($wanted);
     }
 
     /**
@@ -104,22 +64,27 @@ final class SaveSolarProject
      */
     private function projectAttributes(array $data): array
     {
-        return [
+        $attributes = [
             'name' => $data['name'],
-            'description' => $data['description'] ?? null,
+            'property_type' => $data['property_type'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
-            'monthly_consumption_kwh' => $data['monthly_consumption_kwh'],
             'energy_rate_cop_kwh' => $data['energy_rate_cop_kwh'],
         ];
+
+        // The notes live in their own tab now: only touch them when they were sent.
+        if (array_key_exists('description', $data)) {
+            $attributes['description'] = $data['description'];
+        }
+
+        return $attributes;
     }
 
     /**
      * @param  array<string, mixed>  $data
-     * @param  array<string, mixed>  $cost
      * @return array<string, mixed>
      */
-    private function locationAttributes(array $data, Municipality $municipality, array $cost): array
+    private function locationAttributes(array $data, Municipality $municipality): array
     {
         return [
             'location_name' => "{$municipality->name}, La Guajira, Colombia",
@@ -127,11 +92,6 @@ final class SaveSolarProject
             'latitude' => $data['latitude'] ?? $municipality->latitude ?? SolarProject::LATITUDE,
             'longitude' => $data['longitude'] ?? $municipality->longitude ?? SolarProject::LONGITUDE,
             'location_type' => $data['location_type'],
-            'required_power_kw' => $data['required_power_kw'],
-            'base_price_per_kw' => $cost['base_price_per_kw'],
-            'logistic_factor_used' => $cost['logistic_factor_used'],
-            'final_price_per_kw_used' => $cost['final_price_per_kw_used'],
-            'estimated_installation_cost' => $cost['estimated_installation_cost'],
         ];
     }
 

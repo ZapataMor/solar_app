@@ -62,6 +62,8 @@
                             @csrf
                             <button type="submit" class="solar-button">Calcular ahora</button>
                         </form>
+                    @elseif ($item->key === 'no-appliances')
+                        <a href="{{ route('solar-projects.consumption', $solarProject) }}" class="solar-button" wire:navigate>Agregar mis equipos</a>
                     @endif
                 </section>
             @endforeach

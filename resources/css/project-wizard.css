@@ -19,7 +19,8 @@
 
     .solar-wizard-steps {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-auto-columns: minmax(0, 1fr); /* one equal column per stage, whatever their number */
+        grid-auto-flow: column;
         gap: 0.5rem;
         margin: 0;
         padding: 0;

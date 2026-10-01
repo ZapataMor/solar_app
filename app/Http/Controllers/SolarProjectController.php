@@ -11,6 +11,7 @@ use App\Domain\Climate\ClimateSeries;
 use App\Domain\Climate\ClimateSource;
 use App\Domain\Climate\NoClimateData;
 use App\Domain\Pricing\PriceNotAvailable;
+use App\Domain\Solar\MissingConsumption;
 use App\Domain\Solar\MissingTechnicalParameters;
 use App\Http\Requests\SolarProjectRequest;
 use App\Models\AmbientWeatherReading;
@@ -25,10 +26,8 @@ use App\Services\AiForecastPredictionService;
 use App\Services\ProjectDashboardService;
 use App\Services\SolarProjectAiHistoryService;
 use App\Services\SolarInstallationCostService;
-use App\Services\AmbientWeatherAggregationService;
 use App\Services\WeatherStationAggregationService;
 use App\Services\WeatherStationImportService;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -162,9 +161,10 @@ class SolarProjectController extends Controller
             return back()->withInput()->withErrors(['municipality_id' => $exception->getMessage()]);
         }
 
+        // ADR-0013: the appliances are added next, space by space, in the consumption diary.
         return redirect()
-            ->route('solar-projects.show', $solarProject)
-            ->with('status', 'Proyecto solar creado correctamente.');
+            ->route('solar-projects.consumption', $solarProject)
+            ->with('status', 'Proyecto creado. Ahora agrega los equipos de cada espacio para calcular tu sistema.');
     }
 
     public function show(
@@ -230,48 +230,12 @@ class SolarProjectController extends Controller
     {
         $this->authorizeOwner($request, $solarProject);
 
-        $solarProject->load(['technicalParameter', 'appliances']);
+        $solarProject->load(['technicalParameter', 'municipality']);
 
         return view('solar-projects.edit', [
             'solarProject' => $solarProject,
             'municipalities' => $this->municipalityOptions(),
             'portfolioUrl' => $this->portfolioUrl($request),
-        ]);
-    }
-
-    public function ambientSimulatorContext(
-        Request $request,
-        AmbientWeatherAggregationService $ambientWeatherAggregationService,
-    ): JsonResponse {
-        $validated = $request->validate([
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-        ]);
-
-        $start = Carbon::parse((string) $validated['start_date'])->startOfDay();
-        $end = Carbon::parse((string) $validated['end_date'])->endOfDay();
-
-        $dailyRows = $ambientWeatherAggregationService->dailyRowsForRange($start, $end);
-
-        if ($dailyRows->isNotEmpty()) {
-            $avgDailyHsp = (float) $dailyRows->avg(fn (array $row) => (((float) $row['allsky_sfc_sw_dwn']) * 24) / 1000);
-
-            return response()->json([
-                'source' => 'ambient_range',
-                'avg_daily_hsp' => round($avgDailyHsp, 4),
-                'days' => $dailyRows->count(),
-            ]);
-        }
-
-        $fallbackRows = $ambientWeatherAggregationService->dailyRowsForLatest(3000);
-        $fallbackDailyHsp = $fallbackRows->isNotEmpty()
-            ? (float) $fallbackRows->avg(fn (array $row) => (((float) $row['allsky_sfc_sw_dwn']) * 24) / 1000)
-            : null;
-
-        return response()->json([
-            'source' => $fallbackDailyHsp !== null ? 'ambient_recent_fallback' : 'default_fallback',
-            'avg_daily_hsp' => $fallbackDailyHsp !== null ? round($fallbackDailyHsp, 4) : null,
-            'days' => $fallbackRows->count(),
         ]);
     }
 
@@ -614,7 +578,7 @@ class SolarProjectController extends Controller
 
         try {
             $series = $calculateSolarProject($solarProject, $source);
-        } catch (MissingTechnicalParameters $exception) {
+        } catch (MissingTechnicalParameters|MissingConsumption $exception) {
             return back()->withErrors(['solar_calculation' => $exception->getMessage()]);
         } catch (NoClimateData) {
             return back()->withErrors(['solar_calculation' => $messages['no_data']]);
@@ -626,7 +590,11 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        return back()->with('status', $messages['success'] ?? $this->autoCalculationMessage($series));
+        $redirect = $request->input('then') === 'panel'
+            ? redirect()->route('solar-projects.show', $solarProject) // From the consumption diary: go see the results.
+            : back();
+
+        return $redirect->with('status', $messages['success'] ?? $this->autoCalculationMessage($series));
     }
 
     private function autoCalculationMessage(ClimateSeries $series): string
@@ -643,10 +611,7 @@ class SolarProjectController extends Controller
 
     private function authorizeOwner(Request $request, SolarProject $solarProject): void
     {
-        abort_unless(
-            $request->user()->isAdmin() || $solarProject->user_id === $request->user()->id,
-            403
-        );
+        abort_unless($request->user()->can('manage', $solarProject), 403);
     }
 
     private function attachWeatherCounts(SolarProject $solarProject): void

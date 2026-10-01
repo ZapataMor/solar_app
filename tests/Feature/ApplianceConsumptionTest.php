@@ -2,144 +2,285 @@
 
 namespace Tests\Feature;
 
+use App\Actions\SolarProjects\CheckCalculationFreshness;
 use App\Models\Municipality;
 use App\Models\SolarProject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Consumption diary (ADR-0013): appliances added by space after creating the project.
+ */
 class ApplianceConsumptionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_project_created_with_appliances_stores_them_and_computes_consumption_on_the_server(): void
+    public function test_adding_appliances_computes_the_consumption_on_the_server(): void
     {
-        $user = User::factory()->create();
+        [$user, $solarProject] = $this->project();
 
         $this->actingAs($user)
-            ->post(route('solar-projects.store'), $this->payload([
-                'consumption_mode' => 'appliances',
-                // A tampered value: the server must ignore it and use the catalog.
-                'monthly_consumption_kwh' => 99999,
-                'appliances' => [
-                    ['key' => 'fridge', 'variant' => 'medium.conventional', 'quantity' => 1, 'hours_per_day' => 24], // 43.2
-                    ['key' => 'air_conditioner', 'variant' => '12000.inverter', 'quantity' => 1, 'hours_per_day' => 8], // 192
-                    ['key' => 'lighting', 'variant' => 'led', 'quantity' => 6, 'hours_per_day' => 6], // 9.72
-                ],
-            ]))
+            ->post(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'kitchen',
+                'key' => 'fridge',
+                'variant' => 'medium.conventional',
+                'quantity' => 1,
+                'hours_per_day' => 3, // Always-on: the server runs it 24 h whatever was sent.
+                'monthly_consumption_kwh' => 99999, // A tampered value: ignored.
+            ])
             ->assertSessionHasNoErrors()
-            ->assertRedirect();
+            ->assertRedirect(route('solar-projects.consumption', $solarProject).'#espacio-kitchen')
+            ->assertSessionHas('status', 'Se agregó Nevera a Cocina.');
 
-        $solarProject = SolarProject::query()->firstOrFail();
+        $this->actingAs($user)->post(route('solar-projects.appliances.store', $solarProject), [
+            'space' => 'bedrooms', 'key' => 'air_conditioner', 'variant' => '12000.inverter', 'quantity' => 1, 'hours_per_day' => 8,
+        ]);
 
-        $this->assertEqualsWithDelta(244.92, (float) $solarProject->monthly_consumption_kwh, 0.01);
-        $this->assertSame(3, $solarProject->appliances()->count());
+        $solarProject->refresh();
+        // Fridge 60 W × 24 h × 30 = 43.2 kWh; AC 800 W × 8 h × 30 = 192 kWh.
+        $this->assertEqualsWithDelta(235.2, (float) $solarProject->monthly_consumption_kwh, 0.01);
+        $this->assertEqualsWithDelta(235.2 * 12, (float) $solarProject->annual_consumption_kwh, 0.01);
         $this->assertDatabaseHas('solar_project_appliances', [
             'solar_project_id' => $solarProject->id,
-            'appliance_key' => 'air_conditioner',
-            'variant_key' => '12000.inverter',
-            'quantity' => 1,
+            'space' => 'kitchen',
+            'appliance_key' => 'fridge',
+            'hours_per_day' => 24,
         ]);
     }
 
-    public function test_appliance_mode_requires_at_least_one_appliance(): void
+    public function test_changing_an_appliance_updates_the_consumption_and_can_move_it_to_another_space(): void
     {
-        $this->actingAs(User::factory()->create())
-            ->post(route('solar-projects.store'), $this->payload(['consumption_mode' => 'appliances']))
-            ->assertSessionHasErrors('appliances');
-
-        $this->assertDatabaseCount('solar_projects', 0);
-    }
-
-    public function test_unknown_variants_are_rejected(): void
-    {
-        $this->actingAs(User::factory()->create())
-            ->post(route('solar-projects.store'), $this->payload([
-                'consumption_mode' => 'appliances',
-                'appliances' => [['key' => 'fridge', 'variant' => 'gigante.conventional', 'quantity' => 1, 'hours_per_day' => 24]],
-            ]))
-            ->assertSessionHasErrors('appliances.0.variant');
-    }
-
-    public function test_bill_mode_keeps_the_typed_consumption_and_clears_appliances_on_update(): void
-    {
-        $user = User::factory()->create();
-        $this->actingAs($user)->post(route('solar-projects.store'), $this->payload([
-            'consumption_mode' => 'appliances',
-            'appliances' => [['key' => 'fan', 'variant' => 'stand', 'quantity' => 2, 'hours_per_day' => 8]],
-        ]));
-        $solarProject = SolarProject::query()->firstOrFail();
-        $this->assertSame(1, $solarProject->appliances()->count());
+        [$user, $solarProject] = $this->project();
+        $appliance = $solarProject->appliances()->create(['space' => 'living', 'appliance_key' => 'fan', 'variant_key' => 'stand', 'quantity' => 1, 'hours_per_day' => 8]);
 
         $this->actingAs($user)
-            ->put(route('solar-projects.update', $solarProject), $this->payload([
-                'consumption_mode' => 'bill',
-                'monthly_consumption_kwh' => 410,
-                'end_date' => '2026-01-01',
-            ]))
-            ->assertSessionHasNoErrors();
+            ->put(route('solar-projects.appliances.update', [$solarProject, $appliance]), [
+                'space' => 'bedrooms', 'key' => 'fan', 'variant' => 'ceiling', 'quantity' => 2, 'hours_per_day' => 10,
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('solar-projects.consumption', $solarProject).'#espacio-bedrooms');
+
+        $this->assertDatabaseHas('solar_project_appliances', ['id' => $appliance->id, 'space' => 'bedrooms', 'variant_key' => 'ceiling', 'quantity' => 2]);
+        // 2 × 65 W × 10 h × 30 = 39 kWh.
+        $this->assertEqualsWithDelta(39, (float) $solarProject->fresh()->monthly_consumption_kwh, 0.01);
+    }
+
+    public function test_removing_the_last_appliance_leaves_the_project_without_consumption(): void
+    {
+        [$user, $solarProject] = $this->project();
+        $this->actingAs($user)->post(route('solar-projects.appliances.store', $solarProject), [
+            'space' => 'kitchen', 'key' => 'fridge', 'variant' => 'small.inverter', 'quantity' => 1, 'hours_per_day' => 24,
+        ]);
+        $appliance = $solarProject->appliances()->firstOrFail();
+
+        $this->actingAs($user)
+            ->delete(route('solar-projects.appliances.destroy', [$solarProject, $appliance]))
+            ->assertRedirect(route('solar-projects.consumption', $solarProject).'#espacio-kitchen');
 
         $solarProject->refresh();
-        $this->assertSame('410.00', $solarProject->monthly_consumption_kwh);
+        $this->assertSame(0, $solarProject->appliances()->count());
+        // The annual value must not bring the old consumption back.
+        $this->assertEquals(0, $solarProject->monthly_consumption_kwh);
+        $this->assertEquals(0, $solarProject->annual_consumption_kwh);
+        $this->assertNull($solarProject->required_power_kw);
+    }
+
+    public function test_diary_changes_mark_the_calculation_to_be_redone(): void
+    {
+        [$user, $solarProject] = $this->project();
+        $checkFreshness = app(CheckCalculationFreshness::class);
+
+        // No appliances: nothing to calculate yet, and it says why.
+        $freshness = $checkFreshness($solarProject->fresh());
+        $this->assertSame('not_ready', $freshness->status);
+        $this->assertSame(['Agrega tus equipos en la pestaña Consumo para calcular.'], $freshness->reasons);
+
+        // A project calculated an hour ago…
+        $solarProject->update(['monthly_consumption_kwh' => 100]);
+        $solarProject->calculationResult()->create(['coverage_percentage' => 80, 'climate_source' => 'nasa_power']);
+        SolarProject::query()->whereKey($solarProject->id)->update(['updated_at' => now()->subHours(2)]);
+        $solarProject->technicalParameter()->update(['updated_at' => now()->subHours(2)]);
+        $solarProject->calculationResult()->update(['updated_at' => now()->subHour()]);
+        $this->assertFalse($checkFreshness($solarProject->fresh())->needsRecalculation());
+
+        // …gets the "!" as soon as its diary changes.
+        $this->actingAs($user)->post(route('solar-projects.appliances.store', $solarProject), [
+            'space' => 'living', 'key' => 'tv', 'variant' => '43', 'quantity' => 1, 'hours_per_day' => 5,
+        ]);
+
+        $this->assertSame('stale', $checkFreshness($solarProject->fresh())->status);
+    }
+
+    public function test_appliances_and_spaces_must_exist(): void
+    {
+        [$user, $solarProject] = $this->project();
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'kitchen', 'key' => 'fridge', 'variant' => 'gigante.conventional', 'quantity' => 1, 'hours_per_day' => 24,
+            ])
+            ->assertSessionHasErrors(['variant' => 'Elige una opción válida para ese equipo.']);
+
+        // "Aulas" is a space of an institution, not of a house.
+        $this->actingAs($user)
+            ->post(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'classrooms', 'key' => 'fan', 'variant' => 'stand', 'quantity' => 1, 'hours_per_day' => 8,
+            ])
+            ->assertSessionHasErrors(['space' => 'Ese espacio no existe en este proyecto.']);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'living', 'key' => 'fan', 'variant' => 'stand', 'quantity' => 0, 'hours_per_day' => 30,
+            ])
+            ->assertSessionHasErrors(['quantity', 'hours_per_day']);
+
         $this->assertSame(0, $solarProject->appliances()->count());
     }
 
-    public function test_edit_form_reopens_the_stored_appliances(): void
+    public function test_a_rejected_sheet_opens_again_with_what_was_sent(): void
     {
-        $user = User::factory()->create();
-        $this->actingAs($user)->post(route('solar-projects.store'), $this->payload([
-            'consumption_mode' => 'appliances',
-            'appliances' => [['key' => 'beverage_cooler', 'variant' => 'two_doors', 'quantity' => 2, 'hours_per_day' => 24]],
-        ]));
-        $solarProject = SolarProject::query()->firstOrFail();
+        [$user, $solarProject] = $this->project();
 
-        $this->actingAs($user)
-            ->get(route('solar-projects.edit', $solarProject))
+        $response = $this->actingAs($user)
+            ->from(route('solar-projects.consumption', $solarProject))
+            ->followingRedirects()
+            ->post(route('solar-projects.appliances.store', $solarProject), [
+                'space' => 'living', 'key' => 'tv', 'variant' => '99', 'quantity' => 2, 'hours_per_day' => 5,
+            ])
             ->assertOk()
-            ->assertSee('name="consumption_mode" value="appliances"', false)
-            ->assertSee('"key":"beverage_cooler","variant":"two_doors","quantity":2', false)
-            ->assertSee('href="#appliance-cooler"', false);
+            ->assertSee('Elige una opción válida para ese equipo.');
+
+        $this->assertMatchesRegularExpression('/data-diary-reopen>\{"id":null,"space":"living","key":"tv","variant":"99","quantity":2/', $response->getContent());
     }
 
-    public function test_create_form_offers_the_visual_catalog(): void
+    public function test_only_the_owner_or_an_admin_can_change_the_diary(): void
     {
-        $this->actingAs(User::factory()->create())
-            ->get(route('solar-projects.create'))
+        [$owner, $solarProject] = $this->project();
+        $appliance = $solarProject->appliances()->create(['space' => 'living', 'appliance_key' => 'tv', 'variant_key' => '43', 'quantity' => 1, 'hours_per_day' => 5]);
+        $stranger = User::factory()->create();
+        $payload = ['space' => 'living', 'key' => 'tv', 'variant' => '55', 'quantity' => 1, 'hours_per_day' => 5];
+
+        $this->actingAs($stranger)->get(route('solar-projects.consumption', $solarProject))->assertForbidden();
+        $this->actingAs($stranger)->post(route('solar-projects.appliances.store', $solarProject), $payload)->assertForbidden();
+        $this->actingAs($stranger)->put(route('solar-projects.appliances.update', [$solarProject, $appliance]), $payload)->assertForbidden();
+        $this->actingAs($stranger)->delete(route('solar-projects.appliances.destroy', [$solarProject, $appliance]))->assertForbidden();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->put(route('solar-projects.appliances.update', [$solarProject, $appliance]), $payload)
+            ->assertSessionHasNoErrors();
+        $this->assertSame('55', $appliance->fresh()->variant_key);
+    }
+
+    public function test_an_appliance_of_another_project_is_not_found(): void
+    {
+        [$user, $solarProject] = $this->project();
+        [, $otherProject] = $this->project();
+        $foreign = $otherProject->appliances()->create(['space' => 'living', 'appliance_key' => 'tv', 'variant_key' => '43', 'quantity' => 1, 'hours_per_day' => 5]);
+
+        $this->actingAs($user)
+            ->delete(route('solar-projects.appliances.destroy', [$solarProject, $foreign]))
+            ->assertNotFound();
+        $this->assertDatabaseHas('solar_project_appliances', ['id' => $foreign->id]);
+    }
+
+    public function test_the_diary_groups_appliances_by_the_spaces_of_the_property(): void
+    {
+        [$user, $solarProject] = $this->project(['property_type' => 'business']);
+        $solarProject->appliances()->createMany([
+            ['space' => 'sales', 'appliance_key' => 'beverage_cooler', 'variant_key' => 'two_doors', 'quantity' => 1, 'hours_per_day' => 24],
+            ['space' => 'office', 'appliance_key' => 'computer', 'variant_key' => 'desktop', 'quantity' => 2, 'hours_per_day' => 10],
+            // A space of another kind of property ends up in "Otros".
+            ['space' => 'bedrooms', 'appliance_key' => 'fan', 'variant_key' => 'stand', 'quantity' => 1, 'hours_per_day' => 8],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('solar-projects.consumption', $solarProject))
             ->assertOk()
-            ->assertSee('Con mis equipos')
-            ->assertSee('data-add-appliance="air_conditioner"', false)
-            ->assertSee('data-add-appliance="fridge"', false)
-            ->assertSee('id="appliance-air-conditioner"', false)
-            ->assertSee('name="consumption_mode" value="appliances"', false);
+            ->assertSee('Consumo de tu negocio')
+            ->assertSeeInOrder(['Área de atención', 'Enfriador de bebidas', '2 puertas', 'Oficina', 'Computador', 'De escritorio · 2 × 10 horas al día', 'Bodega y cocina', 'Sin equipos todavía.', 'Otros', 'Abanico'])
+            // 187.2 + 120 + 13.2 = 320.4 kWh; the cooler is the biggest (58 %).
+            ->assertSee('320 kWh al mes')
+            ->assertSee('Lo que más consume: <strong>Enfriador de bebidas</strong>', false)
+            ->assertSee('conic-gradient(', false)
+            ->assertSee('data-diary-add="storage"', false);
+
+        $this->assertStringNotContainsString('id="espacio-kitchen"', $response->getContent());
+    }
+
+    public function test_an_empty_diary_invites_to_add_appliances_and_a_bill_based_project_is_explained(): void
+    {
+        [$user, $solarProject] = $this->project();
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.consumption', $solarProject))
+            ->assertOk()
+            ->assertSee('Recorre tu casa y agrega tus equipos')
+            ->assertSeeInOrder(['Cocina', 'Sala y comedor', 'Habitaciones', 'Lavandería y patio', 'Otros'])
+            ->assertDontSee('data-test="diary-calculate"', false);
+
+        $solarProject->update(['monthly_consumption_kwh' => 850]);
+
+        // Older projects based on the bill keep that consumption until their first appliance.
+        $this->actingAs($user)
+            ->get(route('solar-projects.consumption', $solarProject))
+            ->assertSee('tomado del recibo')
+            ->assertSee('850 kWh al mes');
+    }
+
+    public function test_editing_the_project_data_keeps_its_appliances(): void
+    {
+        [$user, $solarProject] = $this->project();
+        $solarProject->appliances()->create(['space' => 'kitchen', 'appliance_key' => 'fridge', 'variant_key' => 'medium.conventional', 'quantity' => 1, 'hours_per_day' => 24]);
+        $municipality = Municipality::query()->create(['name' => 'Riohacha', 'department' => 'La Guajira', 'zone' => 'Base urbana', 'active' => true]);
+        $municipality->solarPrices()->create(['zone_name' => 'Base urbana', 'location_type' => 'urbana', 'base_price_per_kw' => 4000000, 'logistic_factor' => 1, 'active' => true]);
+
+        $this->actingAs($user)
+            ->put(route('solar-projects.update', $solarProject), [
+                'property_type' => 'house',
+                'name' => 'Casa renombrada',
+                'start_date' => '2026-01-01',
+                'end_date' => '2026-01-31',
+                'energy_rate_cop_kwh' => 900,
+                'available_area_m2' => 30,
+                'usable_area_percentage' => 80,
+                'panel_power_w' => 550,
+                'panel_area_m2' => 2.6,
+                'system_losses_percentage' => 14,
+                'municipality_id' => $municipality->id,
+                'location_type' => 'urbana',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $solarProject->appliances()->count());
     }
 
     /**
      * @param  array<string, mixed>  $overrides
-     * @return array<string, mixed>
+     * @return array{0: User, 1: SolarProject}
      */
-    private function payload(array $overrides = []): array
+    private function project(array $overrides = []): array
     {
-        $municipality = Municipality::query()->firstOrCreate(
-            ['name' => 'Riohacha'],
-            ['department' => 'La Guajira', 'zone' => 'Base urbana', 'active' => true],
-        );
-        $municipality->solarPrices()->firstOrCreate(
-            ['location_type' => 'urbana'],
-            ['zone_name' => 'Base urbana', 'base_price_per_kw' => 4000000, 'logistic_factor' => 1, 'active' => true],
-        );
-
-        return [
-            'name' => 'Casa familiar',
+        $user = User::factory()->create();
+        $solarProject = $user->solarProjects()->create([
+            'name' => 'Mi casa',
+            'property_type' => 'house',
+            'location_name' => SolarProject::LOCATION_NAME,
             'start_date' => '2026-01-01',
+            'end_date' => '2026-01-31',
+            'monthly_consumption_kwh' => 0,
             'energy_rate_cop_kwh' => 900,
+            ...$overrides,
+        ]);
+        $solarProject->technicalParameter()->create([
             'available_area_m2' => 40,
             'usable_area_percentage' => 80,
             'panel_power_w' => 550,
             'panel_area_m2' => 2.6,
+            'performance_ratio' => 0.86,
             'system_losses_percentage' => 14,
-            'municipality_id' => $municipality->id,
-            'location_type' => 'urbana',
-            ...$overrides,
-        ];
+        ]);
+
+        return [$user, $solarProject];
     }
 }

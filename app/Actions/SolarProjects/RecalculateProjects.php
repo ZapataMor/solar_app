@@ -3,6 +3,7 @@
 namespace App\Actions\SolarProjects;
 
 use App\Domain\Climate\NoClimateData;
+use App\Domain\Solar\MissingConsumption;
 use App\Domain\Solar\MissingTechnicalParameters;
 use App\Models\SolarProject;
 use Throwable;
@@ -35,7 +36,7 @@ final class RecalculateProjects
             try {
                 ($this->calculateSolarProject)($solarProject);
                 $summary['recalculated']++;
-            } catch (MissingTechnicalParameters|NoClimateData) {
+            } catch (MissingTechnicalParameters|MissingConsumption|NoClimateData) {
                 $summary['failed']++;
             } catch (Throwable $exception) {
                 report($exception);

@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\ApiDataController;
+use App\Http\Controllers\SolarProjectConsumptionController;
 use App\Http\Controllers\SolarProjectController;
+use App\Http\Controllers\SolarProjectNotesController;
 use App\Models\Municipality;
 use Illuminate\Support\Facades\Route;
 
@@ -14,8 +16,6 @@ Route::get('/', fn () => auth()->check()
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('solar-projects', [SolarProjectController::class, 'index'])->name('solar-projects.index');
     Route::get('solar-projects/create', [SolarProjectController::class, 'create'])->name('solar-projects.create');
-    Route::get('solar-projects/simulator/ambient-context', [SolarProjectController::class, 'ambientSimulatorContext'])
-        ->name('solar-projects.simulator.ambient-context');
     Route::get('municipalities/{municipality}/solar-price', [SolarProjectController::class, 'solarPrice'])
         ->name('municipalities.solar-price');
     Route::post('solar-projects', [SolarProjectController::class, 'store'])->name('solar-projects.store');
@@ -33,6 +33,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('solar-projects/{solarProject}', [SolarProjectController::class, 'destroy'])->name('solar-projects.destroy');
     Route::post('solar-projects/{solarProject}/calculate', [SolarProjectController::class, 'calculate'])
         ->name('solar-projects.calculate');
+
+    // Consumption diary (ADR-0013): appliances by space, added after creating the project.
+    Route::get('solar-projects/{solarProject}/consumption', [SolarProjectConsumptionController::class, 'show'])
+        ->name('solar-projects.consumption');
+    Route::post('solar-projects/{solarProject}/appliances', [SolarProjectConsumptionController::class, 'store'])
+        ->name('solar-projects.appliances.store');
+    Route::put('solar-projects/{solarProject}/appliances/{appliance}', [SolarProjectConsumptionController::class, 'update'])
+        ->scopeBindings()
+        ->name('solar-projects.appliances.update');
+    Route::delete('solar-projects/{solarProject}/appliances/{appliance}', [SolarProjectConsumptionController::class, 'destroy'])
+        ->scopeBindings()
+        ->name('solar-projects.appliances.destroy');
+    Route::get('solar-projects/{solarProject}/notes', [SolarProjectNotesController::class, 'edit'])->name('solar-projects.notes');
+    Route::put('solar-projects/{solarProject}/notes', [SolarProjectNotesController::class, 'update'])->name('solar-projects.notes.update');
     Route::post('solar-projects/{solarProject}/calculate-weather-station', [SolarProjectController::class, 'calculateWithWeatherStation'])
         ->name('solar-projects.calculate-weather-station');
     Route::post('solar-projects/{solarProject}/calculate-nasa', [SolarProjectController::class, 'calculateWithNasaPower'])

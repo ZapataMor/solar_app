@@ -12,20 +12,33 @@ class SolarProjectFormTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_create_form_is_split_into_five_stages(): void
+    public function test_create_form_asks_four_guided_questions_starting_with_the_kind_of_place(): void
     {
-        $this->actingAs(User::factory()->create())
+        $response = $this->actingAs(User::factory()->create())
             ->get(route('solar-projects.create'))
             ->assertOk()
             ->assertSee('data-project-wizard', false)
-            ->assertSeeInOrder(['Tu proyecto', 'Ubicación', 'Consumo', 'Espacio disponible', 'Resumen'])
-            ->assertSee('data-wizard-step="project"', false)
-            ->assertSee('data-wizard-step="location"', false)
-            ->assertSee('data-wizard-step="consumption"', false)
-            ->assertSee('data-wizard-step="space"', false)
-            ->assertSee('data-wizard-step="summary"', false)
+            ->assertSeeInOrder(['Tu lugar', 'Ubicación', 'Techo', 'Tu proyecto'])
+            ->assertSeeInOrder([
+                'data-wizard-step="property"',
+                'data-wizard-step="location"',
+                'data-wizard-step="roof"',
+                'data-wizard-step="details"',
+            ], false)
+            ->assertSee('¿Para qué lugar quieres energía solar?')
+            ->assertSeeInOrder(['Mi casa', 'Mi negocio', 'Institución o finca'])
             ->assertSee('data-wizard-initial="0"', false)
             ->assertSee('data-wizard-furthest="0"', false);
+
+        foreach (['house', 'business', 'institution'] as $type) {
+            $this->assertMatchesRegularExpression('/type="radio"\s+name="property_type"\s+value="'.$type.'"/', $response->getContent());
+        }
+
+        // The appliances are added later in the diary, and the notes have their own tab (ADR-0013).
+        $this->assertDoesNotMatchRegularExpression('/name="(description|monthly_consumption_kwh|consumption_mode|appliances[^"]*)"/', $response->getContent());
+        $this->assertDoesNotMatchRegularExpression('/data-wizard-step="(consumption|summary)"/', $response->getContent());
+        // The name comes last: its field is inside the last stage.
+        $this->assertMatchesRegularExpression('/data-wizard-step="details".*name="name"/s', $response->getContent());
     }
 
     public function test_only_a_new_project_keeps_a_per_user_draft(): void
@@ -74,7 +87,8 @@ class SolarProjectFormTest extends TestCase
     {
         $user = User::factory()->create();
         $solarProject = $user->solarProjects()->create([
-            'name' => 'Casa en Uribia',
+            'name' => 'Escuela en Uribia',
+            'property_type' => 'institution',
             'location_name' => SolarProject::LOCATION_NAME,
             'start_date' => '2025-03-01',
             'end_date' => '2025-03-31',
@@ -90,13 +104,16 @@ class SolarProjectFormTest extends TestCase
             'system_losses_percentage' => 15,
         ]);
 
-        $this->actingAs($user)
+        $response = $this->actingAs($user)
             ->get(route('solar-projects.edit', $solarProject))
             ->assertOk()
-            ->assertSee('data-wizard-furthest="4"', false)
+            ->assertSee('data-wizard-furthest="3"', false)
             ->assertSee('value="610.00"', false)
             ->assertSee('value="2025-03-31"', false)
+            ->assertSee('value="Escuela en Uribia"', false)
             ->assertDontSee('value="'.SystemSpecification::DEFAULT_PANEL_POWER_W.'"', false);
+
+        $this->assertMatchesRegularExpression('/name="property_type"\s+value="institution"[^>]*checked/', $response->getContent());
     }
 
     public function test_validation_errors_reopen_the_first_stage_with_a_problem(): void
@@ -105,9 +122,9 @@ class SolarProjectFormTest extends TestCase
             ->from(route('solar-projects.create'))
             ->followingRedirects()
             ->post(route('solar-projects.store'), [
+                'property_type' => 'business',
                 'name' => 'Proyecto incompleto',
                 'start_date' => '2026-01-01',
-                'monthly_consumption_kwh' => 300,
                 'energy_rate_cop_kwh' => 800,
                 'usable_area_percentage' => 80,
                 'panel_power_w' => 550,
@@ -115,11 +132,12 @@ class SolarProjectFormTest extends TestCase
                 'system_losses_percentage' => 14,
             ]);
 
-        // municipality_id is missing (stage 2) and available_area_m2 too (stage 4): open stage 2.
+        // municipality_id is missing (stage 2) and available_area_m2 too (stage 3): open stage 2.
         $response->assertOk()
             ->assertSee('Revisa las etapas marcadas en rojo')
             ->assertSee('data-wizard-initial="1"', false)
-            ->assertSee('data-wizard-furthest="4"', false);
+            ->assertSee('data-wizard-furthest="3"', false);
+        $this->assertMatchesRegularExpression('/name="property_type"\s+value="business"[^>]*checked/', $response->getContent());
 
         // Old input is fresher than any saved draft or stage in the URL.
         $this->assertMatchesRegularExpression('/<form[^>]*data-wizard-has-errors/', $response->getContent());
@@ -133,5 +151,18 @@ class SolarProjectFormTest extends TestCase
             ->post(route('solar-projects.store'), ['panel_power_w' => -5])
             ->assertOk()
             ->assertSee('<details class="solar-wizard-advanced mt-6"  open', false);
+    }
+
+    public function test_the_kind_of_place_is_required_and_must_be_known(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.store'), ['name' => 'Sin tipo'])
+            ->assertSessionHasErrors(['property_type' => 'Cuéntanos si es una casa, un negocio o una institución.']);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.store'), ['property_type' => 'castillo'])
+            ->assertSessionHasErrors('property_type');
     }
 }

@@ -1,0 +1,523 @@
+/* Guided creation and consumption diary (ADR-0013).
+   Uses the app's --solar-* tokens, so it follows light and dark themes. */
+
+@layer components {
+    /* ── Creation · step 1: kind of place ───────────────────── */
+    .solar-property-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+        gap: 0.75rem;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .solar-property-option {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 1rem 1.1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: var(--solar-surface);
+        cursor: pointer;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .solar-property-option:hover {
+        border-color: var(--solar-border-strong);
+    }
+
+    .solar-property-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .solar-property-option:has(input:checked) {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 12%, var(--solar-surface));
+        box-shadow: 0 0 0 1px var(--solar-sun);
+    }
+
+    .solar-property-option:has(input:focus-visible) {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-property-option__icon {
+        display: grid;
+        flex-shrink: 0;
+        width: 3rem;
+        height: 3rem;
+        place-items: center;
+        border-radius: 0.85rem;
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+        color: var(--solar-gold);
+    }
+
+    .solar-property-option__icon svg {
+        width: 1.7rem;
+        height: 1.7rem;
+    }
+
+    .solar-property-option__text {
+        display: grid;
+        gap: 0.1rem;
+    }
+
+    .solar-property-option__text strong {
+        color: var(--solar-text);
+        font-size: 1.02rem;
+    }
+
+    .solar-property-option__text span {
+        color: var(--solar-text-muted);
+        font-size: 0.84rem;
+    }
+
+    /* ── Creation · step 3: roof size shortcuts ─────────────── */
+    .solar-roof-presets {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.6rem;
+    }
+
+    .solar-roof-preset {
+        display: grid;
+        gap: 0.15rem;
+        padding: 0.8rem 0.6rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.9rem;
+        background: var(--solar-surface);
+        color: var(--solar-text);
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .solar-roof-preset span {
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    .solar-roof-preset[aria-pressed='true'] {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 12%, var(--solar-surface));
+        box-shadow: 0 0 0 1px var(--solar-sun);
+    }
+
+    .solar-roof-preset:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    /* ── Diary ───────────────────────────────────────────────── */
+    .solar-diary {
+        --diary-c1: var(--solar-sun);
+        --diary-c2: #3f8fa8;
+        --diary-c3: var(--solar-success);
+        --diary-c4: #8a6cc0;
+        --diary-c5: #c0567a;
+        --diary-other: color-mix(in srgb, var(--solar-text-muted) 70%, transparent);
+        display: grid;
+        gap: 1rem;
+    }
+
+    .solar-diary-summary {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 1.25rem 1.75rem;
+    }
+
+    .solar-diary-ring {
+        display: grid;
+        width: 9.5rem;
+        height: 9.5rem;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--ring);
+    }
+
+    .solar-diary-ring__center {
+        display: grid;
+        width: 6.6rem;
+        height: 6.6rem;
+        place-content: center;
+        border-radius: 50%;
+        background: var(--solar-surface-strong);
+        text-align: center;
+    }
+
+    .solar-diary-ring__center strong {
+        color: var(--solar-text);
+        font-size: 1.6rem;
+        line-height: 1.1;
+    }
+
+    .solar-diary-ring__center span {
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    .solar-diary-total {
+        margin: 0.15rem 0 0;
+        color: var(--solar-text);
+        font-size: 1.6rem;
+        line-height: 1.2;
+    }
+
+    .solar-diary-summary__meta {
+        margin: 0.3rem 0 0;
+        color: var(--solar-text-muted);
+    }
+
+    .solar-diary-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem 1.1rem;
+        margin: 0.9rem 0 0;
+        padding: 0;
+        list-style: none;
+        color: var(--solar-text-muted);
+        font-size: 0.86rem;
+    }
+
+    .solar-diary-legend li {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .solar-diary-legend strong {
+        color: var(--solar-text);
+    }
+
+    .solar-diary-dot {
+        display: inline-block;
+        flex-shrink: 0;
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        background: var(--dot);
+    }
+
+    .solar-diary-biggest {
+        margin: 0.75rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.88rem;
+    }
+
+    .solar-diary-biggest strong {
+        color: var(--solar-text);
+    }
+
+    .solar-diary-summary__cta {
+        display: grid;
+        justify-items: end;
+        gap: 0.4rem;
+        max-width: 15rem;
+        text-align: end;
+    }
+
+    .solar-diary-summary__cta p {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    /* Spaces */
+    .solar-diary-space {
+        scroll-margin-top: 1rem;
+    }
+
+    .solar-diary-space__header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.75rem;
+    }
+
+    .solar-diary-space__header h2 {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .solar-diary-space__kwh {
+        color: var(--solar-text-muted);
+        font-size: 0.86rem;
+    }
+
+    .solar-diary-add {
+        margin-inline-start: auto;
+        padding: 0.4rem 0.85rem;
+        border: 1px solid color-mix(in srgb, var(--solar-sun) 55%, transparent);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-sun) 10%, transparent);
+        color: var(--solar-gold);
+        font-size: 0.86rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .solar-diary-add:hover {
+        background: color-mix(in srgb, var(--solar-sun) 20%, transparent);
+    }
+
+    .solar-diary-add:focus-visible,
+    .solar-diary-link:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-diary-empty {
+        margin: 0.75rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.88rem;
+    }
+
+    .solar-diary-items {
+        display: grid;
+        margin: 0.75rem 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .solar-diary-item {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 0.4rem 0.85rem;
+        padding: 0.65rem 0;
+        border-top: 1px solid var(--solar-border);
+    }
+
+    .solar-diary-item:first-child {
+        border-top: 0;
+    }
+
+    .solar-diary-item__icon {
+        width: 2.2rem;
+        height: 2.2rem;
+        padding: 0.4rem;
+        border-radius: 0.7rem;
+        background: color-mix(in srgb, var(--solar-sun) 12%, transparent);
+        color: var(--solar-gold);
+    }
+
+    .solar-diary-item__body {
+        display: grid;
+        min-width: 0;
+    }
+
+    .solar-diary-item__body strong {
+        color: var(--solar-text);
+    }
+
+    .solar-diary-item__body span {
+        overflow: hidden;
+        color: var(--solar-text-muted);
+        font-size: 0.84rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .solar-diary-item__kwh {
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .solar-diary-item__kwh strong {
+        color: var(--solar-text);
+        font-size: 1rem;
+    }
+
+    .solar-diary-item__actions {
+        display: flex;
+        gap: 0.6rem;
+    }
+
+    .solar-diary-item__actions form {
+        margin: 0;
+    }
+
+    .solar-diary-link {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--solar-gold);
+        font-size: 0.84rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-diary-link:hover {
+        text-decoration: underline;
+    }
+
+    .solar-diary-link--danger {
+        color: var(--solar-danger);
+    }
+
+    .solar-diary-footnote {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    /* Sheet (native <dialog>) */
+    .solar-diary-sheet {
+        width: min(40rem, calc(100vw - 2rem));
+        max-height: min(46rem, calc(100dvh - 2rem));
+        padding: 0;
+        border: 1px solid var(--solar-border);
+        border-radius: 1.25rem;
+        background: var(--solar-surface-strong);
+        color: var(--solar-text);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    .solar-diary-sheet::backdrop {
+        background: rgba(15, 12, 8, 0.45);
+    }
+
+    .solar-diary-sheet__form {
+        display: grid;
+        gap: 1rem;
+        padding: 1.1rem 1.25rem 1.25rem;
+    }
+
+    .solar-diary-sheet__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .solar-diary-sheet__header h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    .solar-diary-sheet__close {
+        width: 2.2rem;
+        height: 2.2rem;
+        border: 0;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-text) 8%, transparent);
+        color: var(--solar-text);
+        font-size: 1.3rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .solar-diary-sheet__step {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .solar-diary-grid {
+        max-height: 22rem;
+        overflow-y: auto;
+        padding: 0.15rem;
+    }
+
+    .solar-diary-noresults {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.88rem;
+    }
+
+    .solar-diary-chosen {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    .solar-diary-chosen > div {
+        flex: 1;
+    }
+
+    .solar-diary-chosen strong {
+        font-size: 1.05rem;
+    }
+
+    .solar-diary-chosen__icon {
+        width: 3rem;
+        height: 3rem;
+        flex-shrink: 0;
+        padding: 0.55rem;
+        border-radius: 0.9rem;
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+        color: var(--solar-gold);
+    }
+
+    .solar-diary-preview {
+        margin: 0;
+        color: var(--solar-text-muted);
+    }
+
+    .solar-diary-preview strong {
+        color: var(--solar-text);
+        font-size: 1.3rem;
+    }
+
+    .solar-diary-errors {
+        margin: 0;
+        padding: 0.7rem 0.9rem 0.7rem 1.6rem;
+        border-radius: 0.8rem;
+        background: var(--solar-danger-bg);
+        color: var(--solar-danger);
+        font-size: 0.86rem;
+        list-style: disc;
+    }
+
+    .solar-diary-sheet__footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.6rem;
+    }
+
+    @media (max-width: 760px) {
+        .solar-diary-summary {
+            grid-template-columns: 1fr;
+            justify-items: center;
+            text-align: center;
+        }
+
+        .solar-diary-legend {
+            justify-content: center;
+        }
+
+        .solar-diary-summary__cta {
+            justify-items: center;
+            max-width: none;
+            text-align: center;
+        }
+
+        .solar-diary-item {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+        }
+
+        .solar-diary-item__actions {
+            grid-column: 2 / -1;
+        }
+
+        .solar-diary-sheet {
+            width: 100vw;
+            max-width: 100vw;
+            max-height: 92dvh;
+            margin: auto 0 0;
+            border-radius: 1.25rem 1.25rem 0 0;
+        }
+
+        .solar-roof-presets {
+            grid-template-columns: 1fr;
+        }
+    }
+}

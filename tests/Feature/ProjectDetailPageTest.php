@@ -59,11 +59,10 @@ class ProjectDetailPageTest extends TestCase
 
         $this->actingAs($user)
             ->put(route('solar-projects.update', $solarProject), [
+                'property_type' => 'house',
                 'name' => 'Casa renombrada',
                 'start_date' => '2026-01-01',
                 'end_date' => '2026-01-31',
-                'consumption_mode' => 'bill',
-                'monthly_consumption_kwh' => 300,
                 'energy_rate_cop_kwh' => 900,
                 'available_area_m2' => 30,
                 'usable_area_percentage' => 80,
@@ -75,7 +74,21 @@ class ProjectDetailPageTest extends TestCase
             ])
             ->assertRedirect(route('solar-projects.show', $solarProject));
 
+        // The consumption belongs to the diary: editing the project data keeps it.
         $this->assertSame('Casa renombrada', $solarProject->fresh()->name);
+        $this->assertEquals(300, $solarProject->fresh()->monthly_consumption_kwh);
+    }
+
+    public function test_project_pages_share_the_four_tabs(): void
+    {
+        [$user, $solarProject] = $this->projectWithOwner();
+
+        foreach (['solar-projects.show', 'solar-projects.consumption', 'solar-projects.notes', 'solar-projects.edit'] as $page) {
+            $this->actingAs($user)
+                ->get(route($page, $solarProject))
+                ->assertOk()
+                ->assertSeeInOrder(['>Panel<', '>Consumo<', '>Notas<', '>Editar datos<'], false);
+        }
     }
 
     /**
