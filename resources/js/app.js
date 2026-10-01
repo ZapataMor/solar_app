@@ -1624,3 +1624,20 @@ const initApiDataTabs = () => {
 
 document.addEventListener('DOMContentLoaded', initApiDataTabs);
 document.addEventListener('livewire:navigated', initApiDataTabs);
+
+// Sidebar: animate the collapse only when the user toggles it (see .solar-shell-sidebar in app.css).
+// Flux changes the sidebar in its own listener for this same event, before the next frame, so the
+// transition applies to that change and never to the state restored on each page load.
+let sidebarAnimationTimer = null;
+
+document.addEventListener('flux-sidebar-toggle', () => {
+    const sidebar = document.querySelector('ui-sidebar');
+
+    if (!sidebar) {
+        return;
+    }
+
+    sidebar.setAttribute('data-sidebar-animating', '');
+    window.clearTimeout(sidebarAnimationTimer);
+    sidebarAnimationTimer = window.setTimeout(() => sidebar.removeAttribute('data-sidebar-animating'), 400);
+});

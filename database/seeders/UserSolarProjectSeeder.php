@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Municipality;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -16,8 +17,12 @@ class UserSolarProjectSeeder extends Seeder
 
         $projects = [
             [
+                // By name (LaGuajiraMunicipalitySeeder runs first); the coordinates come from it.
+                'municipality' => 'Riohacha',
+
                 'project' => [
                     'name' => 'Vivienda familiar Riohacha',
+                    'location_type' => 'urbana',
                     'description' => 'Sistema fotovoltaico residencial para cubrir consumo basico del hogar.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
@@ -51,8 +56,11 @@ class UserSolarProjectSeeder extends Seeder
             ],
 
             [
+                'municipality' => 'Maicao',
+
                 'project' => [
                     'name' => 'Local comercial centro',
+                    'location_type' => 'urbana',
                     'description' => 'Proyecto solar para reducir costos de energia en horario diurno.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
@@ -85,8 +93,11 @@ class UserSolarProjectSeeder extends Seeder
             ],
 
             [
+                'municipality' => 'Uribia',
+
                 'project' => [
                     'name' => 'Institucion educativa rural',
+                    'location_type' => 'rural',
                     'description' => 'Dimensionamiento inicial para aulas, oficina administrativa y equipos basicos.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
@@ -120,9 +131,16 @@ class UserSolarProjectSeeder extends Seeder
         ];
 
         foreach ($projects as $projectData) {
+            $municipality = Municipality::where('name', $projectData['municipality'])->firstOrFail();
+
             $project = $user->solarProjects()->updateOrCreate(
                 ['name' => $projectData['project']['name']],
-                $projectData['project'],
+                [
+                    ...$projectData['project'],
+                    'municipality_id' => $municipality->id,
+                    'latitude' => $municipality->latitude,
+                    'longitude' => $municipality->longitude,
+                ],
             );
 
             $project->technicalParameter()->updateOrCreate(

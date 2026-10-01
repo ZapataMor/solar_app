@@ -3601,7 +3601,7 @@ select:focus[data-flux-control] {
     }
 
     /* Collapse control: the arrow points the way the menu will move */
-    .solar-sidebar-collapse [data-flux-icon] {
+    [data-sidebar-animating] .solar-sidebar-collapse [data-flux-icon] {
         transition: transform 300ms ease;
     }
 
@@ -3631,9 +3631,14 @@ select:focus[data-flux-control] {
         font-size: 0.95rem !important;
     }
 
-    /* Smooth open / close on desktop */
+    /* Smooth open / close on desktop, only while the user toggles it ([data-sidebar-animating] is set by
+       app.js). Animating always would replay the collapse on every page: each navigation renders a new
+       sidebar and Flux restores the saved state after it is drawn. */
     .solar-shell-sidebar[data-flux-sidebar-on-desktop] {
         overflow-x: hidden;
+    }
+
+    .solar-shell-sidebar[data-flux-sidebar-on-desktop][data-sidebar-animating] {
         transition: width 300ms ease, padding 300ms ease !important;
     }
 
@@ -3644,8 +3649,8 @@ select:focus[data-flux-control] {
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .solar-shell-sidebar[data-flux-sidebar-on-desktop],
-        .solar-sidebar-collapse [data-flux-icon] {
+        .solar-shell-sidebar[data-flux-sidebar-on-desktop][data-sidebar-animating],
+        [data-sidebar-animating] .solar-sidebar-collapse [data-flux-icon] {
             transition: none !important;
         }
     }
