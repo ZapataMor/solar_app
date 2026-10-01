@@ -2,9 +2,14 @@
 
 use App\Http\Controllers\ApiDataController;
 use App\Http\Controllers\SolarProjectController;
+use App\Models\Municipality;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/login')->name('home');
+Route::get('/', fn () => auth()->check()
+    ? redirect()->route('solar-projects.index')
+    : view('landing', [
+        'municipalities' => Municipality::query()->active()->orderBy('name')->pluck('name'),
+    ]))->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('solar-projects', [SolarProjectController::class, 'index'])->name('solar-projects.index');
