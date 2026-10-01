@@ -8,8 +8,10 @@ use App\Infrastructure\Climate\LocalStationClimateSource;
 use App\Infrastructure\Climate\NasaPowerClimateSource;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -41,6 +43,15 @@ class AppServiceProvider extends ServiceProvider
 
         // Climate readings are shared by every project, so only admins may trigger a sync.
         Gate::define('sync-climate-data', fn (User $user): bool => $user->isAdmin());
+
+        // `php artisan serve` does not pass TEMP/TMP to the web server, so on Windows SQLite cannot
+        // create the temp files large GROUP BY / ORDER BY queries need ("unable to open database file").
+        // Keeping SQLite temporaries in memory works no matter how the server was started.
+        Event::listen(function (ConnectionEstablished $event): void {
+            if ($event->connection->getDriverName() === 'sqlite') {
+                $event->connection->statement('PRAGMA temp_store = MEMORY');
+            }
+        });
     }
 
     /**

@@ -63,6 +63,10 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   `SolarProjectTest` 1 · `NasaRadiationFallbackServiceTest` 1 · `ProjectDashboardServiceTest` 1.
   Para comparar con precisión: `vendor/bin/phpunit --log-junit <archivo>`.
 - Los tests de `AmbientWeather*` hacen **HTTP real** (fallan sin red o por SSL).
+- SQLite + `php artisan serve` en Windows: el servidor no recibe `TEMP`/`TMP` y las consultas grandes
+  fallaban con "unable to open database file". `AppServiceProvider` fija `PRAGMA temp_store = MEMORY`.
+- Resultados mensuales: la generación cubre solo los días con datos (`days_in_month`); compara
+  meses **por día**, no por total, o un mes con pocos datos parecerá sin sol.
 - Pint ya reporta estilo en archivos heredados (`SolarProjectController`,
   `ClimateSourceFallbackService`, …). No reformatees archivos enteros: solo lo que tocas.
 - Radiación: se guarda como **W/m² promedio de 24 h**. HSP (kWh/m²/día) = W/m² × 24 / 1000.

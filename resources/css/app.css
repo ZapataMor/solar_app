@@ -5,6 +5,7 @@
 @import './appliance-picker.css';
 @import './data-tabs.css';
 @import './recalculation.css';
+@import './project-explainer.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

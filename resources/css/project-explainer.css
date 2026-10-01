@@ -1,0 +1,289 @@
+/* Plain-language questions about a project (ADR-0011): dot rail + one-third side panel. */
+
+@layer components {
+    .solar-explainer {
+        --explainer-width: min(100vw, max(24rem, 33.333vw));
+    }
+
+    /* Rail of dots on the right edge, vertically centred. */
+    .solar-explainer-rail {
+        position: fixed;
+        top: 50%;
+        right: 0.85rem;
+        z-index: 45;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.7rem 0.45rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-surface-strong) 88%, transparent);
+        box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(10px);
+        transform: translateY(-50%);
+        transition: right 0.25s ease;
+    }
+
+    /* While the panel is open the rail moves to its left edge, so you can jump between questions. */
+    .solar-explainer.is-open .solar-explainer-rail {
+        right: calc(var(--explainer-width) + 0.6rem);
+    }
+
+    .solar-explainer-rail__label {
+        display: inline-grid;
+        width: 1.5rem;
+        height: 1.5rem;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--solar-sun);
+        color: #fffaf2;
+        font-size: 0.85rem;
+        font-weight: 800;
+    }
+
+    .solar-explainer-dot {
+        position: relative;
+        width: 0.8rem;
+        height: 0.8rem;
+        padding: 0;
+        border: 2px solid var(--solar-sun);
+        border-radius: 999px;
+        background: transparent;
+        cursor: pointer;
+        transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    .solar-explainer-dot--warning {
+        border-color: var(--solar-danger);
+    }
+
+    .solar-explainer-dot--good {
+        border-color: var(--solar-success);
+    }
+
+    .solar-explainer-dot:hover,
+    .solar-explainer-dot:focus-visible,
+    .solar-explainer-dot[aria-current='true'] {
+        background: currentColor;
+        color: var(--solar-sun);
+        transform: scale(1.35);
+    }
+
+    .solar-explainer-dot--warning:hover,
+    .solar-explainer-dot--warning[aria-current='true'] {
+        color: var(--solar-danger);
+    }
+
+    .solar-explainer-dot--good:hover,
+    .solar-explainer-dot--good[aria-current='true'] {
+        color: var(--solar-success);
+    }
+
+    .solar-explainer-dot:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 3px;
+    }
+
+    /* The question appears next to the dot on hover/focus. */
+    .solar-explainer-dot__tip {
+        position: absolute;
+        top: 50%;
+        right: calc(100% + 0.85rem);
+        width: max-content;
+        max-width: 18rem;
+        padding: 0.45rem 0.75rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.6rem;
+        background: var(--solar-surface-strong);
+        color: var(--solar-text);
+        font-size: 0.82rem;
+        font-weight: 600;
+        line-height: 1.3;
+        text-align: right;
+        white-space: normal;
+        box-shadow: 0 12px 28px -18px rgba(0, 0, 0, 0.6);
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(0.35rem, -50%);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    .solar-explainer-dot:hover .solar-explainer-dot__tip,
+    .solar-explainer-dot:focus-visible .solar-explainer-dot__tip {
+        opacity: 1;
+        transform: translate(0, -50%);
+    }
+
+    /* Side panel: one third of the screen. */
+    .solar-explainer-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 46;
+        display: flex;
+        flex-direction: column;
+        width: var(--explainer-width);
+        border-left: 1px solid var(--solar-border-strong);
+        background: var(--solar-surface-strong);
+        box-shadow: -24px 0 60px -30px rgba(0, 0, 0, 0.65);
+        animation: solar-explainer-in 0.25s ease-out;
+    }
+
+    .solar-explainer-panel__bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.9rem 1.25rem;
+        border-bottom: 1px solid var(--solar-border);
+    }
+
+    .solar-explainer-panel__progress {
+        margin: 0;
+        color: var(--solar-sun);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .solar-explainer-panel__close {
+        display: inline-grid;
+        width: 2.25rem;
+        height: 2.25rem;
+        place-items: center;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.7rem;
+        background: none;
+        color: var(--solar-text-muted);
+        cursor: pointer;
+    }
+
+    .solar-explainer-panel__close:hover {
+        color: var(--solar-text);
+        background: var(--solar-surface-muted);
+    }
+
+    .solar-explainer-panel__body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem 1.5rem 2rem;
+    }
+
+    .solar-explainer-answer {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .solar-explainer-answer__question {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .solar-explainer-answer__question:focus {
+        outline: none;
+    }
+
+    .solar-explainer-answer__headline {
+        display: grid;
+        gap: 0.15rem;
+        padding: 1rem 1.15rem;
+        border-left: 4px solid var(--solar-sun);
+        border-radius: 0.8rem;
+        background: color-mix(in srgb, var(--solar-sun) 12%, transparent);
+    }
+
+    .solar-explainer-answer__headline strong {
+        color: var(--solar-text);
+        font-size: 1.75rem;
+        line-height: 1.15;
+    }
+
+    .solar-explainer-answer__headline span {
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+    }
+
+    .solar-explainer-answer__headline--good {
+        border-left-color: var(--solar-success);
+        background: var(--solar-success-bg);
+    }
+
+    .solar-explainer-answer__headline--warning {
+        border-left-color: var(--solar-danger);
+        background: var(--solar-danger-bg);
+    }
+
+    .solar-explainer-answer p {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 0.98rem;
+        line-height: 1.6;
+    }
+
+    .solar-explainer-panel__nav {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.9rem 1.25rem;
+        border-top: 1px solid var(--solar-border);
+    }
+
+    /* Phones: no edge dots, a button opens the panel full screen. */
+    .solar-explainer-mobile {
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .solar-explainer {
+            --explainer-width: 100vw;
+        }
+
+        .solar-explainer-rail {
+            display: none;
+        }
+
+        .solar-explainer-mobile {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            z-index: 45;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1rem;
+            border: 0;
+            border-radius: 999px;
+            background: var(--solar-sun);
+            color: #fffaf2;
+            font-weight: 700;
+            box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.6);
+            cursor: pointer;
+        }
+
+        .solar-explainer.is-open .solar-explainer-mobile {
+            display: none;
+        }
+    }
+
+    @keyframes solar-explainer-in {
+        from {
+            opacity: 0;
+            transform: translateX(1.5rem);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-explainer-panel,
+        .solar-explainer-rail,
+        .solar-explainer-dot,
+        .solar-explainer-dot__tip {
+            animation: none;
+            transition: none;
+        }
+    }
+}

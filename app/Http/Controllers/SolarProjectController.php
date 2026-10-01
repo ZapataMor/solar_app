@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\SolarProjects\CalculateSolarProject;
 use App\Actions\SolarProjects\CheckCalculationFreshness;
+use App\Actions\SolarProjects\ExplainSolarProject;
 use App\Actions\SolarProjects\RecalculateProjects;
 use App\Actions\SolarProjects\SaveSolarProject;
 use App\Domain\Climate\ClimateSeries;
@@ -173,6 +174,7 @@ class SolarProjectController extends Controller
         NasaWeatherDataService $nasaWeatherDataService,
         SolarProjectAiHistoryService $aiHistoryService,
         CheckCalculationFreshness $checkFreshness,
+        ExplainSolarProject $explainSolarProject,
     ): View
     {
         $this->authorizeOwner($request, $solarProject);
@@ -189,9 +191,12 @@ class SolarProjectController extends Controller
         $generateAiRecommendations = $request->boolean('generate_ai');
         $aiFocus = $request->string('ai_focus')->toString();
 
+        $calculationFreshness = $checkFreshness($solarProject);
+
         return view('solar-projects.show', [
             'portfolioUrl' => $this->portfolioUrl($request),
-            'calculationFreshness' => $checkFreshness($solarProject),
+            'calculationFreshness' => $calculationFreshness,
+            'projectQuestions' => $explainSolarProject($solarProject, $calculationFreshness),
             'solarProject' => $solarProject,
             'generateAiRecommendations' => $generateAiRecommendations,
             'aiFocus' => $aiFocus,

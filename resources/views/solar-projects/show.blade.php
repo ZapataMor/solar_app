@@ -189,6 +189,8 @@
 <div class="solar-project-detail">
 @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'panel', 'backUrl' => $portfolioUrl])
 
+@include('solar-projects.partials.project-explainer', ['questions' => $projectQuestions, 'solarProject' => $solarProject])
+
 @if ($calculationFreshness->needsRecalculation())
     <div class="solar-recalc-banner" role="status">
         <span class="solar-recalc-banner__icon" aria-hidden="true">!</span>
