@@ -1,0 +1,318 @@
+/* Alternative panel "Mi sistema" (ADR-0014). Uses the app's --solar-* tokens (light and dark). */
+
+@layer components {
+    .solar-system {
+        display: grid;
+        gap: 1rem;
+    }
+
+    /* Hero: illustration + recommendation */
+    .solar-system-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    /* Reserved for the 3D scene (ADR-0012); until then, a flat sketch with the real panel counts. */
+    .solar-scene {
+        display: grid;
+        gap: 0.6rem;
+        margin: 0;
+        padding: 1rem;
+        border-radius: 1rem;
+        background: color-mix(in srgb, var(--solar-sun) 7%, var(--solar-surface-muted));
+    }
+
+    .solar-scene__placeholder {
+        display: grid;
+        justify-items: center;
+        gap: 0.5rem;
+    }
+
+    .solar-scene__house {
+        width: min(100%, 16rem);
+        fill: none;
+        stroke: var(--solar-text-muted);
+        stroke-width: 2;
+        stroke-linejoin: round;
+    }
+
+    .solar-scene__panels {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(1.35rem, 1fr));
+        gap: 0.25rem;
+        width: min(100%, 18rem);
+    }
+
+    .solar-scene__panel,
+    .solar-scene__key {
+        display: inline-block;
+        aspect-ratio: 1.6;
+        border-radius: 0.2rem;
+    }
+
+    .solar-scene__panel.is-installed,
+    .solar-scene__key.is-installed {
+        background: var(--solar-sun);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--solar-gold) 70%, transparent);
+    }
+
+    .solar-scene__panel.is-free,
+    .solar-scene__key.is-free {
+        border: 1px solid var(--solar-border-strong);
+    }
+
+    .solar-scene__panel.is-missing,
+    .solar-scene__key.is-missing {
+        border: 1px dashed var(--solar-danger);
+    }
+
+    .solar-scene figcaption {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.3rem 0.9rem;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    .solar-scene figcaption > span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .solar-scene__key {
+        width: 1rem;
+    }
+
+    .solar-scene__soon {
+        font-style: italic;
+    }
+
+    .solar-system-reco {
+        display: grid;
+        gap: 0.6rem;
+    }
+
+    .solar-system-reco__headline {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1.6rem;
+        line-height: 1.2;
+    }
+
+    .solar-system-reco__sub {
+        margin: 0;
+        color: var(--solar-text-muted);
+    }
+
+    .solar-system-reco__estimate {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 0.8rem;
+    }
+
+    .solar-system-reco__bar-labels {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.25rem 1rem;
+        color: var(--solar-text-muted);
+        font-size: 0.84rem;
+    }
+
+    .solar-system-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.6rem;
+        margin: 0.4rem 0 0;
+    }
+
+    .solar-system-metrics > div {
+        padding: 0.7rem 0.8rem;
+        border-radius: 0.8rem;
+        background: color-mix(in srgb, var(--solar-text) 5%, transparent);
+    }
+
+    .solar-system-metrics dt {
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    .solar-system-metrics dd {
+        margin: 0.15rem 0 0;
+        color: var(--solar-text);
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    /* Month chart */
+    .solar-system-chart__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.4rem 1rem;
+    }
+
+    .solar-system-chart h2,
+    .solar-system-live h2,
+    .solar-system-how h2 {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+
+    .solar-system-chart__legend {
+        display: flex;
+        gap: 0.9rem;
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    .solar-system-chart__legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .solar-system-chart__legend i {
+        display: inline-block;
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 0.2rem;
+    }
+
+    .solar-system-chart__legend .is-sun,
+    .solar-system-bars .is-sun {
+        background: var(--solar-sun);
+    }
+
+    .solar-system-chart__legend .is-use,
+    .solar-system-bars .is-use {
+        background: #3f8fa8;
+    }
+
+    .solar-system-bars {
+        display: grid;
+        grid-auto-columns: minmax(0, 1fr);
+        grid-auto-flow: column;
+        gap: 0.5rem;
+        height: 11rem;
+        margin-top: 1rem;
+        padding-bottom: 0.2rem;
+        border-bottom: 1px solid var(--solar-border);
+    }
+
+    .solar-system-bars__month {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        gap: 0.3rem;
+        min-width: 0;
+    }
+
+    .solar-system-bars__pair {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 0.15rem;
+    }
+
+    .solar-system-bars__pair span {
+        width: min(0.9rem, 40%);
+        min-height: 2px;
+        border-radius: 0.3rem 0.3rem 0 0;
+    }
+
+    .solar-system-bars__label {
+        color: var(--solar-text-muted);
+        font-size: 0.74rem;
+        text-align: center;
+    }
+
+    .solar-system-chart__note {
+        margin: 0.6rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    /* Live + how */
+    .solar-system-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .solar-system-live,
+    .solar-system-how {
+        display: grid;
+        align-content: start;
+        gap: 0.45rem;
+        color: var(--solar-text-muted);
+        font-size: 0.92rem;
+    }
+
+    .solar-system-live p,
+    .solar-system-how ol {
+        margin: 0;
+    }
+
+    .solar-system-live strong,
+    .solar-system-how strong {
+        color: var(--solar-text);
+    }
+
+    .solar-system-live__sun {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--solar-text) !important;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .solar-system-live__dot {
+        width: 0.8rem;
+        height: 0.8rem;
+        border-radius: 50%;
+        background: var(--solar-sun);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--solar-sun) 25%, transparent);
+    }
+
+    .solar-system-live__dot.is-night {
+        background: var(--solar-text-muted);
+        box-shadow: none;
+    }
+
+    .solar-system-live__meta {
+        font-size: 0.78rem;
+    }
+
+    .solar-system-how ol {
+        display: grid;
+        gap: 0.35rem;
+        padding-left: 1.2rem;
+        list-style: decimal;
+    }
+
+    @media (max-width: 860px) {
+        .solar-system-hero,
+        .solar-system-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .solar-system-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .solar-system-bars {
+            gap: 0.25rem;
+        }
+    }
+}

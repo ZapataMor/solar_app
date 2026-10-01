@@ -13,6 +13,9 @@ class CalculationResult extends Model
     protected $fillable = [
         'usable_area_m2',
         'number_of_panels',
+        'panels_needed',
+        'panels_that_fit',
+        'panel_monthly_generation_kwh',
         'installed_capacity_kwp',
         'estimated_daily_generation_kwh',
         'estimated_monthly_generation_kwh',
@@ -30,6 +33,9 @@ class CalculationResult extends Model
         return [
             'usable_area_m2' => 'decimal:4',
             'number_of_panels' => 'integer',
+            'panels_needed' => 'integer',
+            'panels_that_fit' => 'integer',
+            'panel_monthly_generation_kwh' => 'decimal:4',
             'installed_capacity_kwp' => 'decimal:4',
             'estimated_daily_generation_kwh' => 'decimal:4',
             'estimated_monthly_generation_kwh' => 'decimal:4',

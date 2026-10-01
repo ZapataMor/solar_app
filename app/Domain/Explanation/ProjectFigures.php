@@ -29,6 +29,8 @@ final readonly class ProjectFigures
         public array $staleReasons = [],
         public ?string $biggestApplianceLabel = null,
         public ?float $biggestApplianceKwh = null,
+        public ?int $panelsNeeded = null,
+        public ?int $panelsThatFit = null,
     ) {}
 
     public function monthlyBillCop(): float

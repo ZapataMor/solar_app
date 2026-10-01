@@ -285,7 +285,7 @@ class ApplianceConsumptionTest extends TestCase
             // The kWh figures are still there: the viewer chooses which unit shows.
             ->assertSee('<span class="solar-unit solar-unit--kwh">307 kWh al mes</span>', false);
 
-        $this->assertMatchesRegularExpression('/data-consumption-diary\s+data-unit="kwh"\s+data-rate="900"/', $response->getContent());
+        $this->assertMatchesRegularExpression('/data-consumption-diary\s+data-unit-root\s+data-unit="kwh"\s+data-rate="900"/', $response->getContent());
     }
 
     public function test_without_a_tariff_the_diary_only_speaks_kwh(): void

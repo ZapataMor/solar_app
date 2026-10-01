@@ -124,9 +124,9 @@
         gap: 1rem;
     }
 
-    /* kWh or pesos: every figure is drawn in both units and the diary root shows one. */
-    .solar-diary:not([data-unit='money']) .solar-unit--money,
-    .solar-diary[data-unit='money'] .solar-unit--kwh {
+    /* kWh or pesos: every figure is drawn in both units and its [data-unit-root] shows one. */
+    [data-unit-root]:not([data-unit='money']) .solar-unit--money,
+    [data-unit-root][data-unit='money'] .solar-unit--kwh {
         display: none;
     }
 
@@ -179,6 +179,54 @@
     .solar-diary-preview__other {
         margin-inline-start: 0.25rem;
         font-size: 0.86rem;
+    }
+
+    /* ADR-0014: how much of the appliances the roof covers (diary and alternative panel). */
+    .solar-coverage-strip {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .solar-coverage-strip__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.4rem 1rem;
+    }
+
+    .solar-coverage-strip__head h2 {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+
+    .solar-coverage-bar {
+        display: block;
+        height: 0.8rem;
+        overflow: hidden;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-danger) 22%, var(--solar-surface));
+    }
+
+    .solar-coverage-bar > span {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: var(--solar-sun);
+    }
+
+    .solar-coverage-strip__text {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.9rem;
+    }
+
+    .solar-coverage-strip__note {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
     }
 
     /* Re-rendered by the server after each save (no page reload). */

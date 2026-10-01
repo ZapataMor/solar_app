@@ -590,9 +590,11 @@ class SolarProjectController extends Controller
             ]);
         }
 
-        $redirect = $request->input('then') === 'panel'
-            ? redirect()->route('solar-projects.show', $solarProject) // From the consumption diary: go see the results.
-            : back();
+        $redirect = match ($request->input('then')) {
+            'panel' => redirect()->route('solar-projects.show', $solarProject), // From the consumption diary: go see the results.
+            'system' => redirect()->route('solar-projects.system', $solarProject), // From the alternative panel (ADR-0014).
+            default => back(),
+        };
 
         return $redirect->with('status', $messages['success'] ?? $this->autoCalculationMessage($series));
     }

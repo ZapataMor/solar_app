@@ -1,6 +1,6 @@
 {{--
     Navigation shared by a project's own pages (panel, consumption diary, notes and edit).
-    Params: $solarProject, $active ('panel'|'consumption'|'notes'|'edit'),
+    Params: $solarProject, $active ('panel'|'system'|'consumption'|'notes'|'edit'),
     $backUrl (optional: portfolio URL that keeps search/page).
 --}}
 @php
@@ -8,6 +8,8 @@
     $backUrl = $backUrl ?? route('solar-projects.index');
     $tabs = [
         'panel' => ['label' => 'Panel', 'url' => route('solar-projects.show', $solarProject)],
+        // ADR-0014: compared with "Panel" before choosing which one stays.
+        'system' => ['label' => 'Panel alternativo', 'url' => route('solar-projects.system', $solarProject)],
         'consumption' => ['label' => 'Consumo', 'url' => route('solar-projects.consumption', $solarProject)],
         'notes' => ['label' => 'Notas', 'url' => route('solar-projects.notes', $solarProject)],
         'edit' => ['label' => 'Editar datos', 'url' => route('solar-projects.edit', $solarProject)],

@@ -7,6 +7,7 @@
 @import './recalculation.css';
 @import './project-explainer.css';
 @import './consumption-diary.css';
+@import './system-panel.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

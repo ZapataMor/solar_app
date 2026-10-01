@@ -1667,3 +1667,40 @@ const showFlashToasts = () => {
 
 document.addEventListener('livewire:navigated', showFlashToasts);
 document.addEventListener('alpine:initialized', () => window.setTimeout(showFlashToasts));
+
+// "Ver en kWh | Pesos" (resources/views/solar-projects/partials/unit-toolbar.blade.php): figures are drawn
+// in both units and [data-unit-root] shows one. The choice is shared by every screen and remembered here.
+const UNIT_STORAGE_KEY = 'natalia:unit';
+
+const initUnitSwitches = () => {
+    document.querySelectorAll('[data-unit-root]').forEach((root) => {
+        if (root.dataset.unitReady) {
+            return;
+        }
+        root.dataset.unitReady = '1';
+
+        const buttons = Array.from(root.querySelectorAll('[data-unit-choice]'));
+        const rate = Number(root.dataset.rate) || 0;
+
+        const apply = (unit, { remember }) => {
+            root.dataset.unit = unit === 'money' && rate > 0 ? 'money' : 'kwh';
+            buttons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.unitChoice === root.dataset.unit)));
+
+            if (remember) {
+                try {
+                    localStorage.setItem(UNIT_STORAGE_KEY, root.dataset.unit);
+                } catch (_error) {
+                    // Storage unavailable: the choice lasts until the page changes.
+                }
+            }
+
+            root.dispatchEvent(new CustomEvent('unit:changed', { detail: { unit: root.dataset.unit } }));
+        };
+
+        buttons.forEach((button) => button.addEventListener('click', () => apply(button.dataset.unitChoice, { remember: true })));
+        apply(root.dataset.unit, { remember: false });
+    });
+};
+
+document.addEventListener('DOMContentLoaded', initUnitSwitches);
+document.addEventListener('livewire:navigated', initUnitSwitches);

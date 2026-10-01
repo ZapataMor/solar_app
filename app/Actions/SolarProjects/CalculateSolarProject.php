@@ -88,6 +88,9 @@ final class CalculateSolarProject
                 [
                     'usable_area_m2' => $estimate->usableAreaM2,
                     'number_of_panels' => $estimate->numberOfPanels,
+                    'panels_needed' => $estimate->sizing?->panelsNeeded,
+                    'panels_that_fit' => $estimate->sizing?->panelsThatFit,
+                    'panel_monthly_generation_kwh' => $estimate->sizing?->panelMonthlyKwh,
                     'installed_capacity_kwp' => $estimate->installedCapacityKwp,
                     'estimated_daily_generation_kwh' => $estimate->dailyGenerationKwh,
                     'estimated_monthly_generation_kwh' => $estimate->monthlyGenerationKwh,

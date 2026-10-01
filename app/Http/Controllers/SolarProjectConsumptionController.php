@@ -6,6 +6,7 @@ use App\Actions\SolarProjects\BuildConsumptionDiary;
 use App\Actions\SolarProjects\CheckCalculationFreshness;
 use App\Actions\SolarProjects\RemoveProjectAppliance;
 use App\Actions\SolarProjects\SaveProjectAppliance;
+use App\Actions\SolarProjects\SizeProjectSystem;
 use App\Domain\Consumption\ApplianceCatalog;
 use App\Domain\Property\PropertyType;
 use App\Http\Requests\ProjectApplianceRequest;
@@ -27,6 +28,7 @@ class SolarProjectConsumptionController extends Controller
     public function __construct(
         private readonly BuildConsumptionDiary $buildConsumptionDiary,
         private readonly CheckCalculationFreshness $checkFreshness,
+        private readonly SizeProjectSystem $sizeProjectSystem,
         private readonly ApplianceCatalog $catalog,
     ) {}
 
@@ -105,6 +107,8 @@ class SolarProjectConsumptionController extends Controller
             'diary' => ($this->buildConsumptionDiary)($solarProject),
             'calculationFreshness' => ($this->checkFreshness)($solarProject),
             'usesBillConsumption' => ! $solarProject->appliances()->exists() && $solarProject->monthlyConsumption() > 0,
+            // ADR-0014: how much of these appliances the roof covers; it changes with every appliance.
+            'sizing' => ($this->sizeProjectSystem)($solarProject),
         ];
     }
 

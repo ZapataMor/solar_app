@@ -32,8 +32,14 @@ final class SolarCalculator
             throw new InvalidArgumentException('El proyecto no tiene datos climaticos.');
         }
 
+        // Sized to the consumption, with the roof as the limit (ADR-0014): no more panels than needed.
         $usableArea = $this->usableArea($system->availableAreaM2, $system->usableAreaPercentage);
-        $numberOfPanels = $this->numberOfPanels($usableArea, $system->panelAreaM2);
+        $sizing = SystemSizing::for(
+            $energy->monthlyConsumptionKwh,
+            $this->panelMonthlyGenerationKwh($system, $this->averagePeakSunHours($peakSunHoursByMonth)),
+            $this->numberOfPanels($usableArea, $system->panelAreaM2),
+        );
+        $numberOfPanels = $sizing->panelsInstalled;
         $installedCapacityKwp = $this->installedCapacityKwp($numberOfPanels, $system->panelPowerW);
 
         $months = [];
@@ -50,7 +56,8 @@ final class SolarCalculator
                 generationKwh: $generation,
                 consumptionKwh: $energy->monthlyConsumptionKwh,
                 coveragePercentage: $this->coveragePercentage($generation, $energy->monthlyConsumptionKwh),
-                savingsCop: $this->savings($generation, $energy->energyRateCopKwh),
+                // Only the energy you stop buying saves money: a surplus does not lower the bill.
+                savingsCop: $this->savings(min($generation, $energy->monthlyConsumptionKwh / 30 * $days), $energy->energyRateCopKwh),
             );
         }
 
@@ -59,7 +66,7 @@ final class SolarCalculator
         $dailyGeneration = $measuredGeneration / $measuredDays;
         $annualGeneration = $dailyGeneration * $energy->annualProjectionDays;
         $annualConsumption = $energy->annualConsumptionKwh();
-        $annualSavings = $this->savings($annualGeneration, $energy->energyRateCopKwh);
+        $annualSavings = $this->savings(min($annualGeneration, $annualConsumption), $energy->energyRateCopKwh);
         $installationCost = $this->installationCost($installedCapacityKwp);
 
         return new SolarEstimate(
@@ -75,7 +82,26 @@ final class SolarCalculator
             installationCostCop: $installationCost,
             paybackPeriodYears: $this->paybackPeriodYears($installationCost, $annualSavings),
             months: $months,
+            sizing: $sizing,
         );
+    }
+
+    /**
+     * What one panel produces in an average month with this sun (kWh).
+     */
+    public function panelMonthlyGenerationKwh(SystemSpecification $system, float $averageDailyPeakSunHours): float
+    {
+        return $system->panelPowerW / 1000 * $averageDailyPeakSunHours * $system->performanceRatio * 30;
+    }
+
+    /**
+     * @param  array<int, list<float>>  $peakSunHoursByMonth
+     */
+    private function averagePeakSunHours(array $peakSunHoursByMonth): float
+    {
+        $days = array_merge(...array_values($peakSunHoursByMonth));
+
+        return $days === [] ? 0.0 : array_sum($days) / count($days);
     }
 
     public function usableArea(float $availableAreaM2, float $usableAreaPercentage): float

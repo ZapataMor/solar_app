@@ -111,6 +111,49 @@
     </div>
 </section>
 
+{{-- ADR-0014: how much of these appliances the roof covers; it changes with every appliance. --}}
+@if (($sizing ?? null) !== null && $diary['totalKwh'] > 0)
+    @php
+        $roof = $sizing['sizing'];
+        $coverage = min(100.0, $roof->coveragePercentage());
+        $sunKwh = min($roof->monthlyGenerationKwh(), $roof->monthlyConsumptionKwh);
+        $panels = fn (int $count): string => $count.' '.($count === 1 ? 'panel' : 'paneles');
+    @endphp
+    <section class="solar-card solar-coverage-strip" aria-labelledby="coverage-title" data-test="coverage-strip">
+        <div class="solar-coverage-strip__head">
+            <h2 id="coverage-title">
+                @if ($roof->panelsThatFit === 0)
+                    Tu techo no alcanza para ningún panel
+                @else
+                    Tu techo cubre el {{ number_format($coverage, 0) }} % de estos equipos
+                @endif
+            </h2>
+            <a href="{{ route('solar-projects.system', $solarProject) }}" class="solar-diary-link" wire:navigate>Ver mi sistema →</a>
+        </div>
+        <div class="solar-coverage-bar" role="img" aria-label="El sol cubre el {{ number_format($coverage, 0) }} %">
+            <span style="width: {{ round($coverage, 1) }}%"></span>
+        </div>
+        <p class="solar-coverage-strip__text">
+            @if ($roof->panelsThatFit === 0)
+                Con el área que indicaste no cabe un panel completo. Revisa los metros del techo en Editar datos.
+            @elseif ($roof->roofIsEnough())
+                Bastan {{ $panels($roof->panelsNeeded) }} de los {{ $roof->panelsThatFit }} que caben.
+            @else
+                Necesitarías {{ $panels($roof->panelsNeeded) }} y caben {{ $roof->panelsThatFit }}: faltan {{ $roof->missingPanels() }}.
+            @endif
+            @if ($roof->panelsThatFit > 0)
+                {!! $unit(
+                    'El sol daría unos '.$kwh($sunKwh).' de tus '.$kwh($roof->monthlyConsumptionKwh).' kWh al mes.',
+                    'El sol pagaría unos '.$money($sunKwh * $diary['ratePerKwh']).' de tus '.$money($roof->monthlyConsumptionKwh * $diary['ratePerKwh']).' al mes.'
+                ) !!}
+            @endif
+        </p>
+        @unless ($sizing['fromClimateData'])
+            <p class="solar-coverage-strip__note">Estimado con el sol promedio de La Guajira; al calcular se afina con los datos de tu zona.</p>
+        @endunless
+    </section>
+@endif
+
 @if ($usesBillConsumption)
     <div class="solar-alert solar-alert-warning" role="note">
         Este proyecto usa un consumo de <strong>{{ $kwh($solarProject->monthlyConsumption()) }} kWh al mes</strong> tomado del recibo.

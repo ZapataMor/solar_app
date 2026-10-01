@@ -208,10 +208,25 @@ final class ProjectExplainer
             ], ExplainedQuestion::TONE_WARNING);
         }
 
-        return new ExplainedQuestion('panels', $question, "{$f->numberOfPanels} paneles", 'para cubrir tu consumo con el espacio disponible', [
+        $paragraphs = [
             'Cada panel mide unos '.$this->number($f->panelAreaM2, 1).' m², un poco más que una puerta. En total ocuparían unos '.$this->number($f->numberOfPanels * $f->panelAreaM2, 0).' m² de techo o terreno.',
             'Juntos suman '.$this->number($f->installedCapacityKwp, 1).' kWp: la "p" es de "pico", la potencia máxima que dan los paneles a pleno sol del mediodía.',
-        ]);
+        ];
+
+        // ADR-0014: sized to what you use, with the roof as the limit.
+        if ($f->panelsNeeded !== null && $f->panelsThatFit !== null) {
+            if ($f->panelsNeeded > $f->panelsThatFit) {
+                $paragraphs[] = "Para cubrir todo tu consumo harían falta {$f->panelsNeeded}, pero en tu techo caben {$f->panelsThatFit}: por eso instalamos todos los que caben y el resto lo sigue dando la red.";
+
+                return new ExplainedQuestion('panels', $question, "{$f->numberOfPanels} paneles", "de los {$f->panelsNeeded} que harían falta", $paragraphs, ExplainedQuestion::TONE_WARNING);
+            }
+
+            $spare = $f->panelsThatFit - $f->numberOfPanels;
+            $paragraphs[] = 'Son los que necesitas para tu consumo, ni uno más: así no pagas paneles de sobra.'
+                .($spare > 0 ? " Te queda espacio para {$spare} más si algún día sumas equipos." : '');
+        }
+
+        return new ExplainedQuestion('panels', $question, "{$f->numberOfPanels} paneles", 'para cubrir tu consumo con el espacio disponible', $paragraphs);
     }
 
     private function nightAndCloudyDays(): ExplainedQuestion

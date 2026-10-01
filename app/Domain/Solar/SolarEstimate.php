@@ -23,5 +23,6 @@ final readonly class SolarEstimate
         public float $installationCostCop,
         public ?float $paybackPeriodYears,
         public array $months,
+        public ?SystemSizing $sizing = null,
     ) {}
 }

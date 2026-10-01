@@ -25,37 +25,14 @@
         <div
             class="solar-page solar-diary"
             data-consumption-diary
+            data-unit-root
             data-unit="kwh"
             data-rate="{{ $diary['ratePerKwh'] }}"
         >
-            @if ($diary['ratePerKwh'] > 0)
-                {{-- Before the content is drawn: the unit this viewer chose last time (no kWh → pesos jump). --}}
-                <script>
-                    try {
-                        if (localStorage.getItem('natalia:diary-unit') === 'money') {
-                            document.querySelector('[data-consumption-diary]').dataset.unit = 'money';
-                        }
-                    } catch (_error) {
-                        // Storage unavailable: kWh.
-                    }
-                </script>
-            @endif
-
             @include('solar-projects.partials.appliance-icons')
 
-            @if ($diary['ratePerKwh'] > 0)
-                {{-- kWh or pesos per month: for clients who understand money better than kWh. --}}
-                <div class="solar-unit-toolbar">
-                    <span class="solar-unit-toolbar__label" id="diary-unit-label">Ver consumo en</span>
-                    <div class="solar-unit-switch" role="group" aria-labelledby="diary-unit-label">
-                        <button type="button" data-unit-choice="kwh" aria-pressed="true">kWh</button>
-                        <button type="button" data-unit-choice="money" aria-pressed="false">Pesos</button>
-                    </div>
-                    <span class="solar-unit-toolbar__note solar-unit solar-unit--money">
-                        Con tu tarifa de ${{ number_format($diary['ratePerKwh'], 0, ',', '.') }} por kWh; es lo que esa energía te cuesta hoy en el recibo.
-                    </span>
-                </div>
-            @endif
+            {{-- kWh or pesos per month: for clients who understand money better than kWh. --}}
+            @include('solar-projects.partials.unit-toolbar', ['rate' => $diary['ratePerKwh']])
 
             @if ($errors->any() && $reopen === null)
                 <div class="solar-alert solar-alert-danger" role="alert">{{ $errors->first() }}</div>
@@ -208,7 +185,6 @@
         const moneyFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
         const money = (cop) => `$${moneyFormatter.format(Math.round(cop / 100) * 100)}`;
         const rate = Number(root.dataset.rate) || 0;
-        const UNIT_KEY = 'natalia:diary-unit';
         const DAYS_PER_MONTH = 30;
         let showAll = false;
         let state = null; // { id, key, choices: [] }
@@ -250,21 +226,8 @@
             $('[data-diary-chosen-icon]').setAttribute('href', `#appliance-${iconOf()}`);
         };
 
-        // kWh or pesos: remembered in this browser (a per-viewer preference).
-        const unitButtons = Array.from(root.querySelectorAll('[data-unit-choice]'));
-        const setUnit = (unit, { remember = true } = {}) => {
-            root.dataset.unit = unit === 'money' && rate > 0 ? 'money' : 'kwh';
-            unitButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.unitChoice === root.dataset.unit)));
-            if (remember) {
-                try {
-                    localStorage.setItem(UNIT_KEY, root.dataset.unit);
-                } catch (_error) {
-                    // Storage unavailable: the choice lasts until the page changes.
-                }
-            }
-        };
-        unitButtons.forEach((button) => button.addEventListener('click', () => setUnit(button.dataset.unitChoice)));
-        setUnit(root.dataset.unit, { remember: false });
+        // The kWh / pesos switch is wired by app.js; the preview follows it when it changes.
+        root.addEventListener('unit:changed', () => state?.key && refreshPreview());
 
         const filterCards = () => {
             const term = normalize(search.value);

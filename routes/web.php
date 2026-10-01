@@ -4,6 +4,7 @@ use App\Http\Controllers\ApiDataController;
 use App\Http\Controllers\SolarProjectConsumptionController;
 use App\Http\Controllers\SolarProjectController;
 use App\Http\Controllers\SolarProjectNotesController;
+use App\Http\Controllers\SolarProjectSystemController;
 use App\Models\Municipality;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('solar-projects/{solarProject}', [SolarProjectController::class, 'destroy'])->name('solar-projects.destroy');
     Route::post('solar-projects/{solarProject}/calculate', [SolarProjectController::class, 'calculate'])
         ->name('solar-projects.calculate');
+
+    // Alternative panel "Mi sistema" (ADR-0014), compared with the current panel before choosing one.
+    Route::get('solar-projects/{solarProject}/system', [SolarProjectSystemController::class, 'show'])
+        ->name('solar-projects.system');
 
     // Consumption diary (ADR-0013): appliances by space, added after creating the project.
     Route::get('solar-projects/{solarProject}/consumption', [SolarProjectConsumptionController::class, 'show'])

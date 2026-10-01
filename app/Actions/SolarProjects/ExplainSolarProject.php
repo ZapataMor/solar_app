@@ -61,6 +61,8 @@ final class ExplainSolarProject
             staleReasons: $freshness->status === CalculationFreshness::STALE ? $freshness->reasons : [],
             biggestApplianceLabel: $biggestLabel,
             biggestApplianceKwh: $biggestKwh,
+            panelsNeeded: $result?->panels_needed !== null ? (int) $result->panels_needed : null,
+            panelsThatFit: $result?->panels_that_fit !== null ? (int) $result->panels_that_fit : null,
         ));
     }
 
