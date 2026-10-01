@@ -71,18 +71,31 @@ final class SaveSolarProject
             return;
         }
 
-        $solarProject->appliances()->delete();
+        $wanted = $mode === ConsumptionMode::APPLIANCES
+            ? array_map(fn (array $row) => [
+                'appliance_key' => (string) $row['key'],
+                'variant_key' => (string) $row['variant'],
+                'quantity' => (int) $row['quantity'],
+                'hours_per_day' => round((float) $row['hours_per_day'], 2),
+            ], array_values($data['appliances'] ?? []))
+            : [];
 
-        if ($mode !== ConsumptionMode::APPLIANCES) {
+        // Untouched list: keep the rows, so saving without changes does not mark the calculation stale.
+        $current = $solarProject->appliances()->orderBy('id')->get()
+            ->map(fn ($appliance) => [
+                'appliance_key' => $appliance->appliance_key,
+                'variant_key' => $appliance->variant_key,
+                'quantity' => (int) $appliance->quantity,
+                'hours_per_day' => round((float) $appliance->hours_per_day, 2),
+            ])
+            ->all();
+
+        if ($current === $wanted) {
             return;
         }
 
-        $solarProject->appliances()->createMany(array_map(fn (array $row) => [
-            'appliance_key' => $row['key'],
-            'variant_key' => $row['variant'],
-            'quantity' => (int) $row['quantity'],
-            'hours_per_day' => round((float) $row['hours_per_day'], 2),
-        ], array_values($data['appliances'] ?? [])));
+        $solarProject->appliances()->delete();
+        $solarProject->appliances()->createMany($wanted);
     }
 
     /**

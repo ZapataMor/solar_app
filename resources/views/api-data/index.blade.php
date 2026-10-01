@@ -505,7 +505,7 @@
                 <div>
                     <p class="solar-kicker">NASA power</p>
                     <h2 class="text-2xl text-[color:var(--solar-text)]">Fuente satelital</h2>
-                    <p class="solar-subtitle mt-2">Datos climaticos sincronizados desde NASA POWER con una lectura tabular mas clara.</p>
+                    <p class="solar-subtitle mt-2">Radiación diaria satelital de NASA POWER. Los últimos días aparecen como estimados hasta que NASA los publica; luego se confirman solos.</p>
                     <p class="mt-2 text-sm text-[color:var(--solar-text-muted)]" data-api-sync-status="nasa">
                         Sincronizacion manual disponible.
                     </p>
@@ -520,6 +520,15 @@
                     @endcan
                 </div>
             </div>
+
+            {{-- Daily radiation: real vs estimated (ADR-0009) --}}
+            <script id="nasa-daily-chart-data" type="application/json">@json($nasaChartRows)</script>
+            <div class="mt-6 solar-api-chart-frame">
+                <canvas id="nasa-daily-chart" aria-label="Radiacion diaria NASA POWER, distinguiendo dias reales y estimados" role="img"></canvas>
+            </div>
+            <p class="mt-2 text-xs text-[color:var(--solar-text-muted)]">
+                Últimos 90 días. Barras sólidas: dato real publicado por NASA. Barras claras: estimación provisional.
+            </p>
 
             <div class="solar-table-shell mt-6">
                 <div class="solar-api-table-scroll">

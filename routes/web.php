@@ -19,6 +19,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('municipalities/{municipality}/solar-price', [SolarProjectController::class, 'solarPrice'])
         ->name('municipalities.solar-price');
     Route::post('solar-projects', [SolarProjectController::class, 'store'])->name('solar-projects.store');
+    Route::post('solar-projects/recalculate-outdated', [SolarProjectController::class, 'recalculateOutdated'])
+        ->name('solar-projects.recalculate-outdated');
     Route::post('solar-projects/{solarProject}/ai-recommendations', [SolarProjectController::class, 'aiRecommendations'])
         ->name('solar-projects.ai-recommendations');
     Route::post('solar-projects/{solarProject}/ai-prediction', [SolarProjectController::class, 'aiPrediction'])

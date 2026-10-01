@@ -1,0 +1,126 @@
+/* "!" indicator for projects whose data changed since their last calculation. */
+
+@layer components {
+    .solar-recalc-button {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .solar-recalc-button:disabled {
+        cursor: default;
+        opacity: 0.7;
+    }
+
+    .solar-recalc-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        min-width: 1.35rem;
+        height: 1.35rem;
+        padding: 0 0.4rem;
+        justify-content: center;
+        border-radius: 999px;
+        background: var(--solar-danger);
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1;
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--solar-danger) 55%, transparent);
+        animation: solar-recalc-pulse 2.2s ease-out infinite;
+    }
+
+    .solar-recalc-badge__count {
+        font-weight: 700;
+    }
+
+    /* Floating variant: sits on the corner of the button it belongs to. */
+    .solar-recalc-anchor {
+        position: relative;
+    }
+
+    .solar-recalc-badge--floating {
+        position: absolute;
+        top: -0.55rem;
+        right: -0.55rem;
+        padding: 0;
+        width: 1.35rem;
+    }
+
+    .solar-recalc-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        width: fit-content;
+        margin-bottom: 0.5rem;
+        padding: 0.2rem 0.6rem 0.2rem 0.25rem;
+        border-radius: 999px;
+        background: var(--solar-danger-bg);
+        color: var(--solar-danger);
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .solar-recalc-chip__dot {
+        display: inline-grid;
+        width: 1.1rem;
+        height: 1.1rem;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--solar-danger);
+        color: #fff;
+        font-size: 0.7rem;
+    }
+
+    .solar-recalc-banner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem 1rem;
+        width: min(100% - 2rem, 88rem);
+        margin: 0 auto;
+        padding: 0.9rem 1.1rem;
+        border: 1px solid color-mix(in srgb, var(--solar-danger) 45%, transparent);
+        border-radius: 1rem;
+        background: var(--solar-danger-bg);
+        color: var(--solar-text);
+    }
+
+    .solar-recalc-banner__icon {
+        display: inline-grid;
+        flex-shrink: 0;
+        width: 2rem;
+        height: 2rem;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--solar-danger);
+        color: #fff;
+        font-weight: 800;
+    }
+
+    .solar-recalc-banner__body {
+        flex: 1;
+        min-width: 14rem;
+        font-size: 0.9rem;
+    }
+
+    .solar-recalc-banner__body ul {
+        margin: 0.2rem 0 0;
+        padding-left: 1.1rem;
+        color: var(--solar-text-muted);
+        list-style: disc;
+    }
+
+    @keyframes solar-recalc-pulse {
+        0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--solar-danger) 55%, transparent); }
+        70% { box-shadow: 0 0 0 0.5rem color-mix(in srgb, var(--solar-danger) 0%, transparent); }
+        100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--solar-danger) 0%, transparent); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-recalc-badge {
+            animation: none;
+        }
+    }
+}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AmbientWeatherReading;
+use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
 use App\Models\WeatherStationReading;
 use App\Services\AmbientWeatherImportService;
@@ -54,6 +55,7 @@ class ApiDataController extends Controller
             'ambientChartRows'        => $this->latestAmbientChartRows(),
             'nasaRows'                => $nasaRows,
             'nasaCount'               => $nasaCount,
+            'nasaChartRows'           => $this->nasaDailyChartRows(),
             'weatherStationRows'      => $weatherStationRows,
             'weatherStationCount'     => $weatherStationCount,
             'weatherStationChartRows' => $this->latestWeatherStationChartRows(),
@@ -399,6 +401,28 @@ class ApiDataController extends Controller
                 'precipitation' => $this->formatJsonNasaNumber($row->precipitation, 4),
                 'wind_speed' => $this->formatJsonNasaNumber($row->wind_speed, 2),
             ])
+            ->all();
+    }
+
+    /**
+     * Last 90 days of NASA daily radiation for the chart, flagging real vs. estimated days (ADR-0009).
+     *
+     * @return list<array{date: string, radiation: float|null, peak_sun_hours: float|null, real: bool}>
+     */
+    private function nasaDailyChartRows(): array
+    {
+        return ApiWeatherData::query()
+            ->whereTime('date_time', '00:00:00')
+            ->where('date_time', '>=', now()->subDays(90)->startOfDay())
+            ->orderBy('date_time')
+            ->get(['date_time', 'allsky_sfc_sw_dwn', 'radiation_source'])
+            ->map(fn (ApiWeatherData $row): array => [
+                'date' => $row->date_time->format('Y-m-d'),
+                'radiation' => $row->allsky_sfc_sw_dwn !== null ? round((float) $row->allsky_sfc_sw_dwn, 1) : null,
+                'peak_sun_hours' => $row->allsky_sfc_sw_dwn !== null ? round((float) $row->allsky_sfc_sw_dwn * 24 / 1000, 2) : null,
+                'real' => $row->radiation_source === 'nasa_real',
+            ])
+            ->values()
             ->all();
     }
 

@@ -948,6 +948,88 @@ const upsertAmbientRealtimeChart = (rows) => {
     updateAmbientUvIndexIndicator(rows);
 };
 
+// NASA POWER daily radiation (ADR-0009): solid bars are real NASA data, light bars are provisional estimates.
+const renderNasaDailyChart = () => {
+    const dataElement = document.getElementById('nasa-daily-chart-data');
+
+    if (!dataElement) {
+        return;
+    }
+
+    destroyChart('nasa-daily-chart');
+
+    const rows = JSON.parse(dataElement.textContent || '[]');
+    const solarColors = getSolarChartColors();
+    const realOrNull = (real) => rows.map((row) => (row.real === real ? normalizeChartNumber(row.radiation) : null));
+
+    createChart('nasa-daily-chart', {
+        type: 'bar',
+        data: {
+            labels: rows.map((row) => row.date),
+            datasets: [
+                {
+                    label: 'Dato real NASA',
+                    data: realOrNull(true),
+                    backgroundColor: `${solarColors.gold}cc`,
+                    borderColor: solarColors.goldDark,
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    stack: 'radiation',
+                },
+                {
+                    label: 'Estimado (pendiente de publicar)',
+                    data: realOrNull(false),
+                    backgroundColor: `${solarColors.gold}40`,
+                    borderColor: solarColors.gold,
+                    borderWidth: 1,
+                    borderDash: [4, 3],
+                    borderRadius: 3,
+                    stack: 'radiation',
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: {
+                    labels: { color: solarColors.text, usePointStyle: true, pointStyle: 'rectRounded', padding: 18 },
+                },
+                tooltip: {
+                    backgroundColor: solarColors.tooltipBg,
+                    titleColor: solarColors.tooltipTitle,
+                    bodyColor: solarColors.tooltipBody,
+                    borderColor: solarColors.tooltipBorder,
+                    borderWidth: 1,
+                    padding: 12,
+                    filter: (item) => item.parsed.y !== null,
+                    callbacks: {
+                        label: (context) => {
+                            const row = rows[context.dataIndex];
+                            return `${context.dataset.label}: ${numberFormatter.format(context.parsed.y)} W/m² · ${numberFormatter.format(row.peak_sun_hours ?? 0)} HSP`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    ticks: { color: solarColors.text, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+                    grid: { display: false },
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    title: { display: true, text: 'Radiación promedio diaria (W/m²)', color: solarColors.text },
+                    ticks: { color: solarColors.text },
+                    grid: { color: solarColors.grid },
+                },
+            },
+        },
+    });
+};
+
 const initSolarCharts = () => {
     const timeScaleDataElement = document.getElementById('solar-timescale-chart-data');
     const weatherStationDataElement = document.getElementById('weather-station-chart-data');
@@ -1012,6 +1094,8 @@ const initSolarCharts = () => {
     if (ambientRealtimeDataElement) {
         upsertAmbientRealtimeChart(JSON.parse(ambientRealtimeDataElement.textContent || '[]'));
     }
+
+    renderNasaDailyChart();
 };
 
 const observeSolarTheme = () => {
@@ -1366,6 +1450,11 @@ const replaceApiPaginationSection = (html, sectionKey) => {
     initApiDataPagination();
     initApiDataSync();
     showApiDataTab(sectionKey, { updateUrl: false });
+
+    // The NASA section carries its own chart: redraw it on the new canvas.
+    if (sectionKey === 'nasa') {
+        renderNasaDailyChart();
+    }
 
     return true;
 };

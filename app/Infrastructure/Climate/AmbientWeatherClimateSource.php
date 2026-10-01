@@ -4,8 +4,11 @@ namespace App\Infrastructure\Climate;
 
 use App\Domain\Climate\ClimateSeries;
 use App\Domain\Climate\ClimateSource;
+use App\Models\AmbientWeatherReading;
 use App\Services\AmbientWeatherAggregationService;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use DateTimeInterface;
 
 final class AmbientWeatherClimateSource implements ClimateSource
@@ -37,5 +40,14 @@ final class AmbientWeatherClimateSource implements ClimateSource
                     : null,
             ],
         );
+    }
+
+    public function lastChangedAt(DateTimeInterface $start, DateTimeInterface $end): ?DateTimeImmutable
+    {
+        $latest = AmbientWeatherReading::query()
+            ->whereBetween('recorded_at', [$start, $end])
+            ->max('updated_at');
+
+        return $latest !== null ? CarbonImmutable::parse($latest) : null;
     }
 }

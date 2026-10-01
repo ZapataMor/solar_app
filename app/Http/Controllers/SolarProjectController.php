@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Actions\SolarProjects\CalculateSolarProject;
+use App\Actions\SolarProjects\CheckCalculationFreshness;
+use App\Actions\SolarProjects\RecalculateProjects;
 use App\Actions\SolarProjects\SaveSolarProject;
 use App\Domain\Climate\ClimateSeries;
 use App\Domain\Climate\ClimateSource;
@@ -26,6 +28,7 @@ use App\Services\AmbientWeatherAggregationService;
 use App\Services\WeatherStationAggregationService;
 use App\Services\WeatherStationImportService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,8 +43,16 @@ class SolarProjectController extends Controller
     }
 
     /**
-     * Data for the project portfolio (listing), shared by the index and by
-     * the show view, which renders the portfolio behind the project modal.
+     * Projects the user can see: all for admins, their own otherwise.
+     */
+    private function visibleProjectsQuery(User $user): Builder
+    {
+        return SolarProject::query()
+            ->when(! $user->isAdmin(), fn (Builder $query) => $query->where('user_id', $user->id));
+    }
+
+    /**
+     * Data for the project portfolio (listing).
      *
      * @return array<string, mixed>
      */
@@ -50,17 +61,15 @@ class SolarProjectController extends Controller
         /** @var User $user */
         $user = $request->user();
         $isAdmin = $user->isAdmin();
+        $checkFreshness = app(CheckCalculationFreshness::class);
 
-        $solarProjectsQuery = SolarProject::query()
+        $solarProjectsQuery = $this->visibleProjectsQuery($user)
             ->with([
                 'user:id,name',
                 'calculationResult',
+                'technicalParameter',
             ])
             ->latest();
-
-        if (! $isAdmin) {
-            $solarProjectsQuery->where('user_id', $user->id);
-        }
 
         $search = trim((string) $request->query('search', ''));
 
@@ -82,12 +91,48 @@ class SolarProjectController extends Controller
             'page' => $request->query('page'),
         ], fn ($value) => filled($value));
 
+        // "!" indicator: which cards need a recalculation, and how many projects in total.
+        $projectFreshness = $solarProjects->getCollection()
+            ->mapWithKeys(fn (SolarProject $solarProject) => [$solarProject->id => $checkFreshness($solarProject)])
+            ->all();
+        $projectsToRecalculate = $this->visibleProjectsQuery($user)
+            ->with(['calculationResult', 'technicalParameter'])
+            ->get()
+            ->filter(fn (SolarProject $solarProject) => $checkFreshness($solarProject)->needsRecalculation())
+            ->count();
+
         return [
             'solarProjects' => $solarProjects,
             'isAdmin' => $isAdmin,
             'search' => $search,
             'portfolioQuery' => $portfolioQuery,
+            'projectFreshness' => $projectFreshness,
+            'projectsToRecalculate' => $projectsToRecalculate,
         ];
+    }
+
+    /**
+     * Recalculates, with the best available source, only the visible projects that need it.
+     */
+    public function recalculateOutdated(Request $request, RecalculateProjects $recalculateProjects): RedirectResponse
+    {
+        $summary = $recalculateProjects(
+            $this->visibleProjectsQuery($request->user())->with(['calculationResult', 'technicalParameter'])->get()
+        );
+
+        if ($summary['recalculated'] === 0 && $summary['failed'] === 0) {
+            return back()->with('status', 'Todos tus proyectos ya estaban al día.');
+        }
+
+        $message = $summary['recalculated'] === 1
+            ? 'Se recalculó 1 proyecto.'
+            : "Se recalcularon {$summary['recalculated']} proyectos.";
+
+        if ($summary['failed'] > 0) {
+            $message .= " {$summary['failed']} no se pudieron calcular (revisa sus datos climáticos o parámetros).";
+        }
+
+        return back()->with('status', $message);
     }
 
     /**
@@ -127,6 +172,7 @@ class SolarProjectController extends Controller
         ProjectDashboardService $projectDashboardService,
         NasaWeatherDataService $nasaWeatherDataService,
         SolarProjectAiHistoryService $aiHistoryService,
+        CheckCalculationFreshness $checkFreshness,
     ): View
     {
         $this->authorizeOwner($request, $solarProject);
@@ -145,6 +191,7 @@ class SolarProjectController extends Controller
 
         return view('solar-projects.show', [
             'portfolioUrl' => $this->portfolioUrl($request),
+            'calculationFreshness' => $checkFreshness($solarProject),
             'solarProject' => $solarProject,
             'generateAiRecommendations' => $generateAiRecommendations,
             'aiFocus' => $aiFocus,

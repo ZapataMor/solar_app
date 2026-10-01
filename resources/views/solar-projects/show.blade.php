@@ -188,6 +188,24 @@
 <x-layouts::app :title="$solarProject->name">
 <div class="solar-project-detail">
 @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'panel', 'backUrl' => $portfolioUrl])
+
+@if ($calculationFreshness->needsRecalculation())
+    <div class="solar-recalc-banner" role="status">
+        <span class="solar-recalc-banner__icon" aria-hidden="true">!</span>
+        <div class="solar-recalc-banner__body">
+            <strong>{{ $calculationFreshness->status === \App\Domain\Solar\CalculationFreshness::PENDING ? 'Este proyecto aún no tiene resultados.' : 'Los resultados pueden estar desactualizados.' }}</strong>
+            <ul>
+                @foreach ($calculationFreshness->reasons as $reason)
+                    <li>{{ $reason }}</li>
+                @endforeach
+            </ul>
+        </div>
+        <form method="POST" action="{{ route('solar-projects.calculate', $solarProject) }}">
+            @csrf
+            <button type="submit" class="solar-button">{{ $calculationFreshness->status === \App\Domain\Solar\CalculationFreshness::PENDING ? 'Calcular ahora' : 'Recalcular ahora' }}</button>
+        </form>
+    </div>
+@endif
 <style>
 /* ── Design tokens & base ───────────────────────────────────── */
 .sdash {
@@ -1776,8 +1794,11 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
                 {{-- Primary: auto-calculate --}}
                 <form method="POST" action="{{ route('solar-projects.calculate', $solarProject) }}">
                     @csrf
-                    <button class="sdash-btn sdash-btn--primary" type="submit" title="Usa la mejor fuente disponible: Ambient → Estacion → NASA">
+                    <button class="sdash-btn sdash-btn--primary solar-recalc-anchor" type="submit" title="{{ $calculationFreshness->needsRecalculation() ? implode(' ', $calculationFreshness->reasons) : 'Usa la mejor fuente disponible: Ambient → Estacion → NASA' }}">
                         ⚡ Calcular
+                        @if ($calculationFreshness->needsRecalculation())
+                            <span class="solar-recalc-badge solar-recalc-badge--floating" aria-label="Hay datos nuevos para recalcular">!</span>
+                        @endif
                     </button>
                 </form>
 

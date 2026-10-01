@@ -4,8 +4,11 @@ namespace App\Infrastructure\Climate;
 
 use App\Domain\Climate\ClimateSeries;
 use App\Domain\Climate\ClimateSource;
+use App\Models\WeatherStationReading;
 use App\Services\WeatherStationAggregationService;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use DateTimeInterface;
 
 final class LocalStationClimateSource implements ClimateSource
@@ -32,5 +35,14 @@ final class LocalStationClimateSource implements ClimateSource
             source: $this->key(),
             days: IrradianceRows::toDays($this->aggregation->dailyRows($readings)),
         );
+    }
+
+    public function lastChangedAt(DateTimeInterface $start, DateTimeInterface $end): ?DateTimeImmutable
+    {
+        $latest = WeatherStationReading::query()
+            ->whereBetween('measured_at', [$start, $end])
+            ->max('updated_at');
+
+        return $latest !== null ? CarbonImmutable::parse($latest) : null;
     }
 }

@@ -92,7 +92,7 @@ final class CalculateSolarProject
                     'payback_period_years' => $estimate->paybackPeriodYears,
                     'climate_source' => $climateSource,
                 ],
-            );
+            )->touch(); // Always stamp the calculation time, even when the numbers did not change (freshness check).
 
             $solarProject->monthlyResults()->delete();
             $solarProject->monthlyResults()->createMany(

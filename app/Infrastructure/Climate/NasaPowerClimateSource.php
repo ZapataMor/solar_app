@@ -5,6 +5,8 @@ namespace App\Infrastructure\Climate;
 use App\Domain\Climate\ClimateSeries;
 use App\Domain\Climate\ClimateSource;
 use App\Models\ApiWeatherData;
+use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use DateTimeInterface;
 
 final class NasaPowerClimateSource implements ClimateSource
@@ -32,5 +34,14 @@ final class NasaPowerClimateSource implements ClimateSource
             ->get();
 
         return new ClimateSeries(source: $this->key(), days: IrradianceRows::toDays($rows));
+    }
+
+    public function lastChangedAt(DateTimeInterface $start, DateTimeInterface $end): ?DateTimeImmutable
+    {
+        $latest = ApiWeatherData::query()
+            ->whereBetween('date_time', [$start, $end])
+            ->max('updated_at');
+
+        return $latest !== null ? CarbonImmutable::parse($latest) : null;
     }
 }

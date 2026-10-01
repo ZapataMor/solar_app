@@ -21,6 +21,14 @@ final class ClimateSourceChain
         $this->sources = array_values($sources);
     }
 
+    /**
+     * @return list<ClimateSource> Best quality first.
+     */
+    public function all(): array
+    {
+        return $this->sources;
+    }
+
     public function get(string $key): ClimateSource
     {
         foreach ($this->sources as $source) {

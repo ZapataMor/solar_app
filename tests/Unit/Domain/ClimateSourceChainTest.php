@@ -64,6 +64,11 @@ class ClimateSourceChainTest extends TestCase
             {
                 return new ClimateSeries($this->sourceKey, $this->days);
             }
+
+            public function lastChangedAt(DateTimeInterface $start, DateTimeInterface $end): ?DateTimeImmutable
+            {
+                return null;
+            }
         };
     }
 }

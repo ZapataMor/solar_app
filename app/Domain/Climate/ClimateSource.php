@@ -2,6 +2,7 @@
 
 namespace App\Domain\Climate;
 
+use DateTimeImmutable;
 use DateTimeInterface;
 
 /**
@@ -23,4 +24,9 @@ interface ClimateSource
     public function label(): string;
 
     public function dailyIrradiance(DateTimeInterface $start, DateTimeInterface $end): ClimateSeries;
+
+    /**
+     * When this source's data inside the range last changed (new or updated rows), or null if it has none.
+     */
+    public function lastChangedAt(DateTimeInterface $start, DateTimeInterface $end): ?DateTimeImmutable;
 }
