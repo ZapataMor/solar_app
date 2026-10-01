@@ -135,18 +135,32 @@
         opacity: 0.6;
     }
 
-    /* The row that was just added or changed. */
-    .solar-diary-item.is-updated {
+    /* The row that was just added or changed: a rounded glow (like the card around it) that fades out.
+       It is a layer behind the content and a little wider than the row, so the text does not touch its edges. */
+    .solar-diary-item {
+        position: relative;
+        isolation: isolate;
+    }
+
+    .solar-diary-item.is-updated::before {
+        content: '';
+        position: absolute;
+        inset: 0.2rem -0.65rem;
+        z-index: -1;
+        border-radius: 0.85rem;
+        background: color-mix(in srgb, var(--solar-sun) 22%, transparent);
+        pointer-events: none;
+        opacity: 0;
         animation: solar-diary-flash 1.6s ease-out;
     }
 
     @keyframes solar-diary-flash {
-        0% { background: color-mix(in srgb, var(--solar-sun) 22%, transparent); }
-        100% { background: transparent; }
+        0%, 25% { opacity: 1; }
+        100% { opacity: 0; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .solar-diary-item.is-updated {
+        .solar-diary-item.is-updated::before {
             animation: none;
         }
     }
