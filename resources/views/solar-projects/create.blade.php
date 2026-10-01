@@ -3,7 +3,7 @@
         <section class="solar-hero">
             <p class="solar-kicker">Nuevo escenario</p>
             <h1 class="solar-title">Crear proyecto solar</h1>
-            <p class="solar-subtitle">Registra el contexto tecnico inicial del sistema para convertir radiacion, clima y consumo en una lectura ejecutiva clara.</p>
+            <p class="solar-subtitle">Cinco pasos cortos y obtienes una estimación de tu sistema solar: cuánto genera, cuánto cuesta y en cuánto tiempo se paga.</p>
         </section>
 
         @include('solar-projects._form', [

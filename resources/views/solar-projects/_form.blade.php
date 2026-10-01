@@ -32,11 +32,39 @@
     $selectedRequiredPower = old('required_power_kw', $solarProject?->required_power_kw);
     $isCreating = strtoupper($method) === 'POST';
     $solarPriceUrlTemplate = route('municipalities.solar-price', ['municipality' => '__MUNICIPALITY__']);
+
+    // Defaults for clients who do not know their technical parameters (ADR-0007).
+    $systemSpec = \App\Domain\Solar\SystemSpecification::class;
+    $defaults = $isCreating ? [
+        'usable_area_percentage' => $systemSpec::DEFAULT_USABLE_AREA_PERCENTAGE,
+        'panel_power_w' => $systemSpec::DEFAULT_PANEL_POWER_W,
+        'panel_area_m2' => $systemSpec::DEFAULT_PANEL_AREA_M2,
+        'system_losses_percentage' => $systemSpec::DEFAULT_SYSTEM_LOSSES_PERCENTAGE,
+        'start_date' => now(config('app.display_timezone', config('app.timezone')))->toDateString(),
+    ] : [];
+
+    // Wizard stages and the fields each one owns, used to reopen the stage with server errors.
+    $wizardSteps = [
+        ['key' => 'project', 'label' => 'Tu proyecto', 'fields' => ['name', 'description']],
+        ['key' => 'location', 'label' => 'Ubicación', 'fields' => ['municipality_id', 'location_type', 'latitude', 'longitude']],
+        ['key' => 'consumption', 'label' => 'Consumo', 'fields' => ['monthly_consumption_kwh', 'energy_rate_cop_kwh', 'required_power_kw']],
+        ['key' => 'space', 'label' => 'Espacio disponible', 'fields' => ['available_area_m2', 'usable_area_percentage', 'panel_power_w', 'panel_area_m2', 'system_losses_percentage', 'start_date', 'end_date']],
+        ['key' => 'summary', 'label' => 'Resumen', 'fields' => []],
+    ];
+    $stepsWithErrors = collect($wizardSteps)
+        ->keys()
+        ->filter(fn (int $index) => $errors->hasAny($wizardSteps[$index]['fields']))
+        ->values();
+    $initialStep = $stepsWithErrors->first() ?? 0;
+    $furthestStep = ($isCreating && ! $errors->any()) ? 0 : count($wizardSteps) - 1;
+    $advancedOpen = $errors->hasAny(['usable_area_percentage', 'panel_power_w', 'panel_area_m2', 'system_losses_percentage', 'start_date', 'end_date']);
+    $coordinatesOpen = $errors->hasAny(['latitude', 'longitude']);
 @endphp
 
 @if ($errors->any())
     <div class="solar-alert solar-alert-danger">
-        <ul class="list-disc space-y-1 ps-5">
+        <p class="font-semibold">Revisa las etapas marcadas en rojo:</p>
+        <ul class="mt-1 list-disc space-y-1 ps-5">
             @foreach ($errors->all() as $error)
                 <li>{{ $error }}</li>
             @endforeach
@@ -44,75 +72,168 @@
     </div>
 @endif
 
-<form method="POST" action="{{ $action }}" class="solar-page">
+<form
+    method="POST"
+    action="{{ $action }}"
+    class="solar-page solar-wizard"
+    data-project-wizard
+    data-wizard-initial="{{ $initialStep }}"
+    data-wizard-furthest="{{ $furthestStep }}"
+>
     @csrf
     @if ($method !== 'POST')
         @method($method)
     @endif
 
-    <section class="solar-card-strong">
+    <nav class="solar-wizard-nav" aria-label="Etapas del proyecto" data-wizard-nav hidden>
+        <ol class="solar-wizard-steps">
+            @foreach ($wizardSteps as $index => $step)
+                <li>
+                    <button
+                        type="button"
+                        class="solar-wizard-step"
+                        data-wizard-goto="{{ $index }}"
+                        @if ($stepsWithErrors->contains($index)) data-has-error @endif
+                    >
+                        <span class="solar-wizard-step-number">{{ $index + 1 }}</span>
+                        <span class="solar-wizard-step-label">{{ $step['label'] }}</span>
+                    </button>
+                </li>
+            @endforeach
+        </ol>
+        <p class="solar-wizard-progress" data-wizard-progress aria-live="polite"></p>
+    </nav>
+
+    {{-- 1 · Tu proyecto --}}
+    <section class="solar-card-strong" data-wizard-step="project" data-wizard-label="Tu proyecto">
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Base del proyecto</p>
-                <h2 class="text-2xl text-[color:var(--solar-text)]">Informacion del proyecto</h2>
-                <p class="solar-subtitle mt-2">Riohacha es el punto de referencia principal, pero pronto podrás seleccionar cualquier municipio de La Guajira.</p>
+                <p class="solar-kicker">Etapa 1 · Tu proyecto</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Cómo se llama tu proyecto?</h2>
+                <p class="solar-subtitle mt-2">Un nombre que te ayude a reconocerlo, por ejemplo «Casa Riohacha» o «Tienda del barrio».</p>
             </div>
-            <span class="solar-pill">Contexto local permanente</span>
         </div>
 
-        <div class="solar-form-grid mt-6 md:grid-cols-2">
+        <div class="solar-form-grid mt-6">
             <label class="solar-field">
                 <span class="solar-field-label">Nombre del proyecto</span>
                 <input
                     name="name"
                     value="{{ old('name', $solarProject?->name) }}"
                     required
+                    maxlength="255"
                     class="solar-input"
                 >
             </label>
 
             <label class="solar-field">
-                <span class="solar-field-label">Ubicacion registrada</span>
-                <input
-                    value="{{ old('location_name', $solarProject?->location_name ?? 'La Guajira, Colombia') }}"
-                    disabled
-                    class="solar-input"
-                >
-            </label>
-
-            <label class="solar-field md:col-span-2">
-                <span class="solar-field-label">Descripcion</span>
+                <span class="solar-field-label">Descripción <span class="text-[color:var(--solar-text-muted)]">(opcional)</span></span>
                 <textarea
                     name="description"
-                    rows="4"
+                    rows="3"
                     class="solar-textarea"
                 >{{ old('description', $solarProject?->description) }}</textarea>
             </label>
+        </div>
+    </section>
 
+    {{-- 2 · Ubicación --}}
+    <section class="solar-card" data-location-quote data-wizard-step="location" data-wizard-label="Ubicación">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+        <div class="solar-page-header">
+            <div>
+                <p class="solar-kicker">Etapa 2 · Ubicación</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Dónde se instalaría?</h2>
+                <p class="solar-subtitle mt-2">Elige tu municipio en el listado o haz clic en el mapa. El precio de instalación se ajusta a cada municipio.</p>
+            </div>
+            <span class="solar-pill solar-pill-success">La Guajira</span>
+        </div>
+
+        <style>
+            .solar-location-layout { display: grid; gap: 1rem; margin-top: 1.5rem; }
+            @media (min-width: 1024px) { .solar-location-layout { grid-template-columns: minmax(0, 1.5fr) minmax(20rem, .8fr); } }
+            .solar-location-map { min-height: 26rem; overflow: hidden; border: 1px solid var(--solar-border); border-radius: 1rem; background: var(--solar-surface-muted); }
+            .solar-location-summary { display: grid; gap: .7rem; align-content: start; border: 1px solid var(--solar-border); border-radius: 1rem; background: var(--solar-surface-muted); padding: 1rem; }
+            .solar-location-row { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid color-mix(in srgb, var(--solar-border) 72%, transparent); padding-bottom: .55rem; color: var(--solar-text-muted); font-size: .86rem; }
+            .solar-location-row strong { color: var(--solar-text); text-align: right; }
+            .solar-location-message { border-radius: .8rem; background: var(--solar-warning-bg); padding: .8rem; color: var(--solar-warning); font-size: .84rem; }
+        </style>
+
+        <div class="solar-form-grid mt-6 md:grid-cols-2">
             <label class="solar-field">
-                <span class="solar-field-label">Fecha inicial</span>
-                <input
-                    type="date"
-                    name="start_date"
-                    value="{{ old('start_date', $solarProject?->start_date?->format('Y-m-d')) }}"
-                    required
-                    class="solar-input"
-                >
+                <span class="solar-field-label">Municipio</span>
+                <select name="municipality_id" required class="solar-input" data-location-municipality>
+                    <option value="">Selecciona un municipio</option>
+                    @foreach ($municipalities as $municipality)
+                        <option
+                            value="{{ $municipality->id }}"
+                            data-name="{{ $municipality->name }}"
+                            data-zone="{{ $municipality->zone }}"
+                            data-dane-code="{{ $municipalityDaneCodes[$municipality->name] ?? '' }}"
+                            data-latitude="{{ $municipality->latitude }}"
+                            data-longitude="{{ $municipality->longitude }}"
+                            @selected((string) $selectedMunicipalityId === (string) $municipality->id)
+                        >
+                            {{ $municipality->name }}
+                        </option>
+                    @endforeach
+                </select>
             </label>
 
-            @unless ($isCreating)
-                <label class="solar-field">
-                    <span class="solar-field-label">Fecha final</span>
-                    <input
-                        type="date"
-                        name="end_date"
-                        value="{{ old('end_date', $solarProject?->end_date?->format('Y-m-d')) }}"
-                        required
-                        class="solar-input"
-                    >
-                </label>
-            @endunless
+            <label class="solar-field">
+                <span class="solar-field-label">Tipo de ubicación</span>
+                <select name="location_type" required class="solar-input" data-location-type>
+                    @foreach ($locationTypes as $value => $label)
+                        <option value="{{ $value }}" @selected($selectedLocationType === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </label>
 
+            <input type="hidden" name="required_power_kw" value="{{ $selectedRequiredPower }}" data-required-power>
+        </div>
+
+        <div class="solar-location-layout">
+            <div id="la-guajira-map" class="solar-location-map"></div>
+            <aside class="solar-location-summary">
+                <div class="solar-location-row"><span>Municipio seleccionado</span><strong data-price-municipality>--</strong></div>
+                <div class="solar-location-row"><span>Zona</span><strong data-price-zone>--</strong></div>
+                <div class="solar-location-row"><span>Tipo de ubicacion</span><strong data-price-location-type>--</strong></div>
+                <div class="solar-location-row"><span>Precio base por kW</span><strong data-price-base>--</strong></div>
+                <div class="solar-location-row"><span>Factor logistico</span><strong data-price-factor>--</strong></div>
+                <div class="solar-location-row"><span>Precio final por kW</span><strong data-price-final>--</strong></div>
+                <div class="solar-location-row"><span>Potencia requerida</span><strong data-price-power>--</strong></div>
+                <div class="solar-location-row"><span>Costo estimado</span><strong data-price-estimated>--</strong></div>
+                <p class="solar-location-message" data-price-message>Selecciona municipio, tipo de ubicacion y potencia para calcular.</p>
+            </aside>
+        </div>
+
+        <details class="solar-wizard-advanced mt-4" @if ($coordinatesOpen) open @endif>
+            <summary>Ajustar coordenadas manualmente</summary>
+            <div class="solar-wizard-advanced-body solar-form-grid md:grid-cols-2">
+                <label class="solar-field">
+                    <span class="solar-field-label">Latitud</span>
+                    <input type="number" step="0.000001" name="latitude" value="{{ old('latitude', $solarProject?->latitude) }}" class="solar-input" data-location-latitude>
+                </label>
+
+                <label class="solar-field">
+                    <span class="solar-field-label">Longitud</span>
+                    <input type="number" step="0.000001" name="longitude" value="{{ old('longitude', $solarProject?->longitude) }}" class="solar-input" data-location-longitude>
+                </label>
+            </div>
+        </details>
+    </section>
+
+    {{-- 3 · Consumo --}}
+    <section class="solar-card" data-wizard-step="consumption" data-wizard-label="Consumo">
+        <div class="solar-page-header">
+            <div>
+                <p class="solar-kicker">Etapa 3 · Consumo</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Cuánta energía consumes?</h2>
+                <p class="solar-subtitle mt-2">Los dos datos están en tu recibo de luz. Con ellos calculamos el tamaño del sistema y tu ahorro.</p>
+            </div>
+        </div>
+
+        <div class="solar-form-grid mt-6 md:grid-cols-2">
             <label class="solar-field">
                 <span class="solar-field-label">Consumo mensual en kWh</span>
                 <input
@@ -179,94 +300,14 @@
         </div>
     </div>
 
-    <section class="solar-card" data-location-quote>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    {{-- 4 · Espacio disponible --}}
+    <section class="solar-card" data-wizard-step="space" data-wizard-label="Espacio disponible">
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Ubicacion del proyecto</p>
-                <h2 class="text-2xl text-[color:var(--solar-text)]">Mapa y matriz de precios por municipio</h2>
-                <p class="solar-subtitle mt-2">Selecciona un municipio en el listado o haz clic en el mapa para estimar el costo de instalacion con el factor logistico territorial.</p>
+                <p class="solar-kicker">Etapa 4 · Espacio disponible</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Cuánto espacio tienes para los paneles?</h2>
+                <p class="solar-subtitle mt-2">El área del techo o terreno donde podrían ir. Si no la sabes exacta, una aproximación sirve para empezar.</p>
             </div>
-            <span class="solar-pill solar-pill-success">La Guajira</span>
-        </div>
-
-        <style>
-            .solar-location-layout { display: grid; gap: 1rem; margin-top: 1.5rem; }
-            @media (min-width: 1024px) { .solar-location-layout { grid-template-columns: minmax(0, 1.5fr) minmax(20rem, .8fr); } }
-            .solar-location-map { min-height: 26rem; overflow: hidden; border: 1px solid var(--solar-border); border-radius: 1rem; background: var(--solar-surface-muted); }
-            .solar-location-summary { display: grid; gap: .7rem; align-content: start; border: 1px solid var(--solar-border); border-radius: 1rem; background: var(--solar-surface-muted); padding: 1rem; }
-            .solar-location-row { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid color-mix(in srgb, var(--solar-border) 72%, transparent); padding-bottom: .55rem; color: var(--solar-text-muted); font-size: .86rem; }
-            .solar-location-row strong { color: var(--solar-text); text-align: right; }
-            .solar-location-message { border-radius: .8rem; background: var(--solar-warning-bg); padding: .8rem; color: var(--solar-warning); font-size: .84rem; }
-        </style>
-
-        <div class="solar-form-grid mt-6 md:grid-cols-2">
-            <label class="solar-field">
-                <span class="solar-field-label">Municipio</span>
-                <select name="municipality_id" required class="solar-input" data-location-municipality>
-                    <option value="">Selecciona un municipio</option>
-                    @foreach ($municipalities as $municipality)
-                        <option
-                            value="{{ $municipality->id }}"
-                            data-name="{{ $municipality->name }}"
-                            data-zone="{{ $municipality->zone }}"
-                            data-dane-code="{{ $municipalityDaneCodes[$municipality->name] ?? '' }}"
-                            data-latitude="{{ $municipality->latitude }}"
-                            data-longitude="{{ $municipality->longitude }}"
-                            @selected((string) $selectedMunicipalityId === (string) $municipality->id)
-                        >
-                            {{ $municipality->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Tipo de ubicacion</span>
-                <select name="location_type" required class="solar-input" data-location-type>
-                    @foreach ($locationTypes as $value => $label)
-                        <option value="{{ $value }}" @selected($selectedLocationType === $value)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Latitud</span>
-                <input type="number" step="0.000001" name="latitude" value="{{ old('latitude', $solarProject?->latitude) }}" class="solar-input" data-location-latitude>
-            </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Longitud</span>
-                <input type="number" step="0.000001" name="longitude" value="{{ old('longitude', $solarProject?->longitude) }}" class="solar-input" data-location-longitude>
-            </label>
-
-            <input type="hidden" name="required_power_kw" value="{{ $selectedRequiredPower }}" data-required-power>
-        </div>
-
-        <div class="solar-location-layout">
-            <div id="la-guajira-map" class="solar-location-map"></div>
-            <aside class="solar-location-summary">
-                <div class="solar-location-row"><span>Municipio seleccionado</span><strong data-price-municipality>--</strong></div>
-                <div class="solar-location-row"><span>Zona</span><strong data-price-zone>--</strong></div>
-                <div class="solar-location-row"><span>Tipo de ubicacion</span><strong data-price-location-type>--</strong></div>
-                <div class="solar-location-row"><span>Precio base por kW</span><strong data-price-base>--</strong></div>
-                <div class="solar-location-row"><span>Factor logistico</span><strong data-price-factor>--</strong></div>
-                <div class="solar-location-row"><span>Precio final por kW</span><strong data-price-final>--</strong></div>
-                <div class="solar-location-row"><span>Potencia requerida</span><strong data-price-power>--</strong></div>
-                <div class="solar-location-row"><span>Costo estimado</span><strong data-price-estimated>--</strong></div>
-                <p class="solar-location-message" data-price-message>Selecciona municipio, tipo de ubicacion y potencia para calcular.</p>
-            </aside>
-        </div>
-    </section>
-
-    <section class="solar-card">
-        <div class="solar-page-header">
-            <div>
-                <p class="solar-kicker">Dimensionamiento</p>
-                <h2 class="text-2xl text-[color:var(--solar-text)]">Parametros tecnicos</h2>
-                <p class="solar-subtitle mt-2">Estos valores alimentan la lectura diaria, mensual y anual del sistema fotovoltaico.</p>
-            </div>
-            <span class="solar-pill solar-pill-success">Optimizacion energetica</span>
         </div>
 
         <div class="solar-form-grid mt-6 md:grid-cols-2">
@@ -282,64 +323,127 @@
                     class="solar-input"
                 >
             </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Area utilizable %</span>
-                <input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    max="100"
-                    name="usable_area_percentage"
-                    value="{{ old('usable_area_percentage', $technicalParameter?->usable_area_percentage) }}"
-                    required
-                    class="solar-input"
-                >
-            </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Potencia del panel en W</span>
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    name="panel_power_w"
-                    value="{{ old('panel_power_w', $technicalParameter?->panel_power_w) }}"
-                    required
-                    class="solar-input"
-                >
-            </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Area del panel en m2</span>
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    name="panel_area_m2"
-                    value="{{ old('panel_area_m2', $technicalParameter?->panel_area_m2) }}"
-                    required
-                    class="solar-input"
-                >
-            </label>
-
-            <label class="solar-field">
-                <span class="solar-field-label">Perdidas del sistema %</span>
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    name="system_losses_percentage"
-                    value="{{ old('system_losses_percentage', $technicalParameter?->system_losses_percentage) }}"
-                    required
-                    class="solar-input"
-                >
-            </label>
         </div>
+
+        <details class="solar-wizard-advanced mt-6" @if ($advancedOpen) open @endif>
+            <summary>Parámetros avanzados</summary>
+            <div class="solar-wizard-advanced-body">
+                <p class="solar-subtitle">Valores técnicos con los que estimamos el sistema. Ya traen valores típicos; un instalador puede ajustarlos.</p>
+
+                <div class="solar-form-grid mt-4 md:grid-cols-2">
+                    <label class="solar-field">
+                        <span class="solar-field-label">Area utilizable %</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="1"
+                            max="100"
+                            name="usable_area_percentage"
+                            value="{{ old('usable_area_percentage', $technicalParameter?->usable_area_percentage ?? ($defaults['usable_area_percentage'] ?? null)) }}"
+                            required
+                            class="solar-input"
+                        >
+                    </label>
+
+                    <label class="solar-field">
+                        <span class="solar-field-label">Potencia del panel en W</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            name="panel_power_w"
+                            value="{{ old('panel_power_w', $technicalParameter?->panel_power_w ?? ($defaults['panel_power_w'] ?? null)) }}"
+                            required
+                            class="solar-input"
+                        >
+                    </label>
+
+                    <label class="solar-field">
+                        <span class="solar-field-label">Area del panel en m2</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            name="panel_area_m2"
+                            value="{{ old('panel_area_m2', $technicalParameter?->panel_area_m2 ?? ($defaults['panel_area_m2'] ?? null)) }}"
+                            required
+                            class="solar-input"
+                        >
+                    </label>
+
+                    <label class="solar-field">
+                        <span class="solar-field-label">Perdidas del sistema %</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            name="system_losses_percentage"
+                            value="{{ old('system_losses_percentage', $technicalParameter?->system_losses_percentage ?? ($defaults['system_losses_percentage'] ?? null)) }}"
+                            required
+                            class="solar-input"
+                        >
+                    </label>
+
+                    <label class="solar-field">
+                        <span class="solar-field-label">Fecha inicial del análisis</span>
+                        <input
+                            type="date"
+                            name="start_date"
+                            value="{{ old('start_date', $solarProject?->start_date?->format('Y-m-d') ?? ($defaults['start_date'] ?? null)) }}"
+                            required
+                            class="solar-input"
+                        >
+                    </label>
+
+                    @unless ($isCreating)
+                        <label class="solar-field">
+                            <span class="solar-field-label">Fecha final del análisis</span>
+                            <input
+                                type="date"
+                                name="end_date"
+                                value="{{ old('end_date', $solarProject?->end_date?->format('Y-m-d')) }}"
+                                required
+                                class="solar-input"
+                            >
+                        </label>
+                    @endunless
+                </div>
+            </div>
+        </details>
     </section>
 
-    <section class="solar-card" data-project-simulator>
+    {{-- 5 · Resumen y estimación --}}
+    <section class="solar-card" data-wizard-step="summary" data-wizard-label="Resumen">
+        <div class="solar-page-header">
+            <div>
+                <p class="solar-kicker">Etapa 5 · Resumen</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">Revisa tu proyecto</h2>
+                <p class="solar-subtitle mt-2">Si algo no está bien, edítalo antes de guardar.</p>
+            </div>
+        </div>
+
+        <dl class="solar-wizard-summary mt-4">
+            <div class="solar-wizard-summary-row">
+                <dt>Proyecto</dt>
+                <dd><span data-summary="name">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="0">Editar</button></dd>
+            </div>
+            <div class="solar-wizard-summary-row">
+                <dt>Ubicación</dt>
+                <dd><span data-summary="location">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="1">Editar</button></dd>
+            </div>
+            <div class="solar-wizard-summary-row">
+                <dt>Consumo y tarifa</dt>
+                <dd><span data-summary="consumption">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="2">Editar</button></dd>
+            </div>
+            <div class="solar-wizard-summary-row">
+                <dt>Área disponible</dt>
+                <dd><span data-summary="area">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="3">Editar</button></dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="solar-card" data-project-simulator data-wizard-step="summary" data-wizard-companion>
         <div class="solar-page-header">
             <div>
                 <p class="solar-kicker">Pre-simulacion</p>
@@ -394,16 +498,174 @@
         </p>
     </section>
 
-    <div class="flex flex-wrap items-center gap-3">
-        <button type="submit" class="solar-button">
-            {{ $buttonText }}
-        </button>
-
+    <div class="solar-wizard-actions">
         <a href="{{ route('solar-projects.index') }}" class="solar-button-ghost">
             Cancelar
         </a>
+
+        <div class="solar-wizard-actions-end">
+            <button type="button" class="solar-button-ghost" data-wizard-prev hidden>Anterior</button>
+            <button type="button" class="solar-button" data-wizard-next hidden>Siguiente</button>
+            <button type="submit" class="solar-button" data-wizard-submit>
+                {{ $buttonText }}
+            </button>
+        </div>
     </div>
 </form>
+
+<script>
+(() => {
+    // Project wizard (ADR-0007): client-side stages over a single form.
+    const form = document.querySelector('[data-project-wizard]');
+
+    if (!form) {
+        return;
+    }
+
+    const stepKeys = [...new Set(Array.from(form.querySelectorAll('[data-wizard-step]')).map((el) => el.dataset.wizardStep))];
+    const sectionsOf = (index) => Array.from(form.querySelectorAll(`[data-wizard-step="${stepKeys[index]}"]`));
+    const labelOf = (index) => sectionsOf(index)[0]?.dataset.wizardLabel ?? '';
+    const nav = form.querySelector('[data-wizard-nav]');
+    const indicators = Array.from(form.querySelectorAll('[data-wizard-goto]'));
+    const progress = form.querySelector('[data-wizard-progress]');
+    const prevButton = form.querySelector('[data-wizard-prev]');
+    const nextButton = form.querySelector('[data-wizard-next]');
+    const submitButton = form.querySelector('[data-wizard-submit]');
+    const lastStep = stepKeys.length - 1;
+    let current = Number(form.dataset.wizardInitial ?? 0);
+    let furthest = Math.max(current, Number(form.dataset.wizardFurthest ?? 0));
+
+    const fieldsOf = (index) => sectionsOf(index)
+        .flatMap((section) => Array.from(section.querySelectorAll('input, select, textarea')))
+        .filter((field) => field.willValidate);
+
+    const firstInvalidUntil = (index) => {
+        for (let step = 0; step <= index; step++) {
+            const field = fieldsOf(step).find((candidate) => !candidate.checkValidity());
+
+            if (field) {
+                return { step, field };
+            }
+        }
+
+        return null;
+    };
+
+    const fieldValue = (name) => form.elements[name]?.value?.trim() ?? '';
+    const selectedText = (name) => {
+        const select = form.elements[name];
+        return select && select.selectedIndex >= 0 ? select.options[select.selectedIndex].text.trim() : '';
+    };
+    const numberFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
+    const formatNumber = (value) => (value === '' ? '' : numberFormatter.format(Number(value)));
+
+    const fillSummary = () => {
+        const set = (key, text) => {
+            const target = form.querySelector(`[data-summary="${key}"]`);
+            if (target) {
+                target.textContent = text || '—';
+            }
+        };
+        const municipality = fieldValue('municipality_id') ? selectedText('municipality_id') : '';
+        const consumption = fieldValue('monthly_consumption_kwh');
+        const rate = fieldValue('energy_rate_cop_kwh');
+        const area = fieldValue('available_area_m2');
+
+        set('name', fieldValue('name'));
+        set('location', municipality ? `${municipality} · ${selectedText('location_type')}` : '');
+        set('consumption', consumption && rate ? `${formatNumber(consumption)} kWh/mes · ${formatNumber(rate)} COP/kWh` : '');
+        set('area', area ? `${formatNumber(area)} m²` : '');
+    };
+
+    const show = (index, { focus = true } = {}) => {
+        current = Math.max(0, Math.min(index, lastStep));
+        furthest = Math.max(furthest, current);
+
+        stepKeys.forEach((_key, step) => sectionsOf(step).forEach((section) => {
+            section.hidden = step !== current;
+        }));
+
+        indicators.forEach((indicator, step) => {
+            if (step === current) {
+                indicator.setAttribute('aria-current', 'step');
+            } else {
+                indicator.removeAttribute('aria-current');
+            }
+            indicator.dataset.state = step === current ? 'current' : (step <= furthest ? 'done' : 'todo');
+            indicator.disabled = step > furthest;
+        });
+
+        prevButton.hidden = current === 0;
+        nextButton.hidden = current === lastStep;
+        submitButton.hidden = current !== lastStep;
+        progress.textContent = `Paso ${current + 1} de ${stepKeys.length} · ${labelOf(current)}`;
+
+        if (current === lastStep) {
+            fillSummary();
+        }
+
+        form.dispatchEvent(new CustomEvent('wizard:step-shown', { detail: { index: current, key: stepKeys[current] } }));
+
+        if (focus) {
+            nav.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            sectionsOf(current)[0]?.querySelector('.solar-wizard-heading')?.focus({ preventScroll: true });
+        }
+    };
+
+    const revealInvalid = ({ step, field }) => {
+        show(step);
+        const details = field.closest('details');
+        if (details) {
+            details.open = true;
+        }
+        field.reportValidity();
+    };
+
+    const goTo = (target) => {
+        if (target > current) {
+            const invalid = firstInvalidUntil(target - 1);
+            if (invalid) {
+                revealInvalid(invalid);
+                return;
+            }
+        }
+
+        show(target);
+    };
+
+    nextButton.addEventListener('click', () => goTo(current + 1));
+    prevButton.addEventListener('click', () => show(current - 1));
+    indicators.forEach((indicator, step) => indicator.addEventListener('click', () => goTo(step)));
+    form.querySelectorAll('[data-wizard-edit]').forEach((button) => {
+        button.addEventListener('click', () => show(Number(button.dataset.wizardEdit)));
+    });
+
+    // Enter on an intermediate stage advances instead of submitting the whole form.
+    form.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || current === lastStep || event.target.tagName === 'TEXTAREA' || event.target.type === 'button' || event.target.type === 'submit') {
+            return;
+        }
+
+        event.preventDefault();
+        goTo(current + 1);
+    });
+
+    // Validate every stage on submit and open the first one with a problem.
+    form.noValidate = true;
+    form.addEventListener('submit', (event) => {
+        const invalid = firstInvalidUntil(lastStep);
+
+        if (invalid) {
+            event.preventDefault();
+            revealInvalid(invalid);
+        }
+    });
+
+    nav.hidden = false;
+    form.classList.add('is-wizard');
+    show(current, { focus: false });
+})();
+</script>
 
 <script>
 (() => {
@@ -734,6 +996,7 @@
     const locationTypeLabels = @json($locationTypes);
     let municipalityLayer = null;
     let selectedLayer = null;
+    let leafletMap = null;
 
     const out = {
         municipality: root.querySelector('[data-price-municipality]'),
@@ -935,6 +1198,7 @@
         try {
             const L = await loadLeaflet();
             const map = L.map('la-guajira-map', { scrollWheelZoom: false });
+            leafletMap = map;
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 12,
                 attribution: '&copy; OpenStreetMap',
@@ -985,6 +1249,18 @@
     });
     locationTypeSelect.addEventListener('change', updatePrice);
     requiredPowerInput.addEventListener('input', updatePrice);
+
+    // Leaflet cannot measure a hidden container: redraw when the wizard shows this stage.
+    root.closest('form')?.addEventListener('wizard:step-shown', (event) => {
+        if (event.detail.key !== 'location' || !leafletMap) {
+            return;
+        }
+
+        leafletMap.invalidateSize();
+        if (municipalityLayer) {
+            leafletMap.fitBounds(municipalityLayer.getBounds());
+        }
+    });
 
     resetPrice();
     updatePrice();

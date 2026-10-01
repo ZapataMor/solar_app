@@ -30,6 +30,7 @@ Contexto: preparación del pitch de la primera etapa del reto (el proyecto naci�
 - [[adr-0004-cotizacion-por-items-y-transporte-interno]]
 - [[adr-0005-marketplace-de-instaladores]]
 - [[adr-0006-recomendacion-del-sistema]]
+- [[adr-0007-formulario-de-proyecto-por-etapas]] (🟢 implementado)
 
 **Ideas aplazadas**
 - [[ideas-aplazadas-asesoria]]

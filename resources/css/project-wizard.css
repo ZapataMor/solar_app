@@ -1,0 +1,201 @@
+/* Staged project form (resources/views/solar-projects/_form.blade.php, ADR-0007).
+   Uses the app's --solar-* tokens, so it follows light and dark themes. */
+
+@layer components {
+    .solar-wizard-nav {
+        display: grid;
+        gap: 0.6rem;
+        scroll-margin-top: 1rem;
+    }
+
+    .solar-wizard-steps {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .solar-wizard-step {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        width: 100%;
+        min-height: 3rem;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.9rem;
+        background: var(--solar-surface);
+        color: var(--solar-text-muted);
+        font-size: 0.88rem;
+        text-align: start;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .solar-wizard-step:hover:not(:disabled) {
+        border-color: var(--solar-border-strong);
+    }
+
+    .solar-wizard-step:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+    }
+
+    .solar-wizard-step:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-wizard-step-number {
+        display: inline-grid;
+        flex-shrink: 0;
+        width: 1.75rem;
+        height: 1.75rem;
+        place-items: center;
+        border: 1px solid var(--solar-border-strong);
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .solar-wizard-step-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .solar-wizard-step[data-state='done'] .solar-wizard-step-number {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 18%, transparent);
+        color: var(--solar-text);
+    }
+
+    .solar-wizard-step[aria-current='step'] {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 10%, var(--solar-surface));
+        color: var(--solar-text);
+        font-weight: 600;
+    }
+
+    .solar-wizard-step[aria-current='step'] .solar-wizard-step-number {
+        border-color: var(--solar-sun);
+        background: var(--solar-sun);
+        color: #fffaf2;
+    }
+
+    .solar-wizard-step[data-has-error] {
+        border-color: var(--solar-danger);
+    }
+
+    .solar-wizard-step[data-has-error] .solar-wizard-step-number {
+        border-color: var(--solar-danger);
+        background: var(--solar-danger-bg);
+        color: var(--solar-danger);
+    }
+
+    .solar-wizard-progress {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    .solar-wizard-heading:focus {
+        outline: none;
+    }
+
+    /* Collapsible advanced blocks (coordinates, technical parameters) */
+    .solar-wizard-advanced {
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: var(--solar-surface-muted);
+    }
+
+    .solar-wizard-advanced > summary {
+        padding: 0.85rem 1rem;
+        color: var(--solar-text);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-wizard-advanced[open] > summary {
+        border-bottom: 1px solid var(--solar-border);
+    }
+
+    .solar-wizard-advanced-body {
+        padding: 1rem;
+    }
+
+    /* Summary stage */
+    .solar-wizard-summary {
+        display: grid;
+        margin: 0;
+    }
+
+    .solar-wizard-summary-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--solar-border);
+    }
+
+    .solar-wizard-summary dt {
+        color: var(--solar-text-muted);
+        font-size: 0.86rem;
+    }
+
+    .solar-wizard-summary dd {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 0;
+        color: var(--solar-text);
+        font-weight: 600;
+        text-align: end;
+    }
+
+    .solar-wizard-edit {
+        padding: 0.25rem 0.4rem;
+        border: 0;
+        border-radius: 0.4rem;
+        background: none;
+        color: var(--solar-sun);
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-wizard-edit:hover {
+        background: color-mix(in srgb, var(--solar-sun) 12%, transparent);
+    }
+
+    /* Actions bar */
+    .solar-wizard-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .solar-wizard-actions-end {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-inline-start: auto;
+    }
+
+    @media (max-width: 760px) {
+        .solar-wizard-step {
+            justify-content: center;
+            padding: 0.5rem;
+        }
+
+        .solar-wizard-step-label {
+            display: none;
+        }
+    }
+}

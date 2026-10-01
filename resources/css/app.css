@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
 @import './landing.css';
+@import './project-wizard.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -1031,7 +1032,6 @@ select:focus[data-flux-control] {
 
     .solar-subtitle {
         margin-top: 0.8rem;
-        max-width: 46rem;
         color: var(--solar-text-muted);
         font-size: 0.97rem;
         line-height: 1.7;
