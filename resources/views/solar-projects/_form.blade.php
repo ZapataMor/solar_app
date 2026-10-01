@@ -153,6 +153,10 @@
             .solar-location-layout { display: grid; gap: 1rem; margin-top: 1.5rem; }
             @media (min-width: 1024px) { .solar-location-layout { grid-template-columns: minmax(0, 1.5fr) minmax(20rem, .8fr); } }
             .solar-location-map { min-height: 26rem; overflow: hidden; border: 1px solid var(--solar-border); border-radius: 1rem; background: var(--solar-surface-muted); }
+            /* The browser draws a focus box around a clicked SVG polygon (and the map container); selection is shown with color instead.
+               Keyboard focus on the map keeps its ring through :focus-visible. */
+            .solar-location-map path.leaflet-interactive:focus { outline: none; }
+            .solar-location-map.leaflet-container:focus:not(:focus-visible) { outline: none; }
             .solar-location-summary { display: grid; gap: .7rem; align-content: start; border: 1px solid var(--solar-border); border-radius: 1rem; background: var(--solar-surface-muted); padding: 1rem; }
             .solar-location-row { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid color-mix(in srgb, var(--solar-border) 72%, transparent); padding-bottom: .55rem; color: var(--solar-text-muted); font-size: .86rem; }
             .solar-location-row strong { color: var(--solar-text); text-align: right; }
@@ -1154,20 +1158,60 @@
         weight: 1,
     };
 
+    // Hover lights the municipality up in a brighter gold, distinct from the burnt-orange selection.
+    const hoverStyle = {
+        color: '#f0a43a',
+        fillColor: '#ffd166',
+        fillOpacity: 0.6,
+        weight: 2,
+    };
+
+    const selectedStyle = {
+        color: '#a85b1e',
+        fillColor: '#c87427',
+        fillOpacity: 0.56,
+        weight: 3,
+    };
+
     const normalizeLayerStyle = (layer) => layer.setStyle(municipalityStyle);
 
-    const highlightLayer = (layer) => {
+    // Leaflet's bringToFront() re-inserts the SVG path in the DOM. Doing that to the path under the
+    // cursor makes the browser lose track of it: mouseout never arrives (hover sticks) and the next
+    // click lands on the container instead of the municipality. So the path under the cursor is
+    // never moved; a clicked municipality is brought to front once the cursor leaves it.
+    let selectedNeedsFront = false;
+
+    const highlightLayer = (layer, { underCursor = false } = {}) => {
         if (selectedLayer && selectedLayer !== layer) {
             normalizeLayerStyle(selectedLayer);
         }
         selectedLayer = layer;
-        layer.setStyle({
-            color: '#a85b1e',
-            fillColor: '#c87427',
-            fillOpacity: 0.56,
-            weight: 3,
-        });
-        layer.bringToFront();
+        layer.setStyle(selectedStyle);
+
+        if (underCursor) {
+            selectedNeedsFront = true;
+        } else {
+            selectedNeedsFront = false;
+            layer.bringToFront();
+        }
+    };
+
+    const hoverLayer = (layer) => {
+        if (layer !== selectedLayer) {
+            layer.setStyle(hoverStyle);
+        }
+    };
+
+    const unhoverLayer = (layer) => {
+        if (layer !== selectedLayer) {
+            normalizeLayerStyle(layer);
+            return;
+        }
+
+        if (selectedNeedsFront) {
+            selectedNeedsFront = false;
+            layer.bringToFront();
+        }
     };
 
     const loadLeaflet = () => new Promise((resolve, reject) => {
@@ -1188,8 +1232,10 @@
         const label = name || `DANE ${daneCode}`;
 
         layer.bindTooltip(label, { sticky: true });
+        layer.on('mouseover', () => hoverLayer(layer));
+        layer.on('mouseout', () => unhoverLayer(layer));
         layer.on('click', () => {
-            highlightLayer(layer);
+            highlightLayer(layer, { underCursor: true });
             selectMunicipality(name, daneCode);
         });
     };
