@@ -119,6 +119,11 @@ class SolarProject extends Model
         return $this->hasMany(MonthlyResult::class);
     }
 
+    public function appliances(): HasMany
+    {
+        return $this->hasMany(SolarProjectAppliance::class);
+    }
+
     public function aiMessages(): HasMany
     {
         return $this->hasMany(SolarProjectAiMessage::class);

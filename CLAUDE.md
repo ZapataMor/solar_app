@@ -34,6 +34,9 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 - **Nueva fuente climática:** implementa `App\Domain\Climate\ClimateSource` en
   `app/Infrastructure/Climate` y regístrala en `ClimateSourceChain` (`AppServiceProvider`). El
   orden del registro es la prioridad.
+- **Equipos y consumos de referencia:** `App\Domain\Consumption\ApplianceCatalog` (cada combinación
+  de opciones debe tener potencia; lo verifica `ConsumptionEstimatorTest`). Los dibujos están en
+  `resources/views/solar-projects/partials/appliance-icons.blade.php` (`#appliance-<icon>`).
 - **Cambios en el cálculo:** van en `SolarCalculator` / `InstallationCostCalculator`, con test
   en `tests/Unit/Domain` (extienden `PHPUnit\Framework\TestCase`, sin base de datos).
 - Decisiones de arquitectura: registra un ADR en `natal-ia-vault/03-diseno/decisiones-adr/`.

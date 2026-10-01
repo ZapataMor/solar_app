@@ -6,7 +6,7 @@ actualizado: 2026-09-30
 
 # ADR-0002 · Consumo por electrodomésticos
 
-- **Estado:** 🟡 Propuesta
+- **Estado:** 🟢 Aceptada · implementada el 2026-10-01
 - **Fecha:** 2026-09-30
 - **Contexto del repo:** `SolarProjectRequest`, `solar-projects/_form.blade.php`, `App\Domain\Solar\EnergyProfile`
 
@@ -28,6 +28,20 @@ El formulario pide `monthly_consumption_kwh` tomado del recibo. El asesor señal
 - ➕ Habilita sugerir kits estándar por rango de consumo.
 - ➖ Hay que investigar y mantener un catálogo de potencias típicas.
 - ⚠️ Migración: los proyectos existentes solo tienen kWh mensual y deben seguir funcionando.
+
+## Implementación
+- **Dominio:**
+  - `App\Domain\Consumption\ApplianceCatalog`: 15 equipos con variantes y potencia promedio en uso.
+  - `ApplianceLoad` y `ConsumptionEstimator`: W × cantidad × horas × 30 / 1000. Los equipos "siempre encendidos" usan 24 h.
+- **Persistencia:** tabla `solar_project_appliances` (equipo, variante, cantidad, horas al día).
+- **Validación:** `SolarProjectRequest` recalcula `monthly_consumption_kwh` en el servidor a partir del catálogo; el valor que llega del navegador se ignora.
+- **Interfaz** (etapa 3 del [[adr-0007-formulario-de-proyecto-por-etapas]]):
+  - modos "Con mis equipos" (por defecto) y "Ya sé mi consumo";
+  - filtro Hogar/Negocio;
+  - dibujos SVG propios en `partials/appliance-icons`;
+  - variantes con dibujo a escala, cantidad, horas al día o a la semana;
+  - total en vivo.
+- **Pendiente:** validar el catálogo de potencias con el asesor o un instalador.
 
 ## Alternativas consideradas
 - **Mantener solo el kWh del recibo:** es más simple, pero es el problema que señaló el asesor.

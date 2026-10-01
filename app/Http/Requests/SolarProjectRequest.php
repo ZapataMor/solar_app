@@ -2,7 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Consumption\ApplianceCatalog;
+use App\Domain\Consumption\ApplianceLoad;
+use App\Domain\Consumption\ConsumptionEstimator;
+use App\Domain\Consumption\ConsumptionMode;
 use App\Models\MunicipalitySolarPrice;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,6 +22,13 @@ class SolarProjectRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // In appliance mode the consumption is computed here from the catalog, never trusted from the browser.
+        if ($this->input('consumption_mode') === ConsumptionMode::APPLIANCES) {
+            $this->merge([
+                'monthly_consumption_kwh' => round((new ConsumptionEstimator)->totalMonthlyKwh($this->validApplianceLoads()), 2),
+            ]);
+        }
+
         if (! $this->filled('end_date') && $this->filled('start_date')) {
             $this->merge([
                 'end_date' => $this->input('start_date'),
@@ -56,7 +68,67 @@ class SolarProjectRequest extends FormRequest
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'location_type' => ['required', 'string', Rule::in(MunicipalitySolarPrice::LOCATION_TYPES)],
             'required_power_kw' => ['required', 'numeric', 'gt:0'],
+            'consumption_mode' => ['nullable', Rule::in(ConsumptionMode::ALL)],
+            'appliances' => ['exclude_unless:consumption_mode,'.ConsumptionMode::APPLIANCES, 'required', 'array', 'min:1', 'max:60'],
+            'appliances.*.key' => ['exclude_unless:consumption_mode,'.ConsumptionMode::APPLIANCES, 'required', 'string', Rule::in(array_keys((new ApplianceCatalog)->all()))],
+            'appliances.*.variant' => ['exclude_unless:consumption_mode,'.ConsumptionMode::APPLIANCES, 'required', 'string', $this->variantRule()],
+            'appliances.*.quantity' => ['exclude_unless:consumption_mode,'.ConsumptionMode::APPLIANCES, 'required', 'integer', 'between:1,100'],
+            'appliances.*.hours_per_day' => ['exclude_unless:consumption_mode,'.ConsumptionMode::APPLIANCES, 'required', 'numeric', 'between:0,24'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'appliances.required' => 'Agrega al menos un equipo en la etapa de consumo.',
+            'appliances.min' => 'Agrega al menos un equipo en la etapa de consumo.',
+            'monthly_consumption_kwh.gt' => 'El consumo mensual debe ser mayor que 0: revisa tus equipos y sus horas de uso.',
+        ];
+    }
+
+    /**
+     * The chosen variant must exist for the appliance on the same row.
+     */
+    private function variantRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            $index = explode('.', $attribute)[1] ?? null;
+            $key = (string) $this->input("appliances.{$index}.key");
+
+            if (! (new ApplianceCatalog)->hasVariant($key, (string) $value)) {
+                $fail('Uno de los equipos tiene una opción que no existe.');
+            }
+        };
+    }
+
+    /**
+     * Rows with a known appliance and variant, as domain loads (invalid rows are reported by the rules).
+     *
+     * @return list<ApplianceLoad>
+     */
+    private function validApplianceLoads(): array
+    {
+        $catalog = new ApplianceCatalog;
+        $rows = $this->input('appliances');
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return collect($rows)
+            ->filter(fn ($row) => is_array($row)
+                && $catalog->hasVariant((string) ($row['key'] ?? ''), (string) ($row['variant'] ?? '')))
+            ->map(fn (array $row) => new ApplianceLoad(
+                key: (string) $row['key'],
+                variant: (string) $row['variant'],
+                quantity: max(0, (int) ($row['quantity'] ?? 0)),
+                hoursPerDay: (float) str_replace(',', '.', (string) ($row['hours_per_day'] ?? 0)),
+            ))
+            ->values()
+            ->all();
     }
 
     private function suggestedRequiredPowerKw(): ?float

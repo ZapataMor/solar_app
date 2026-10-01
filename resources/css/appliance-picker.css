@@ -1,0 +1,438 @@
+/* Stage 3 of the project form: consumption by appliances (ADR-0002).
+   Uses the app's --solar-* tokens, so it follows light and dark themes. */
+
+@layer components {
+    .solar-consumption-modes {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .solar-consumption-mode {
+        display: grid;
+        gap: 0.2rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: var(--solar-surface);
+        color: var(--solar-text-muted);
+        font-size: 0.84rem;
+        text-align: start;
+        cursor: pointer;
+    }
+
+    .solar-consumption-mode strong {
+        color: var(--solar-text);
+        font-size: 0.98rem;
+    }
+
+    .solar-consumption-mode[aria-pressed='true'] {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 12%, var(--solar-surface));
+        box-shadow: inset 0 0 0 1px var(--solar-sun);
+    }
+
+    .solar-appliance-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .solar-appliance-segments {
+        display: inline-flex;
+        padding: 0.25rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        background: var(--solar-surface-muted);
+    }
+
+    .solar-appliance-segment {
+        padding: 0.4rem 1rem;
+        border: 0;
+        border-radius: 999px;
+        background: none;
+        color: var(--solar-text-muted);
+        font-size: 0.86rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-appliance-segment[aria-pressed='true'] {
+        background: var(--solar-sun);
+        color: #fffaf2;
+    }
+
+    .solar-appliance-help {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    .solar-appliance-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+        gap: 0.65rem;
+        margin-top: 1rem;
+    }
+
+    .solar-appliance-card {
+        position: relative;
+        display: grid;
+        justify-items: center;
+        gap: 0.5rem;
+        padding: 1rem 0.5rem 0.85rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: var(--solar-surface);
+        color: var(--solar-text);
+        cursor: pointer;
+        transition: border-color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    .solar-appliance-card:hover {
+        border-color: var(--solar-sun);
+        transform: translateY(-2px);
+    }
+
+    .solar-appliance-card:focus-visible,
+    .solar-appliance-chip:focus-visible,
+    .solar-consumption-mode:focus-visible,
+    .solar-appliance-segment:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-appliance-card.is-selected {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 9%, var(--solar-surface));
+    }
+
+    .solar-appliance-card-icon {
+        width: 2.6rem;
+        height: 2.6rem;
+        color: var(--solar-sun);
+    }
+
+    .solar-appliance-card-label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        line-height: 1.25;
+        text-align: center;
+    }
+
+    .solar-appliance-card-count {
+        position: absolute;
+        top: 0.45rem;
+        right: 0.45rem;
+        min-width: 1.6rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 999px;
+        background: var(--solar-sun);
+        color: #fffaf2;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .solar-appliance-selection {
+        margin-top: 1.5rem;
+    }
+
+    .solar-appliance-selection-title {
+        margin: 0 0 0.6rem;
+        color: var(--solar-text);
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .solar-appliance-empty {
+        margin: 0;
+        padding: 1rem;
+        border: 1px dashed var(--solar-border-strong);
+        border-radius: 1rem;
+        color: var(--solar-text-muted);
+        font-size: 0.88rem;
+        text-align: center;
+    }
+
+    .solar-appliance-error {
+        margin: 0.75rem 0 0;
+        padding: 0.75rem 1rem;
+        border-radius: 0.8rem;
+        background: var(--solar-danger-bg);
+        color: var(--solar-danger);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .solar-appliance-loads {
+        display: grid;
+        gap: 0.75rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .solar-appliance-load {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: start;
+        padding: 1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: var(--solar-surface-muted);
+        transition: box-shadow 0.4s ease;
+    }
+
+    .solar-appliance-load.is-new {
+        box-shadow: 0 0 0 2px var(--solar-sun);
+    }
+
+    .solar-appliance-load-icon {
+        display: grid;
+        width: 3.25rem;
+        height: 3.25rem;
+        place-items: center;
+        border-radius: 0.9rem;
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+        color: var(--solar-sun);
+    }
+
+    .solar-appliance-load-icon svg {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .solar-appliance-load-body {
+        display: grid;
+        gap: 0.65rem;
+        min-width: 0;
+    }
+
+    .solar-appliance-load-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        color: var(--solar-text);
+    }
+
+    .solar-appliance-remove {
+        padding: 0.2rem 0.5rem;
+        border: 0;
+        border-radius: 0.4rem;
+        background: none;
+        color: var(--solar-danger);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-appliance-remove:hover {
+        background: var(--solar-danger-bg);
+    }
+
+    .solar-appliance-hint {
+        margin: -0.3rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    .solar-appliance-group {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .solar-appliance-group-label,
+    .solar-appliance-field > span {
+        color: var(--solar-text-muted);
+        font-size: 0.74rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .solar-appliance-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    .solar-appliance-chip {
+        display: inline-flex;
+        align-items: flex-end;
+        gap: 0.4rem;
+        min-height: 2.25rem;
+        padding: 0.35rem 0.75rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.7rem;
+        background: var(--solar-surface);
+        color: var(--solar-text);
+        font-size: 0.82rem;
+        cursor: pointer;
+    }
+
+    .solar-appliance-chip[aria-checked='true'] {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 16%, var(--solar-surface));
+        font-weight: 600;
+    }
+
+    .solar-appliance-chip-icon {
+        flex-shrink: 0;
+        color: var(--solar-sun);
+    }
+
+    /* The drawing grows with the variant size, so "small / large" reads at a glance. */
+    .solar-appliance-scale-1 {
+        width: 0.95rem;
+        height: 0.95rem;
+    }
+
+    .solar-appliance-scale-2 {
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+
+    .solar-appliance-scale-3 {
+        width: 1.45rem;
+        height: 1.45rem;
+    }
+
+    .solar-appliance-scale-4 {
+        width: 1.7rem;
+        height: 1.7rem;
+    }
+
+    .solar-appliance-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 1rem;
+    }
+
+    .solar-appliance-field {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .solar-appliance-field .solar-input {
+        width: 7rem;
+    }
+
+    .solar-appliance-stepper {
+        display: inline-flex;
+        overflow: hidden;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.7rem;
+        background: var(--solar-surface);
+    }
+
+    .solar-appliance-stepper button {
+        width: 2.25rem;
+        border: 0;
+        background: none;
+        color: var(--solar-text);
+        font-size: 1.1rem;
+        cursor: pointer;
+    }
+
+    .solar-appliance-stepper button:hover {
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+    }
+
+    .solar-appliance-stepper input {
+        width: 3.25rem;
+        border: 0;
+        border-inline: 1px solid var(--solar-border);
+        background: none;
+        color: var(--solar-text);
+        text-align: center;
+        -moz-appearance: textfield;
+    }
+
+    .solar-appliance-stepper input::-webkit-inner-spin-button,
+    .solar-appliance-stepper input::-webkit-outer-spin-button {
+        margin: 0;
+        -webkit-appearance: none;
+    }
+
+    .solar-appliance-always {
+        margin: 0;
+        padding: 0.45rem 0.75rem;
+        border-radius: 0.7rem;
+        background: var(--solar-success-bg);
+        color: var(--solar-success);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .solar-appliance-load-kwh {
+        display: grid;
+        justify-items: end;
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    .solar-appliance-load-kwh strong {
+        color: var(--solar-text);
+        font-size: 1.35rem;
+        line-height: 1.1;
+    }
+
+    .solar-appliance-total {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+        margin-top: 1rem;
+        padding: 1rem 1.25rem;
+        border: 1px solid var(--solar-sun);
+        border-radius: 1rem;
+        background: color-mix(in srgb, var(--solar-sun) 14%, var(--solar-surface));
+    }
+
+    .solar-appliance-total > div {
+        display: grid;
+    }
+
+    .solar-appliance-total-label {
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .solar-appliance-total-value {
+        color: var(--solar-text);
+        font-size: 1.6rem;
+    }
+
+    .solar-appliance-total-daily {
+        color: var(--solar-text-muted);
+        font-size: 0.88rem;
+    }
+
+    @media (max-width: 640px) {
+        .solar-consumption-modes {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .solar-appliance-load {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .solar-appliance-load-kwh {
+            grid-column: 1 / -1;
+            grid-auto-flow: column;
+            justify-content: end;
+            align-items: baseline;
+            gap: 0.35rem;
+        }
+    }
+}

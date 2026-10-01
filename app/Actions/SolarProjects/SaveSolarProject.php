@@ -2,6 +2,7 @@
 
 namespace App\Actions\SolarProjects;
 
+use App\Domain\Consumption\ConsumptionMode;
 use App\Domain\Pricing\PriceNotAvailable;
 use App\Models\Municipality;
 use App\Models\SolarProject;
@@ -50,8 +51,38 @@ final class SaveSolarProject
                 $this->technicalParameterAttributes($data),
             );
 
+            $this->syncAppliances($solarProject, $data);
+
             return $solarProject;
         });
+    }
+
+    /**
+     * Appliance mode replaces the stored appliances; bill mode clears them. Without a mode
+     * (e.g. older clients) the appliances are left untouched.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function syncAppliances(SolarProject $solarProject, array $data): void
+    {
+        $mode = $data['consumption_mode'] ?? null;
+
+        if ($mode === null) {
+            return;
+        }
+
+        $solarProject->appliances()->delete();
+
+        if ($mode !== ConsumptionMode::APPLIANCES) {
+            return;
+        }
+
+        $solarProject->appliances()->createMany(array_map(fn (array $row) => [
+            'appliance_key' => $row['key'],
+            'variant_key' => $row['variant'],
+            'quantity' => (int) $row['quantity'],
+            'hours_per_day' => round((float) $row['hours_per_day'], 2),
+        ], array_values($data['appliances'] ?? [])));
     }
 
     /**
