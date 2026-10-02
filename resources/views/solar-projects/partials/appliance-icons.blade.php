@@ -125,5 +125,17 @@
             <path d="M8 10V7.5a2 2 0 0 1 2-2h5.5"/>
             <path d="M6 15.2h.01M9 15.2h.01"/>
         </g>
+        {{-- For appliances added by an administrator (ADR-0017). --}}
+        <g id="appliance-toaster" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20.5V12a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v8.5z"/>
+            <path d="M8.5 7V4.5M15.5 7V4.5"/>
+            <path d="M20 14h1.5"/>
+            <path d="M8 16.5h3"/>
+        </g>
+        <g id="appliance-plug" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 2.5v5M15 2.5v5"/>
+            <path d="M6 7.5h12v3.5a6 6 0 0 1-12 0z"/>
+            <path d="M12 17v4.5"/>
+        </g>
     </defs>
 </svg>

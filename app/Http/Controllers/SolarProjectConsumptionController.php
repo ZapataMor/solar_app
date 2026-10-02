@@ -25,12 +25,14 @@ use Illuminate\View\View;
  */
 class SolarProjectConsumptionController extends Controller
 {
-    public function __construct(
-        private readonly BuildConsumptionDiary $buildConsumptionDiary,
-        private readonly CheckCalculationFreshness $checkFreshness,
-        private readonly SizeProjectSystem $sizeProjectSystem,
-        private readonly ApplianceCatalog $catalog,
-    ) {}
+    /**
+     * Resolved on each request, not in the constructor: the router keeps the controller between requests
+     * of one process (tests, Octane), and the catalog changes when an administrator edits it (ADR-0017).
+     */
+    private function catalog(): ApplianceCatalog
+    {
+        return app(ApplianceCatalog::class);
+    }
 
     public function show(Request $request, SolarProject $solarProject): View
     {
@@ -38,7 +40,11 @@ class SolarProjectConsumptionController extends Controller
 
         return view('solar-projects.consumption', [
             ...$this->diaryData($solarProject),
-            'applianceCatalog' => $this->catalog->all(),
+            // What can be added, plus any hidden appliance this diary already uses (its rows stay editable).
+            'applianceCatalog' => $this->catalog()->offered() + array_intersect_key(
+                $this->catalog()->all(),
+                array_flip($solarProject->appliances()->pluck('appliance_key')->all()),
+            ),
             'primarySegments' => PropertyType::applianceSegments($solarProject->property_type),
         ]);
     }
@@ -55,7 +61,7 @@ class SolarProjectConsumptionController extends Controller
         return $this->respond(
             $request,
             $solarProject,
-            'Se agregó '.$this->catalog->label($appliance->appliance_key).' a '.$this->spaceLabel($solarProject, $appliance->space).'.',
+            'Se agregó '.$this->catalog()->label($appliance->appliance_key).' a '.$this->spaceLabel($solarProject, $appliance->space).'.',
             $appliance->space,
             $appliance->id,
         );
@@ -74,7 +80,7 @@ class SolarProjectConsumptionController extends Controller
         return $this->respond(
             $request,
             $solarProject,
-            'Se actualizó '.$this->catalog->label($appliance->appliance_key).'.',
+            'Se actualizó '.$this->catalog()->label($appliance->appliance_key).'.',
             $appliance->space,
             $appliance->id,
         );
@@ -89,7 +95,7 @@ class SolarProjectConsumptionController extends Controller
         abort_unless($request->user()->can('manage', $solarProject), 403);
 
         $space = $appliance->space;
-        $label = $this->catalog->label($appliance->appliance_key);
+        $label = $this->catalog()->label($appliance->appliance_key);
         $removeProjectAppliance($solarProject, $appliance);
 
         return $this->respond($request, $solarProject, "Se quitó {$label} del proyecto.", $space);
@@ -104,11 +110,11 @@ class SolarProjectConsumptionController extends Controller
     {
         return [
             'solarProject' => $solarProject,
-            'diary' => ($this->buildConsumptionDiary)($solarProject),
-            'calculationFreshness' => ($this->checkFreshness)($solarProject),
+            'diary' => app(BuildConsumptionDiary::class)($solarProject),
+            'calculationFreshness' => app(CheckCalculationFreshness::class)($solarProject),
             'usesBillConsumption' => ! $solarProject->appliances()->exists() && $solarProject->monthlyConsumption() > 0,
             // ADR-0014: how much of these appliances the roof covers; it changes with every appliance.
-            'sizing' => ($this->sizeProjectSystem)($solarProject),
+            'sizing' => app(SizeProjectSystem::class)($solarProject),
         ];
     }
 

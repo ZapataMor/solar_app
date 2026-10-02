@@ -1843,6 +1843,71 @@ document.addEventListener('click', (event) => {
     }
 });
 
+// Filters that apply on change (e.g. the appliance catalog's order and "Para"): a plain GET form.
+document.addEventListener('change', (event) => {
+    const form = event.target.closest('form[data-autosubmit]');
+
+    if (form) {
+        form.requestSubmit();
+    }
+});
+
+// Appliance catalog form (appliance-catalog/form.blade.php, ADR-0017): option rows, and the hours
+// field follows the kind of use (per day, per week, or none when always on).
+const catalogForms = new WeakSet();
+
+const initCatalogForm = () => {
+    const form = document.querySelector('[data-catalog-form]');
+
+    if (!form || catalogForms.has(form)) {
+        return;
+    }
+    catalogForms.add(form);
+
+    const body = form.querySelector('[data-catalog-options]');
+    const template = form.querySelector('[data-catalog-option-template]');
+    const usage = form.querySelector('[data-catalog-usage]');
+    const hours = form.querySelector('[data-catalog-hours]');
+    const hoursLabel = form.querySelector('[data-catalog-hours-label]');
+    let nextIndex = body.querySelectorAll('[data-catalog-option]').length;
+
+    // The last option cannot be removed: every appliance has at least one power.
+    const refreshRows = () => {
+        const rows = body.querySelectorAll('[data-catalog-option]');
+        rows.forEach((row) => {
+            row.querySelector('[data-catalog-remove-option]').hidden = rows.length === 1;
+        });
+    };
+
+    form.querySelector('[data-catalog-add-option]').addEventListener('click', () => {
+        body.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__INDEX__', String(nextIndex++)));
+        refreshRows();
+        body.lastElementChild?.querySelector('input:not([type="hidden"])')?.focus();
+    });
+
+    body.addEventListener('click', (event) => {
+        const remove = event.target.closest('[data-catalog-remove-option]');
+
+        if (remove) {
+            remove.closest('[data-catalog-option]').remove();
+            refreshRows();
+        }
+    });
+
+    const followUsage = () => {
+        hours.hidden = usage.value === 'always';
+        hoursLabel.textContent = usage.value === 'week' ? 'Horas a la semana' : 'Horas al día';
+        hours.querySelector('input').max = usage.value === 'week' ? '168' : '24';
+    };
+
+    usage.addEventListener('change', followUsage);
+    followUsage();
+    refreshRows();
+};
+
+document.addEventListener('DOMContentLoaded', initCatalogForm);
+document.addEventListener('livewire:navigated', initCatalogForm);
+
 // 3D illustration of "Mi sistema" (ADR-0012, resources/js/solar-scene): Three.js loads only where it is used.
 document.addEventListener('DOMContentLoaded', initSolarScenes);
 document.addEventListener('livewire:navigated', initSolarScenes);

@@ -36,7 +36,11 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   orden del registro es la prioridad.
 - **Equipos y consumos de referencia:** `App\Domain\Consumption\ApplianceCatalog` (cada combinación
   de opciones debe tener potencia; lo verifica `ConsumptionEstimatorTest`). Los dibujos están en
-  `resources/views/solar-projects/partials/appliance-icons.blade.php` (`#appliance-<icon>`).
+  `resources/views/solar-projects/partials/appliance-icons.blade.php` (`#appliance-<icon>`, lista en
+  `ApplianceCatalog::ICONS`). Los administradores agregan equipos en *Catálogo de equipos*
+  (ADR-0017, tabla `catalog_appliances`): usa siempre el catálogo del contenedor
+  (`app(ApplianceCatalog::class)`), nunca `new ApplianceCatalog`, o no verás los agregados. No lo
+  inyectes en el constructor de un controlador: el router reutiliza esa instancia entre peticiones.
 - **Creación y consumo (ADR-0013):** el formulario (`_form.blade.php`) pregunta tipo de inmueble,
   ubicación, techo, tarifa y nombre; **no** pide consumo. Los equipos se agregan después, por espacio,
   en la pestaña Consumo (`SolarProjectConsumptionController`). Tipos y espacios:

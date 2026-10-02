@@ -69,6 +69,8 @@
                     <input type="search" class="solar-input" placeholder="Buscar: nevera, aire, bombillos…" aria-label="Buscar equipo" data-diary-search autocomplete="off">
                     <div class="solar-appliance-grid solar-diary-grid" data-diary-grid>
                         @foreach ($applianceCatalog as $applianceKey => $appliance)
+                            {{-- Hidden by an administrator (ADR-0017): only here so existing rows stay editable. --}}
+                            @continue(($appliance['active'] ?? true) === false)
                             @php($isPrimary = array_intersect($appliance['segments'], $primarySegments) !== [])
                             <button
                                 type="button"

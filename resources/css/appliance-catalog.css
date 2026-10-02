@@ -1,0 +1,291 @@
+/* Administration: appliance catalog (ADR-0017). Uses the app's --solar-* tokens. */
+
+@layer components {
+    .solar-catalog-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 0.75rem 1.25rem;
+    }
+
+    .solar-catalog-controls__sort {
+        display: grid;
+        gap: 0.3rem;
+        min-width: 14rem;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    .solar-catalog-controls__segments {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    .solar-catalog-chip {
+        padding: 0.4rem 0.9rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-catalog-chip.is-active,
+    .solar-catalog-chip:has(input:checked) {
+        border-color: color-mix(in srgb, var(--solar-sun) 60%, transparent);
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+        color: var(--solar-text);
+    }
+
+    .solar-catalog-chip:has(input:focus-visible) {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-catalog-note {
+        max-width: 60rem;
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+    }
+
+    .solar-catalog-table-wrap {
+        overflow-x: auto;
+        padding: 0;
+    }
+
+    .solar-catalog-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .solar-catalog-table th,
+    .solar-catalog-table td {
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid var(--solar-border);
+        color: var(--solar-text);
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .solar-catalog-table thead th {
+        color: var(--solar-text-muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .solar-catalog-table .is-number {
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .solar-catalog-table tr.is-hidden > * {
+        opacity: 0.6;
+    }
+
+    .solar-catalog-name {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        min-width: 14rem;
+    }
+
+    .solar-catalog-name__icon {
+        flex: none;
+        width: 1.8rem;
+        height: 1.8rem;
+        color: var(--solar-sun);
+    }
+
+    .solar-catalog-badge {
+        display: inline-block;
+        margin-left: 0.35rem;
+        padding: 0.05rem 0.5rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-sun) 16%, transparent);
+        color: var(--solar-sun);
+        font-size: 0.7rem;
+        font-weight: 700;
+        vertical-align: middle;
+    }
+
+    .solar-catalog-badge.is-muted {
+        background: color-mix(in srgb, var(--solar-text) 8%, transparent);
+        color: var(--solar-text-muted);
+    }
+
+    .solar-catalog-sub {
+        display: block;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+        font-weight: 400;
+    }
+
+    .solar-catalog-variants {
+        margin-top: 0.3rem;
+        font-size: 0.82rem;
+    }
+
+    .solar-catalog-variants summary {
+        width: fit-content;
+        color: var(--solar-sun);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-catalog-variants ul {
+        display: grid;
+        gap: 0.2rem;
+        margin: 0.4rem 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .solar-catalog-variants li {
+        display: flex;
+        justify-content: space-between;
+        gap: 1.5rem;
+        color: var(--solar-text-muted);
+        font-weight: 400;
+    }
+
+    .solar-catalog-variants li.is-default {
+        color: var(--solar-text);
+    }
+
+    .solar-catalog-variants em {
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+    }
+
+    .solar-catalog-edit {
+        color: var(--solar-sun);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .solar-catalog-empty {
+        color: var(--solar-text-muted) !important;
+        text-align: center !important;
+    }
+
+    /* Add / edit */
+    .solar-catalog-form {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .solar-catalog-form fieldset {
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .solar-catalog-form__row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .solar-catalog-form__row [hidden] {
+        display: none;
+    }
+
+    .solar-catalog-icons {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+        gap: 0.4rem;
+        margin-top: 0.4rem;
+    }
+
+    .solar-catalog-icon {
+        display: grid;
+        place-items: center;
+        aspect-ratio: 1;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.7rem;
+        color: var(--solar-text-muted);
+        cursor: pointer;
+    }
+
+    .solar-catalog-icon svg {
+        width: 1.6rem;
+        height: 1.6rem;
+    }
+
+    .solar-catalog-icon:has(input:checked) {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+        color: var(--solar-sun);
+    }
+
+    .solar-catalog-icon:has(input:focus-visible) {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-catalog-checks {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 1.25rem;
+        margin-top: 0.3rem;
+        color: var(--solar-text);
+    }
+
+    .solar-catalog-checks label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .solar-catalog-option-label {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        max-width: 26rem;
+        margin: 0.6rem 0;
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .solar-catalog-options {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .solar-catalog-options th {
+        padding: 0.3rem 0.4rem;
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .solar-catalog-options td {
+        padding: 0.3rem 0.4rem;
+    }
+
+    .solar-catalog-options td:last-child {
+        width: 4.5rem;
+    }
+
+    .solar-catalog-form__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    @media (max-width: 720px) {
+        .solar-catalog-form__row {
+            grid-template-columns: 1fr;
+        }
+    }
+}

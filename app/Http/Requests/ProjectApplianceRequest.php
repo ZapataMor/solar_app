@@ -38,7 +38,7 @@ class ProjectApplianceRequest extends FormRequest
 
         return [
             'space' => ['required', 'string', Rule::in(PropertyType::spaceKeys($solarProject->property_type))],
-            'key' => ['required', 'string', Rule::in(array_keys((new ApplianceCatalog)->all()))],
+            'key' => ['required', 'string', Rule::in(array_keys(app(ApplianceCatalog::class)->all()))],
             'variant' => ['required', 'string', $this->variantRule()],
             'quantity' => ['required', 'integer', 'between:1,100'],
             'hours_per_day' => ['required', 'numeric', 'between:0,24'],
@@ -64,7 +64,7 @@ class ProjectApplianceRequest extends FormRequest
     private function variantRule(): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
-            if (! (new ApplianceCatalog)->hasVariant((string) $this->input('key'), (string) $value)) {
+            if (! app(ApplianceCatalog::class)->hasVariant((string) $this->input('key'), (string) $value)) {
                 $fail('Elige una opción válida para ese equipo.');
             }
         };

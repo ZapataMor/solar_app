@@ -24,6 +24,36 @@ final class ApplianceCatalog
 
     public const SEGMENT_BUSINESS = 'business';
 
+    /**
+     * Drawings available for an appliance (#appliance-<name> in partials/appliance-icons), with the name
+     * an administrator sees when adding one (ADR-0017).
+     */
+    public const ICONS = [
+        'plug' => 'Enchufe (cualquier equipo)',
+        'toaster' => 'Tostadora',
+        'air-conditioner' => 'Aire acondicionado',
+        'fridge' => 'Nevera',
+        'fridge-double' => 'Nevera de dos puertas',
+        'freezer-chest' => 'Congelador horizontal',
+        'freezer-upright' => 'Congelador vertical',
+        'cooler' => 'Enfriador',
+        'cooler-double' => 'Enfriador doble',
+        'display-case' => 'Vitrina',
+        'fan' => 'Abanico de pie',
+        'fan-table' => 'Abanico de mesa',
+        'fan-ceiling' => 'Abanico de techo',
+        'lightbulb' => 'Bombillo',
+        'tv' => 'Televisor',
+        'laptop' => 'Portátil',
+        'desktop' => 'Computador',
+        'router' => 'Router',
+        'washing-machine' => 'Lavadora',
+        'water-pump' => 'Motobomba',
+        'microwave' => 'Microondas',
+        'blender' => 'Licuadora',
+        'iron' => 'Plancha',
+    ];
+
     private const APPLIANCES = [
         'air_conditioner' => [
             'label' => 'Aire acondicionado',
@@ -284,22 +314,88 @@ final class ApplianceCatalog
         ],
     ];
 
+    /** @var array<string, array<string, mixed>> */
+    private readonly array $appliances;
+
     /**
+     * @param  array<string, array<string, mixed>>  $additional  Appliances an administrator added (ADR-0017), in
+     *                                                           the same shape, plus `active` (false = hidden from the
+     *                                                           picker but still known for existing rows). They never
+     *                                                           replace a built-in one with the same key.
+     */
+    public function __construct(array $additional = [])
+    {
+        $this->appliances = self::APPLIANCES + $additional;
+    }
+
+    /**
+     * Every known appliance, also the hidden ones (old diary rows still resolve).
+     *
      * @return array<string, array<string, mixed>>
      */
     public function all(): array
     {
-        return self::APPLIANCES;
+        return $this->appliances;
     }
 
-    public function has(string $key): bool
+    /**
+     * What the consumption diary offers: everything except the appliances an administrator hid.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function offered(): array
+    {
+        return array_filter($this->appliances, fn (array $appliance) => ($appliance['active'] ?? true) !== false);
+    }
+
+    public function isBuiltIn(string $key): bool
     {
         return isset(self::APPLIANCES[$key]);
     }
 
+    /**
+     * Power of each variant (W), keyed by variant.
+     *
+     * @return array<string, float>
+     */
+    public function variantWatts(string $key): array
+    {
+        return array_map('floatval', $this->appliances[$key]['watts'] ?? []);
+    }
+
+    /**
+     * Hours a day an appliance is on: 24 when always on; "week" usage is given per week.
+     */
+    public function dailyHours(string $key, float $hours): float
+    {
+        return match ($this->usage($key)) {
+            'always' => 24.0,
+            'week' => max(0.0, min(168.0, $hours)) / 7,
+            default => max(0.0, min(24.0, $hours)),
+        };
+    }
+
+    /**
+     * Reference consumption of one unit used its default hours (kWh/month), as the diary would start it.
+     */
+    public function typicalMonthlyKwh(string $key, ?string $variant = null): float
+    {
+        $variant ??= $this->appliances[$key]['default_variant'] ?? 'default';
+
+        return $this->watts($key, $variant)
+            * $this->dailyHours($key, (float) ($this->appliances[$key]['default_hours'] ?? 0))
+            * self::DAYS_PER_MONTH
+            / 1000;
+    }
+
+    public function has(string $key): bool
+    {
+        return isset($this->appliances[$key]);
+    }
+
     public function hasVariant(string $key, string $variant): bool
     {
-        return isset(self::APPLIANCES[$key]['watts'][$variant]);
+        return isset($this->appliances[$key]['watts'][$variant]);
     }
 
     public function watts(string $key, string $variant): float
@@ -308,17 +404,17 @@ final class ApplianceCatalog
             throw new InvalidArgumentException("Equipo o variante desconocida: {$key} / {$variant}.");
         }
 
-        return (float) self::APPLIANCES[$key]['watts'][$variant];
+        return (float) $this->appliances[$key]['watts'][$variant];
     }
 
     public function isAlwaysOn(string $key): bool
     {
-        return (self::APPLIANCES[$key]['usage'] ?? null) === 'always';
+        return ($this->appliances[$key]['usage'] ?? null) === 'always';
     }
 
     public function label(string $key): string
     {
-        return self::APPLIANCES[$key]['label'] ?? $key;
+        return $this->appliances[$key]['label'] ?? $key;
     }
 
     /**
@@ -326,7 +422,7 @@ final class ApplianceCatalog
      */
     public function usage(string $key): string
     {
-        return self::APPLIANCES[$key]['usage'] ?? 'day';
+        return $this->appliances[$key]['usage'] ?? 'day';
     }
 
     /**
@@ -348,7 +444,7 @@ final class ApplianceCatalog
      */
     public function icon(string $key, string $variant): string
     {
-        return $this->chosenOptions($key, $variant)[0]['icon'] ?? (self::APPLIANCES[$key]['icon'] ?? 'lightbulb');
+        return $this->chosenOptions($key, $variant)[0]['icon'] ?? ($this->appliances[$key]['icon'] ?? 'lightbulb');
     }
 
     /**
@@ -356,7 +452,7 @@ final class ApplianceCatalog
      */
     public function belongsToAnySegment(string $key, array $segments): bool
     {
-        return array_intersect(self::APPLIANCES[$key]['segments'] ?? [], $segments) !== [];
+        return array_intersect($this->appliances[$key]['segments'] ?? [], $segments) !== [];
     }
 
     /**
@@ -367,7 +463,7 @@ final class ApplianceCatalog
         $parts = explode('.', $variant);
         $chosen = [];
 
-        foreach (self::APPLIANCES[$key]['groups'] ?? [] as $index => $group) {
+        foreach ($this->appliances[$key]['groups'] ?? [] as $index => $group) {
             foreach ($group['choices'] as $choice) {
                 if ($choice['key'] === ($parts[$index] ?? null)) {
                     $chosen[] = $choice;

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApiDataController;
+use App\Http\Controllers\ApplianceCatalogController;
 use App\Http\Controllers\ReferenceValueController;
 use App\Http\Controllers\SolarProjectConsumptionController;
 use App\Http\Controllers\SolarProjectController;
@@ -71,6 +72,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('can:administer-platform')->group(function () {
         Route::get('valores-de-referencia', [ReferenceValueController::class, 'index'])->name('reference-values.index');
         Route::post('valores-de-referencia', [ReferenceValueController::class, 'store'])->name('reference-values.store');
+
+        // Appliance catalog (ADR-0017): reference of consumption, and the appliances administrators add.
+        Route::get('catalogo-de-equipos', [ApplianceCatalogController::class, 'index'])->name('appliance-catalog.index');
+        Route::get('catalogo-de-equipos/nuevo', [ApplianceCatalogController::class, 'create'])->name('appliance-catalog.create');
+        Route::post('catalogo-de-equipos', [ApplianceCatalogController::class, 'store'])->name('appliance-catalog.store');
+        Route::get('catalogo-de-equipos/{catalogAppliance}/editar', [ApplianceCatalogController::class, 'edit'])->name('appliance-catalog.edit');
+        Route::put('catalogo-de-equipos/{catalogAppliance}', [ApplianceCatalogController::class, 'update'])->name('appliance-catalog.update');
     });
 
     // Climate readings are global: only system administrators may sync them.

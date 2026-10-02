@@ -36,6 +36,9 @@
                     <flux:sidebar.item class="solar-nav-item" icon="adjustments-horizontal" :href="route('reference-values.index')" :current="request()->routeIs('reference-values.*')" :tooltip="__('Valores de referencia')" wire:navigate>
                         {{ __('Valores de referencia') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item class="solar-nav-item" icon="bolt" :href="route('appliance-catalog.index')" :current="request()->routeIs('appliance-catalog.*')" :tooltip="__('Catálogo de equipos')" wire:navigate>
+                        {{ __('Catálogo de equipos') }}
+                    </flux:sidebar.item>
                 @endcan
             </flux:sidebar.nav>
 
