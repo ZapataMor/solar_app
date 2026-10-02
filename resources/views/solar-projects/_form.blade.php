@@ -397,7 +397,7 @@
             {{-- Not a <label> wrapper: the help button would steal the field's label. --}}
             <div class="solar-field">
                 <div class="solar-field-label-row">
-                    <label for="energy_rate_cop_kwh" class="solar-field-label">¿Cuánto pagas por cada kWh?</label>
+                    <label for="energy_rate_cop_kwh" class="solar-field-label">¿Cuánto pagas por cada kWh? <span class="solar-field-optional">(opcional)</span></label>
                     <button
                         type="button"
                         class="solar-help-button"
@@ -413,12 +413,16 @@
                     step="0.01"
                     min="0.01"
                     name="energy_rate_cop_kwh"
-                    value="{{ old('energy_rate_cop_kwh', $solarProject?->energy_rate_cop_kwh) }}"
-                    required
+                    {{-- Only the client's own tariff: empty keeps the project on the reference one (ADR-0015). --}}
+                    value="{{ old('energy_rate_cop_kwh', $solarProject?->ownEnergyRate()) }}"
+                    placeholder="{{ number_format($referenceTariffs['general'], 0, ',', '.') }}"
                     class="solar-input"
                     inputmode="decimal"
                 >
-                <span class="text-xs text-[color:var(--solar-text-muted)]">Tarifa en pesos por kWh; aparece en tu recibo de energía.</span>
+                <span class="text-xs text-[color:var(--solar-text-muted)]">
+                    Si la dejas vacía usamos la tarifa de Air-e: ${{ number_format($referenceTariffs['general'], 0, ',', '.') }} por kWh
+                    (${{ number_format($referenceTariffs['business'], 0, ',', '.') }} para negocios, con la contribución).
+                </span>
             </div>
 
             <label class="solar-field">

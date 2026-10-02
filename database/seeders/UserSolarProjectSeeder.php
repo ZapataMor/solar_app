@@ -37,9 +37,8 @@ class UserSolarProjectSeeder extends Seeder
                     'description' => 'Casa estrato 3 de una familia de cuatro. Aire en la habitación principal y en la de los niños; motobomba para el tanque.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
-                    // Air-e, La Guajira, agosto de 2026 (CU ≈ $890/kWh). Pasado el consumo de subsistencia,
-                    // estrato 3 paga el kWh completo: es el que dejaría de comprar con paneles.
-                    'energy_rate_cop_kwh' => 890,
+                    // No tariff of its own: it follows the reference one (ADR-0015), $890/kWh in a house.
+                    'energy_rate_cop_kwh' => null,
                 ],
 
                 'technical_parameters' => [
@@ -87,8 +86,8 @@ class UserSolarProjectSeeder extends Seeder
                     'description' => 'Minimercado en el centro de Maicao, abierto de 7 a. m. a 9 p. m. Local angosto: el techo no alcanza para todo el consumo.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
-                    // Comercial: CU de Air-e (≈ $890/kWh) más la contribución del 20 %.
-                    'energy_rate_cop_kwh' => 1070,
+                    // Reference tariff plus the commercial contribution: $890 × 1,2 = $1.068/kWh.
+                    'energy_rate_cop_kwh' => null,
                 ],
 
                 'technical_parameters' => [
@@ -132,8 +131,8 @@ class UserSolarProjectSeeder extends Seeder
                     'description' => 'Colegio rural de jornada de mañana, con sala de sistemas y comedor escolar (PAE). Clases de lunes a viernes.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
-                    // Oficial: paga el CU de Air-e (≈ $890/kWh), sin subsidio ni contribución.
-                    'energy_rate_cop_kwh' => 890,
+                    // Official user: the reference tariff without subsidy or contribution ($890/kWh).
+                    'energy_rate_cop_kwh' => null,
                 ],
 
                 'technical_parameters' => [

@@ -1,0 +1,162 @@
+/* Administration: reference values of the system (ADR-0015). Uses the app's --solar-* tokens. */
+
+@layer components {
+    .solar-reference {
+        max-width: 72rem;
+    }
+
+    .solar-reference-value {
+        display: grid;
+        gap: 0.9rem;
+        scroll-margin-top: 1.5rem;
+    }
+
+    .solar-reference-value__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem 2rem;
+    }
+
+    .solar-reference-value__head h2 {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .solar-reference-value__head p {
+        max-width: 42rem;
+        margin: 0.3rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.92rem;
+    }
+
+    .solar-reference-value__now {
+        display: grid;
+        justify-items: end;
+        margin: 0;
+    }
+
+    .solar-reference-value__now strong {
+        color: var(--solar-sun);
+        font-size: 2rem;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .solar-reference-value__now span {
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    .solar-reference-value__facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem 0.5rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .solar-reference-value__facts li {
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-text) 6%, transparent);
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    .solar-reference-value__scheduled {
+        margin: 0;
+        padding: 0.55rem 0.8rem;
+        border: 1px dashed color-mix(in srgb, var(--solar-sun) 55%, transparent);
+        border-radius: 0.7rem;
+        color: var(--solar-text);
+        font-size: 0.88rem;
+    }
+
+    .solar-reference-value__panel {
+        border-top: 1px solid var(--solar-border);
+        padding-top: 0.7rem;
+    }
+
+    .solar-reference-value__panel summary {
+        width: fit-content;
+        color: var(--solar-sun);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-reference-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem 1rem;
+        margin-top: 0.9rem;
+    }
+
+    .solar-reference-form__wide {
+        grid-column: 1 / -1;
+    }
+
+    .solar-reference-table-wrap {
+        margin-top: 0.7rem;
+        overflow-x: auto;
+    }
+
+    .solar-reference-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.86rem;
+    }
+
+    .solar-reference-table th,
+    .solar-reference-table td {
+        padding: 0.5rem 0.6rem;
+        border-bottom: 1px solid var(--solar-border);
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .solar-reference-table th {
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .solar-reference-table td {
+        color: var(--solar-text);
+    }
+
+    .solar-reference-table tr[aria-current='true'] td:first-child::after {
+        content: 'vigente';
+        margin-left: 0.45rem;
+        padding: 0.05rem 0.45rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-sun) 18%, transparent);
+        color: var(--solar-sun);
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .solar-reference-table__note {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    @media (max-width: 640px) {
+        .solar-reference-form {
+            grid-template-columns: 1fr;
+        }
+
+        .solar-reference-value__now {
+            justify-items: start;
+        }
+    }
+}

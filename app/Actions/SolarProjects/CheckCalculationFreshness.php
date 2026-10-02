@@ -3,10 +3,14 @@
 namespace App\Actions\SolarProjects;
 
 use App\Domain\Climate\ClimateSourceChain;
+use App\Domain\Property\PropertyType;
+use App\Domain\Reference\ReferenceValueCatalog;
+use App\Domain\Reference\ReferenceValues;
 use App\Domain\Solar\CalculationFreshness;
 use App\Domain\Solar\CalculationFreshnessPolicy;
 use App\Models\SolarProject;
 use Carbon\CarbonImmutable;
+use DateTimeInterface;
 
 /**
  * Use case: tell whether a project's calculation is up to date, and why not.
@@ -16,6 +20,7 @@ final class CheckCalculationFreshness
     public function __construct(
         private readonly ClimateSourceChain $climateSources,
         private readonly CalculationFreshnessPolicy $policy,
+        private readonly ReferenceValues $referenceValues,
     ) {}
 
     public function __invoke(SolarProject $solarProject): CalculationFreshness
@@ -60,6 +65,26 @@ final class CheckCalculationFreshness
             sourceChanges: $changes,
             // Results stored before ADR-0014 filled the roof and did not keep the panels needed.
             sizedByConsumption: $solarProject->calculationResult === null || $solarProject->calculationResult->panels_needed !== null,
+            referenceTariffChangedAt: $this->referenceTariffChangedAt($solarProject),
         );
+    }
+
+    /**
+     * Only for projects without their own tariff: a business also follows the contribution.
+     */
+    private function referenceTariffChangedAt(SolarProject $solarProject): ?DateTimeInterface
+    {
+        if (! $solarProject->usesReferenceEnergyRate()) {
+            return null;
+        }
+
+        $keys = PropertyType::normalize($solarProject->property_type) === PropertyType::BUSINESS
+            ? [ReferenceValueCatalog::ENERGY_RATE, ReferenceValueCatalog::COMMERCIAL_CONTRIBUTION]
+            : [ReferenceValueCatalog::ENERGY_RATE];
+
+        return collect($keys)
+            ->map(fn (string $key) => $this->referenceValues->current($key)->effectiveSince)
+            ->filter()
+            ->max();
     }
 }

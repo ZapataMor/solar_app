@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Domain\Climate\ClimateSourceChain;
+use App\Domain\Reference\ReferenceValues;
 use App\Infrastructure\Climate\AmbientWeatherClimateSource;
 use App\Infrastructure\Climate\LocalStationClimateSource;
 use App\Infrastructure\Climate\NasaPowerClimateSource;
+use App\Infrastructure\Reference\DatabaseReferenceValues;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Events\ConnectionEstablished;
@@ -23,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Reference values (ADR-0015): one instance per request, so a recorded value is seen right away.
+        $this->app->scoped(DatabaseReferenceValues::class);
+        $this->app->scoped(ReferenceValues::class, fn ($app) => $app->make(DatabaseReferenceValues::class));
+
         // Climate sources in priority order: highest-quality data first.
         $this->app->singleton(ClimateSourceChain::class, fn ($app) => new ClimateSourceChain(
             $app->make(AmbientWeatherClimateSource::class),

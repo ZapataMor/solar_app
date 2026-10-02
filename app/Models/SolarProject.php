@@ -2,8 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Domain\Reference\EnergyTariff;
+use App\Domain\Reference\ReferenceValueCatalog;
+use App\Domain\Reference\ReferenceValues;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -151,6 +155,47 @@ class SolarProject extends Model
         $this->monthly_consumption_kwh = $monthlyConsumption ?? 0;
         $this->daily_consumption_kwh = $dailyConsumption ?? 0;
         $this->annual_consumption_kwh = $annualConsumption ?? 0;
+    }
+
+    /**
+     * The kWh price the project works with: the client's own, or the reference tariff of its kind of
+     * place (ADR-0015). Every reader of energy_rate_cop_kwh gets this value; the stored one may be null.
+     */
+    protected function energyRateCopKwh(): Attribute
+    {
+        return Attribute::get(fn ($value): string => number_format(
+            $value !== null ? (float) $value : $this->referenceEnergyRate(),
+            2,
+            '.',
+            '',
+        ));
+    }
+
+    /**
+     * True when the client did not write a tariff and the project follows the reference one.
+     */
+    public function usesReferenceEnergyRate(): bool
+    {
+        return ($this->attributes['energy_rate_cop_kwh'] ?? null) === null;
+    }
+
+    /**
+     * The tariff the client wrote, if any (what the edit form shows).
+     */
+    public function ownEnergyRate(): ?float
+    {
+        return $this->usesReferenceEnergyRate() ? null : (float) $this->attributes['energy_rate_cop_kwh'];
+    }
+
+    public function referenceEnergyRate(): float
+    {
+        $referenceValues = app(ReferenceValues::class);
+
+        return EnergyTariff::forPropertyType(
+            $this->property_type,
+            $referenceValues->current(ReferenceValueCatalog::ENERGY_RATE)->value,
+            $referenceValues->current(ReferenceValueCatalog::COMMERCIAL_CONTRIBUTION)->value,
+        );
     }
 
     public function monthlyConsumption(): float

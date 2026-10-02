@@ -73,7 +73,8 @@ final class SaveSolarProject
             'name' => $data['name'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
-            'energy_rate_cop_kwh' => $data['energy_rate_cop_kwh'],
+            // Null follows the reference tariff (ADR-0015); a number is the client's own.
+            'energy_rate_cop_kwh' => $data['energy_rate_cop_kwh'] ?? null,
         ];
 
         // The notes live in their own tab now: only touch them when they were sent.

@@ -33,6 +33,9 @@
                     <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" :tooltip="__('Datos climáticos')" wire:navigate>
                         {{ __('Datos climáticos') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item class="solar-nav-item" icon="adjustments-horizontal" :href="route('reference-values.index')" :current="request()->routeIs('reference-values.*')" :tooltip="__('Valores de referencia')" wire:navigate>
+                        {{ __('Valores de referencia') }}
+                    </flux:sidebar.item>
                 @endcan
             </flux:sidebar.nav>
 

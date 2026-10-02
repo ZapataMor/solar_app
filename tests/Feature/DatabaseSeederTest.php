@@ -44,6 +44,9 @@ class DatabaseSeederTest extends TestCase
         $this->assertCount(3, $projects);
         $this->assertSame(['cliente'], $projects->pluck('user.username')->unique()->values()->all());
 
+        // None writes its own tariff: they follow the reference one (ADR-0015).
+        $this->assertTrue($projects->every(fn (SolarProject $project) => $project->usesReferenceEnergyRate()));
+
         $summary = $projects->mapWithKeys(fn (SolarProject $project) => [$project->property_type => [
             $project->location_name,
             (float) $project->energy_rate_cop_kwh,
@@ -54,7 +57,7 @@ class DatabaseSeederTest extends TestCase
 
         $this->assertSame([
             'house' => ['Riohacha, La Guajira, Colombia', 890.0, 534.0, 38.0, 14],
-            'business' => ['Maicao, La Guajira, Colombia', 1070.0, 1115.0, 50.0, 11],
+            'business' => ['Maicao, La Guajira, Colombia', 1068.0, 1115.0, 50.0, 11],
             'institution' => ['Uribia, La Guajira, Colombia', 890.0, 897.0, 130.0, 12],
         ], $summary);
     }

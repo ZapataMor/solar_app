@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
             RegularUserSeeder::class,
             LaGuajiraMunicipalitySeeder::class,
             MunicipalitySolarPriceSeeder::class,
+            // Before the projects: they follow the reference tariff (ADR-0015).
+            ReferenceValueSeeder::class,
             UserSolarProjectSeeder::class,
         ]);
     }

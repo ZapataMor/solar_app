@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApiDataController;
+use App\Http\Controllers\ReferenceValueController;
 use App\Http\Controllers\SolarProjectConsumptionController;
 use App\Http\Controllers\SolarProjectController;
 use App\Http\Controllers\SolarProjectNotesController;
@@ -65,6 +66,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('api-data', ApiDataController::class)
         ->middleware('can:administer-platform')
         ->name('api-data.index');
+
+    // General values of the system, such as the kWh tariff (ADR-0015).
+    Route::middleware('can:administer-platform')->group(function () {
+        Route::get('valores-de-referencia', [ReferenceValueController::class, 'index'])->name('reference-values.index');
+        Route::post('valores-de-referencia', [ReferenceValueController::class, 'store'])->name('reference-values.store');
+    });
 
     // Climate readings are global: only system administrators may sync them.
     Route::middleware('can:sync-climate-data')->group(function () {

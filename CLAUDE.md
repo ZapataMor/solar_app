@@ -50,6 +50,12 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   excedentes no bajan el recibo. `SizeProjectSystem` dimensiona en vivo (franja del diario) y
   `DescribeProjectSystem` arma la pestaña **Mi sistema** (`system.blade.php`), que convive con
   **Técnico** (`show.blade.php`, el panel original) mientras se comparan.
+- **Valores de referencia (ADR-0015):** números generales del sistema con vigencia e historial
+  (`App\Domain\Reference\ReferenceValueCatalog`; tabla `reference_values`; pantalla de admin
+  *Valores de referencia*). Léelos con el puerto `ReferenceValues`, nunca con constantes nuevas.
+  `solar_projects.energy_rate_cop_kwh` puede ser nulo: el atributo del modelo devuelve la tarifa de
+  referencia por tipo de lugar (`EnergyTariff`); para el valor escrito por el cliente usa
+  `ownEnergyRate()`.
 - **Ilustración 3D (ADR-0012):** `resources/js/solar-scene/` (Three.js con `import()` dinámico: solo
   carga donde hay `[data-solar-scene]`). Dibuja lo que entregan los `data-*` de la figura en
   `system.blade.php` (los arma `DescribeProjectSystem`) y no calcula nada del negocio; sin WebGL queda

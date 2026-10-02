@@ -9,6 +9,7 @@
 @import './consumption-diary.css';
 @import './system-panel.css';
 @import './project-transitions.css';
+@import './reference-values.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -2491,6 +2492,11 @@ select:focus[data-flux-control] {
         color: var(--solar-text);
         font-size: 0.86rem;
         font-weight: 600;
+    }
+
+    .solar-field-optional {
+        color: var(--solar-text-muted);
+        font-weight: 400;
     }
 
     .solar-field-hint {

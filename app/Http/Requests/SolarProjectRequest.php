@@ -39,7 +39,8 @@ class SolarProjectRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'energy_rate_cop_kwh' => ['required', 'numeric', 'gt:0'],
+            // Optional (ADR-0015): empty means the project follows the reference tariff of the system.
+            'energy_rate_cop_kwh' => ['nullable', 'numeric', 'gt:0'],
             'available_area_m2' => ['required', 'numeric', 'gt:0'],
             'usable_area_percentage' => ['required', 'numeric', 'between:1,100'],
             'panel_power_w' => ['required', 'numeric', 'gt:0'],

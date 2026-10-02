@@ -11,6 +11,10 @@ use App\Domain\Climate\ClimateSeries;
 use App\Domain\Climate\ClimateSource;
 use App\Domain\Climate\NoClimateData;
 use App\Domain\Pricing\PriceNotAvailable;
+use App\Domain\Property\PropertyType;
+use App\Domain\Reference\EnergyTariff;
+use App\Domain\Reference\ReferenceValueCatalog;
+use App\Domain\Reference\ReferenceValues;
 use App\Domain\Solar\MissingConsumption;
 use App\Domain\Solar\MissingTechnicalParameters;
 use App\Http\Requests\SolarProjectRequest;
@@ -139,7 +143,25 @@ class SolarProjectController extends Controller
     {
         return view('solar-projects.create', [
             'municipalities' => $this->municipalityOptions(),
+            'referenceTariffs' => $this->referenceTariffs(),
         ]);
+    }
+
+    /**
+     * What an empty tariff field means (ADR-0015): the reference kWh for a home or institution, and
+     * for a business with its contribution.
+     *
+     * @return array{general: float, business: float}
+     */
+    private function referenceTariffs(): array
+    {
+        $referenceValues = app(ReferenceValues::class);
+        $rate = $referenceValues->current(ReferenceValueCatalog::ENERGY_RATE)->value;
+
+        return [
+            'general' => $rate,
+            'business' => EnergyTariff::forPropertyType(PropertyType::BUSINESS, $rate, $referenceValues->current(ReferenceValueCatalog::COMMERCIAL_CONTRIBUTION)->value),
+        ];
     }
 
     public function store(SolarProjectRequest $request, SaveSolarProject $saveSolarProject): RedirectResponse
@@ -225,6 +247,7 @@ class SolarProjectController extends Controller
             'solarProject' => $solarProject,
             'municipalities' => $this->municipalityOptions(),
             'portfolioUrl' => $this->portfolioUrl($request),
+            'referenceTariffs' => $this->referenceTariffs(),
         ]);
     }
 
