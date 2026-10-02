@@ -8,10 +8,12 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// timezone() goes before between(): between() reads the timezone when it is called, so the
+// other order evaluates the window in UTC (01:00–13:30 in Colombia) and skips the afternoon.
 Schedule::command('weather-station:fetch')
+    ->timezone(config('services.weather_station.schedule_timezone', 'America/Bogota'))
     ->everyFiveMinutes()
     ->between('06:00', '18:30')
-    ->timezone(config('services.weather_station.schedule_timezone', 'America/Bogota'))
     ->withoutOverlapping();
 
 // NASA publishes daily data once a day; every 6 h re-checks the window and confirms estimates (ADR-0009).
@@ -24,8 +26,8 @@ Schedule::command('nasa-power:fetch')
 // withoutOverlapping() prevents pile-up when the API is slow.
 // onOneServer() is a no-op on single-server deployments but safe to include.
 Schedule::command('ambient:sync')
+    ->timezone(config('app.display_timezone', 'America/Bogota'))
     ->everyFiveMinutes()
     ->between('06:00', '18:30')
-    ->timezone(config('app.display_timezone', 'America/Bogota'))
     ->withoutOverlapping()
     ->onOneServer();
