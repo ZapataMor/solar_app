@@ -58,6 +58,8 @@ final class CheckCalculationFreshness
             sourcePriority: $priority,
             sourceLabels: $labels,
             sourceChanges: $changes,
+            // Results stored before ADR-0014 filled the roof and did not keep the panels needed.
+            sizedByConsumption: $solarProject->calculationResult === null || $solarProject->calculationResult->panels_needed !== null,
         );
     }
 }

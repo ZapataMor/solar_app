@@ -59,10 +59,16 @@ class SystemPanelTest extends TestCase
             ->assertSee('2 años y 6 meses')
             ->assertSee('Lo que da el sol frente a lo que gastan tus equipos')
             ->assertSee('Instalamos 11 paneles: todos los que caben')
+            // The 3D illustration (ADR-0012) only draws these numbers: 891 kWh a month ≈ 29,3 kWh a day.
             ->assertSee('data-panels-installed="11"', false)
-            ->assertSee('data-panels-missing="4"', false);
+            ->assertSee('data-panels-fit="11"', false)
+            ->assertSee('data-panels-missing="4"', false)
+            ->assertSee('data-daily-kwh="29.29"', false)
+            ->assertSee('data-solar-scene-stage hidden', false)
+            ->assertSee('Ilustración: no es el plano de instalación')
+            ->assertDontSee('Vista 3D: próximamente');
 
-        // The flat sketch draws 11 installed panels and 4 that do not fit.
+        // Without WebGL the flat sketch stays: 11 installed panels and 4 that do not fit.
         $this->assertSame(11, substr_count($response->getContent(), 'solar-scene__panel is-installed'));
         $this->assertSame(4, substr_count($response->getContent(), 'solar-scene__panel is-missing'));
     }
@@ -86,11 +92,26 @@ class SystemPanelTest extends TestCase
             ->assertSee('Alcanza para: Aire acondicionado.');
     }
 
+    public function test_a_calculation_that_filled_the_roof_asks_to_be_recalculated(): void
+    {
+        [$user, $solarProject] = $this->project();
+        $solarProject->update(['monthly_consumption_kwh' => 300]);
+        $this->calculated($solarProject, needed: 4, fit: 12, installed: 12, monthlyGeneration: 980, coverage: 326);
+        // Before ADR-0014 the roof was filled and the sizing was not stored.
+        $solarProject->calculationResult->update(['panels_needed' => null, 'panels_that_fit' => null, 'panel_monthly_generation_kwh' => null]);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.system', $solarProject))
+            ->assertOk()
+            ->assertSee('Mejoramos el cálculo: ahora se instalan solo los paneles que necesitas.')
+            ->assertSee('Estimado con el sol promedio de La Guajira.');
+    }
+
     public function test_the_diary_shows_how_much_the_roof_covers_and_reacts_to_each_appliance(): void
     {
         [$user, $solarProject] = $this->project();
 
-        // Reference sun: one 550 W panel gives 0.55 × 5.8 × 0.86 × 30 = 82.3 kWh; 12 fit (32 m² / 2.6).
+        // Reference sun: one 550 W panel gives 0.55 × 5.8 × 0.86 × 365 / 12 = 83.4 kWh; 12 fit (32 m² / 2.6).
         $html = $this->actingAs($user)
             ->postJson(route('solar-projects.appliances.store', $solarProject), [
                 'space' => 'bedrooms', 'key' => 'air_conditioner', 'variant' => '24000.conventional', 'quantity' => 2, 'hours_per_day' => 10,

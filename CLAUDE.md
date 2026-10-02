@@ -44,6 +44,16 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   `SaveProjectAppliance`/`RemoveProjectAppliance` → `SyncProjectConsumption` (consumo, potencia
   sugerida y cotización). Sin consumo, calcular lanza `MissingConsumption` y la vigencia queda
   *NOT_READY*. La descripción vive en la pestaña Notas.
+- **Dimensionamiento (ADR-0014):** se instalan los paneles que pide el consumo, con el techo como
+  límite (`SystemSizing`); nunca se llena el techo. El mes de un panel es 1/12 del año, como la
+  generación mensual de la estimación. El ahorro cuenta solo `min(generación, consumo)`: los
+  excedentes no bajan el recibo. `SizeProjectSystem` dimensiona en vivo (franja del diario) y
+  `DescribeProjectSystem` arma la pestaña **Mi sistema** (`system.blade.php`), que convive con
+  **Técnico** (`show.blade.php`, el panel original) mientras se comparan.
+- **Ilustración 3D (ADR-0012):** `resources/js/solar-scene/` (Three.js con `import()` dinámico: solo
+  carga donde hay `[data-solar-scene]`). Dibuja lo que entregan los `data-*` de la figura en
+  `system.blade.php` (los arma `DescribeProjectSystem`) y no calcula nada del negocio; sin WebGL queda
+  el boceto plano del servidor. No tiene pruebas automáticas: revísala en el navegador.
 - **Cambios en el cálculo:** van en `SolarCalculator` / `InstallationCostCalculator`, con test
   en `tests/Unit/Domain` (extienden `PHPUnit\Framework\TestCase`, sin base de datos).
 - Decisiones de arquitectura: registra un ADR en `natal-ia-vault/03-diseno/decisiones-adr/`.

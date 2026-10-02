@@ -54,7 +54,7 @@ class SystemSizingTest extends TestCase
 
     public function test_the_calculator_no_longer_fills_the_whole_roof(): void
     {
-        // 40 panels fit (102 m² / 2.5 m²); one panel gives 0.55 kW × 4.8 h × 0.86 × 30 = 68.1 kWh.
+        // 40 panels fit (102 m² / 2.5 m²); one panel gives 0.55 kW × 4.8 h × 0.86 × 365 / 12 = 69.1 kWh.
         $estimate = (new SolarCalculator)->estimate(
             new SystemSpecification(availableAreaM2: 120, usableAreaPercentage: 85, panelAreaM2: 2.5, panelPowerW: 550, performanceRatio: 0.86),
             new EnergyProfile(monthlyConsumptionKwh: 500, energyRateCopKwh: 900),
@@ -65,9 +65,25 @@ class SystemSizingTest extends TestCase
         $this->assertSame(8, $estimate->sizing->panelsNeeded);
         $this->assertSame(8, $estimate->numberOfPanels);
         $this->assertEqualsWithDelta(4.4, $estimate->installedCapacityKwp, 0.0001);
-        $this->assertEqualsWithDelta(68.11, $estimate->sizing->panelMonthlyKwh, 0.01);
+        $this->assertEqualsWithDelta(69.06, $estimate->sizing->panelMonthlyKwh, 0.01);
         // 4.4 kWp × 5 000 000 instead of the 22 kWp of the full roof.
         $this->assertEqualsWithDelta(22000000, $estimate->installationCostCop, 0.01);
+    }
+
+    public function test_the_panels_needed_agree_with_the_coverage_of_the_estimate(): void
+    {
+        // 11 panels fit and give 2.27 kWh a day each: 749 kWh in 30 days, 760 in an average month
+        // (365 / 12 days). The estimate covers 755 kWh (100.6 %): a 12th panel would not be needed.
+        $estimate = (new SolarCalculator)->estimate(
+            new SystemSpecification(availableAreaM2: 32, usableAreaPercentage: 90, panelAreaM2: 2.5, panelPowerW: 550, performanceRatio: 0.86),
+            new EnergyProfile(monthlyConsumptionKwh: 755, energyRateCopKwh: 900),
+            [new DailyIrradiance('2026-01-10', 200), new DailyIrradiance('2026-01-11', 200)],
+        );
+
+        $this->assertSame(11, $estimate->sizing->panelsNeeded);
+        $this->assertTrue($estimate->sizing->roofIsEnough());
+        $this->assertGreaterThanOrEqual(100, $estimate->coveragePercentage);
+        $this->assertEqualsWithDelta($estimate->monthlyGenerationKwh, $estimate->sizing->monthlyGenerationKwh(), 0.01);
     }
 
     public function test_live_output_says_which_appliances_the_sun_could_power_now(): void

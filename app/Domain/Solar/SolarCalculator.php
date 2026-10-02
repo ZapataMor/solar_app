@@ -36,7 +36,7 @@ final class SolarCalculator
         $usableArea = $this->usableArea($system->availableAreaM2, $system->usableAreaPercentage);
         $sizing = SystemSizing::for(
             $energy->monthlyConsumptionKwh,
-            $this->panelMonthlyGenerationKwh($system, $this->averagePeakSunHours($peakSunHoursByMonth)),
+            $this->panelMonthlyGenerationKwh($system, $this->averagePeakSunHours($peakSunHoursByMonth), $energy->annualProjectionDays),
             $this->numberOfPanels($usableArea, $system->panelAreaM2),
         );
         $numberOfPanels = $sizing->panelsInstalled;
@@ -88,10 +88,13 @@ final class SolarCalculator
 
     /**
      * What one panel produces in an average month with this sun (kWh).
+     *
+     * The month is a twelfth of the year, like the estimate's monthly generation and coverage:
+     * a 30-day month would ask for one more panel when the estimate already covers 100 %.
      */
-    public function panelMonthlyGenerationKwh(SystemSpecification $system, float $averageDailyPeakSunHours): float
+    public function panelMonthlyGenerationKwh(SystemSpecification $system, float $averageDailyPeakSunHours, int $daysPerYear = 365): float
     {
-        return $system->panelPowerW / 1000 * $averageDailyPeakSunHours * $system->performanceRatio * 30;
+        return $system->panelPowerW / 1000 * $averageDailyPeakSunHours * $system->performanceRatio * $daysPerYear / 12;
     }
 
     /**

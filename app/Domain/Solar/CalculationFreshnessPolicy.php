@@ -11,6 +11,7 @@ use DateTimeInterface;
  *
  * Only changes that can alter the result count:
  *  - the project's own inputs changed after the calculation;
+ *  - the calculation predates sizing by consumption (ADR-0014: it filled the roof);
  *  - a climate source of better quality than the one used now has data for the period;
  *  - the source used got new data at least one grace period after the calculation.
  *
@@ -25,6 +26,7 @@ final class CalculationFreshnessPolicy
      * @param  list<string>  $sourcePriority  Climate source keys, best quality first.
      * @param  array<string, string>  $sourceLabels  Key => name shown to the user.
      * @param  array<string, DateTimeInterface|null>  $sourceChanges  Key => last change of its data in the project period.
+     * @param  bool  $sizedByConsumption  False for a result stored before ADR-0014 (it has no panels needed).
      */
     public function evaluate(
         ?DateTimeInterface $calculatedAt,
@@ -34,6 +36,7 @@ final class CalculationFreshnessPolicy
         array $sourcePriority,
         array $sourceLabels,
         array $sourceChanges,
+        bool $sizedByConsumption = true,
     ): CalculationFreshness {
         if (! $hasTechnicalParameters) {
             return new CalculationFreshness(CalculationFreshness::NOT_READY, ['Faltan los parámetros técnicos del proyecto.']);
@@ -52,6 +55,10 @@ final class CalculationFreshnessPolicy
 
         if ($inputsChangedAt !== null && $inputsChangedAt > $calculatedAt) {
             $reasons[] = 'Cambiaste datos del proyecto después del último cálculo.';
+        }
+
+        if (! $sizedByConsumption) {
+            $reasons[] = 'Mejoramos el cálculo: ahora se instalan solo los paneles que necesitas.';
         }
 
         $usedIndex = array_search($usedSource, $sourcePriority, true);

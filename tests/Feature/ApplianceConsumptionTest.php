@@ -98,7 +98,7 @@ class ApplianceConsumptionTest extends TestCase
 
         // A project calculated an hour ago…
         $solarProject->update(['monthly_consumption_kwh' => 100]);
-        $solarProject->calculationResult()->create(['coverage_percentage' => 80, 'climate_source' => 'nasa_power']);
+        $solarProject->calculationResult()->create(['coverage_percentage' => 80, 'panels_needed' => 2, 'climate_source' => 'nasa_power']);
         SolarProject::query()->whereKey($solarProject->id)->update(['updated_at' => now()->subHours(2)]);
         $solarProject->technicalParameter()->update(['updated_at' => now()->subHours(2)]);
         $solarProject->calculationResult()->update(['updated_at' => now()->subHour()]);

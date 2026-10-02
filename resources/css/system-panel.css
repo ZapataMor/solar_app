@@ -9,12 +9,12 @@
     /* Hero: illustration + recommendation */
     .solar-system-hero {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
         align-items: center;
         gap: 1.5rem;
     }
 
-    /* Reserved for the 3D scene (ADR-0012); until then, a flat sketch with the real panel counts. */
+    /* Illustration: a flat sketch with the real panel counts, replaced by the 3D scene (ADR-0012) with WebGL. */
     .solar-scene {
         display: grid;
         gap: 0.6rem;
@@ -87,8 +87,160 @@
         width: 1rem;
     }
 
-    .solar-scene__soon {
+    .solar-scene figcaption > .solar-scene__note {
+        display: block;
+        flex-basis: 100%;
         font-style: italic;
+        text-align: center;
+    }
+
+    .solar-scene:not(.is-3d) .solar-scene__hint {
+        display: none;
+    }
+
+    /* 3D scene (resources/js/solar-scene). Overlays carry their own background: the sky changes with the hour. */
+    .solar-scene.is-3d {
+        padding: 0.5rem 0.5rem 0.75rem;
+    }
+
+    .solar-scene.is-3d .solar-scene__key.is-installed {
+        background: #24476f;
+        box-shadow: inset 0 0 0 1px #c9d0d8;
+    }
+
+    .solar-scene__stage {
+        position: relative;
+        min-height: 14rem;
+        aspect-ratio: 4 / 3;
+        overflow: hidden;
+        border-radius: 0.8rem;
+        background: color-mix(in srgb, var(--solar-sun) 8%, var(--solar-surface-muted));
+    }
+
+    .solar-scene__stage[hidden],
+    .solar-scene__status[hidden],
+    .solar-scene__replay[hidden],
+    .solar-scene__day[hidden] {
+        display: none;
+    }
+
+    .solar-scene__canvas {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+    }
+
+    .solar-scene__canvas:active {
+        cursor: grabbing;
+    }
+
+    /* Progress and the energy of the day, in a strip under the scene. */
+    .solar-scene__hud {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.4rem 0.75rem;
+        min-height: 2.4rem;
+    }
+
+    .solar-scene:not(.is-3d) .solar-scene__hud {
+        display: none;
+    }
+
+    /* Keeps its room while it waits for the day to start, so the strip does not jump. */
+    .solar-scene__day.is-waiting {
+        visibility: hidden;
+    }
+
+    .solar-scene__status,
+    .solar-scene__replay,
+    .solar-scene__day {
+        border: 1px solid var(--solar-border);
+        background: color-mix(in srgb, var(--solar-surface-strong) 88%, transparent);
+        color: var(--solar-text);
+    }
+
+    .solar-scene__replay {
+        box-shadow: 0 8px 20px -14px rgba(0, 0, 0, 0.55);
+    }
+
+    .solar-scene__status {
+        margin: 0;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .solar-scene__replay {
+        position: absolute;
+        top: 0.55rem;
+        right: 0.55rem;
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        cursor: pointer;
+    }
+
+    .solar-scene__replay:hover {
+        color: var(--solar-sun);
+    }
+
+    .solar-scene__replay:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-scene__day {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+        border-radius: 0.75rem;
+    }
+
+    .solar-scene__arc {
+        width: 2.3rem;
+        overflow: visible;
+    }
+
+    .solar-scene__arc path {
+        fill: none;
+        stroke: var(--solar-border-strong);
+        stroke-width: 2;
+        stroke-dasharray: 3 4;
+    }
+
+    .solar-scene__arc circle {
+        fill: var(--solar-sun);
+        filter: drop-shadow(0 0 3px var(--solar-sun-soft));
+    }
+
+    .solar-scene__day[data-night] circle {
+        display: none;
+    }
+
+    .solar-scene__day strong,
+    .solar-scene__day small {
+        display: block;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .solar-scene__day strong {
+        font-size: 0.86rem;
+    }
+
+    .solar-scene__day small {
+        color: var(--solar-text-muted);
+        font-size: 0.72rem;
     }
 
     .solar-system-reco {

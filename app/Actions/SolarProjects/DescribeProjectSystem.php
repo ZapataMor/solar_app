@@ -69,12 +69,16 @@ final class DescribeProjectSystem
             'installedCapacityKwp' => $result !== null ? (float) $result->installed_capacity_kwp : null,
             'months' => $this->months($solarProject, $rate),
             'live' => $this->live($solarProject, $result?->installed_capacity_kwp),
+            // What the 3D illustration draws (ADR-0012); it calculates nothing by itself.
             'scene' => [
                 'propertyType' => $solarProject->property_type,
                 'panelsInstalled' => $sizing?->panelsInstalled ?? 0,
+                'panelsThatFit' => $sizing?->panelsThatFit ?? 0,
                 'panelsMissing' => $sizing?->missingPanels() ?? 0,
                 'roofAreaM2' => (float) ($solarProject->technicalParameter?->available_area_m2 ?? 0),
                 'panelAreaM2' => (float) ($solarProject->technicalParameter?->panel_area_m2 ?? 0),
+                // An average day: a month is a twelfth of the year (ADR-0014).
+                'dailyKwh' => $monthlyGeneration * 12 / 365,
             ],
         ];
     }

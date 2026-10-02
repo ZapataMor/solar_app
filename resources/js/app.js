@@ -1,4 +1,5 @@
 import Chart from 'chart.js/auto';
+import { initSolarScenes } from './solar-scene';
 
 const activeSolarCharts = new Map();
 let solarThemeObserver = null;
@@ -1704,3 +1705,7 @@ const initUnitSwitches = () => {
 
 document.addEventListener('DOMContentLoaded', initUnitSwitches);
 document.addEventListener('livewire:navigated', initUnitSwitches);
+
+// 3D illustration of "Mi sistema" (ADR-0012, resources/js/solar-scene): Three.js loads only where it is used.
+document.addEventListener('DOMContentLoaded', initSolarScenes);
+document.addEventListener('livewire:navigated', initSolarScenes);

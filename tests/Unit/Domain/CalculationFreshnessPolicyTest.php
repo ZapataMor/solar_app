@@ -54,6 +54,14 @@ class CalculationFreshnessPolicyTest extends TestCase
         $this->assertSame(['Llegaron datos nuevos de Ambient Weather.'], $nextDay->reasons);
     }
 
+    public function test_stale_when_the_calculation_filled_the_roof_before_sizing_by_consumption(): void
+    {
+        $result = $this->evaluate(usedSource: 'nasa_power', changes: ['nasa_power' => '2026-09-30 08:00'], sizedByConsumption: false);
+
+        $this->assertSame(CalculationFreshness::STALE, $result->status);
+        $this->assertSame(['Mejoramos el cálculo: ahora se instalan solo los paneles que necesitas.'], $result->reasons);
+    }
+
     public function test_pending_or_not_ready_when_never_calculated(): void
     {
         $withData = $this->evaluate(calculatedAt: null, changes: ['nasa_power' => '2026-09-30 08:00']);
@@ -76,6 +84,7 @@ class CalculationFreshnessPolicyTest extends TestCase
         bool $hasTechnicalParameters = true,
         ?string $inputsChangedAt = '2026-09-01 08:00',
         array $changes = [],
+        bool $sizedByConsumption = true,
     ): CalculationFreshness {
         return (new CalculationFreshnessPolicy)->evaluate(
             calculatedAt: $calculatedAt ? new DateTimeImmutable($calculatedAt) : null,
@@ -85,6 +94,7 @@ class CalculationFreshnessPolicyTest extends TestCase
             sourcePriority: self::PRIORITY,
             sourceLabels: self::LABELS,
             sourceChanges: array_map(fn (string $date) => new DateTimeImmutable($date), $changes),
+            sizedByConsumption: $sizedByConsumption,
         );
     }
 }

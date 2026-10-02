@@ -1,7 +1,7 @@
 {{--
     Alternative panel "Mi sistema" (ADR-0014): the project in money and plain words, to compare with
-    the current panel. The scene area is reserved for the 3D illustration (ADR-0012), which will read
-    the data-* attributes of [data-solar-scene].
+    the "Técnico" panel. The 3D illustration (ADR-0012, resources/js/solar-scene) reads the data-*
+    attributes of [data-solar-scene]; without WebGL the flat sketch stays.
 --}}
 @php
     use App\Domain\Solar\CalculationFreshness;
@@ -84,15 +84,16 @@
 
             {{-- Hero: illustration + recommendation in one sentence + money --}}
             <section class="solar-card-strong solar-system-hero" aria-labelledby="system-headline">
-                {{-- Reserved for the 3D scene (ADR-0012): it will replace the placeholder using these data-* attributes. --}}
                 <figure
                     class="solar-scene"
                     data-solar-scene
                     data-property-type="{{ $system['scene']['propertyType'] }}"
                     data-panels-installed="{{ $system['scene']['panelsInstalled'] }}"
+                    data-panels-fit="{{ $system['scene']['panelsThatFit'] }}"
                     data-panels-missing="{{ $system['scene']['panelsMissing'] }}"
                     data-roof-area-m2="{{ $system['scene']['roofAreaM2'] }}"
                     data-panel-area-m2="{{ $system['scene']['panelAreaM2'] }}"
+                    data-daily-kwh="{{ round($system['scene']['dailyKwh'], 2) }}"
                     aria-label="{{ $sizing ? 'Ilustración: '.$panels($sizing->panelsInstalled).' en el techo'.($sizing->missingPanels() > 0 ? ' y '.$sizing->missingPanels().' que no caben' : '') : 'Ilustración del sistema' }}"
                 >
                     <div class="solar-scene__placeholder" aria-hidden="true">
@@ -118,13 +119,30 @@
                             </div>
                         @endif
                     </div>
+
+                    {{-- 3D scene: shown instead of the sketch when the browser has WebGL. --}}
+                    <div class="solar-scene__stage" data-solar-scene-stage hidden>
+                        <button type="button" class="solar-scene__replay" data-solar-scene-replay title="Repetir la animación">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                            <span class="sr-only">Repetir la animación</span>
+                        </button>
+                    </div>
+                    {{-- Below the scene, so it never covers the building. --}}
+                    <div class="solar-scene__hud" aria-hidden="true">
+                        <p class="solar-scene__status" data-solar-scene-status hidden></p>
+                        <div class="solar-scene__day" data-solar-scene-day hidden>
+                            <svg viewBox="0 0 64 36" class="solar-scene__arc"><path d="M4 32a28 28 0 0 1 56 0"/><circle r="4.5" cx="4" cy="32" data-solar-scene-sun/></svg>
+                            <span><strong data-solar-scene-energy></strong><small data-solar-scene-clock></small></span>
+                        </div>
+                    </div>
+
                     <figcaption>
                         @if ($sizing)
                             <span><i class="solar-scene__key is-installed"></i>Instalados</span>
                             @if ($sizing->sparePanels() > 0)<span><i class="solar-scene__key is-free"></i>Espacio libre</span>@endif
                             @if ($sizing->missingPanels() > 0)<span><i class="solar-scene__key is-missing"></i>No caben</span>@endif
                         @endif
-                        <span class="solar-scene__soon">Vista 3D: próximamente</span>
+                        <span class="solar-scene__note">Ilustración: no es el plano de instalación<span class="solar-scene__hint"> · arrastra para girarla</span></span>
                     </figcaption>
                 </figure>
 
