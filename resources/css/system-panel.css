@@ -101,16 +101,29 @@
         text-align: center;
     }
 
-    .solar-scene:not(.is-3d) .solar-scene__hint {
+    /* The sketch stands alone without WebGL (no html.solar-can-3d) or when the scene fails (.is-flat). */
+    html:not(.solar-can-3d) .solar-scene__hint,
+    .solar-scene.is-flat .solar-scene__hint {
         display: none;
     }
 
-    /* 3D scene (resources/js/solar-scene). Overlays carry their own background: the sky changes with the hour. */
-    .solar-scene.is-3d {
+    /* 3D scene (resources/js/solar-scene). With WebGL the stage takes the sketch's place from the first
+       paint, with a loader until the scene arrives (resources/js/scene-loader.js): the sketch never flashes
+       and nothing moves when the scene comes. Overlays carry their own background: the sky changes with the hour. */
+    .solar-scene.is-3d,
+    .solar-can-3d .solar-scene:not(.is-flat) {
         padding: 0.5rem 0.5rem 0.75rem;
     }
 
-    .solar-scene.is-3d .solar-scene__key.is-installed {
+    html:not(.solar-can-3d) .solar-scene__stage,
+    .solar-scene.is-flat .solar-scene__stage,
+    .solar-can-3d .solar-scene:not(.is-3d, .is-flat) .solar-scene__placeholder,
+    .solar-scene:not(.is-3d) .solar-scene__replay {
+        display: none;
+    }
+
+    .solar-scene.is-3d .solar-scene__key.is-installed,
+    .solar-can-3d .solar-scene:not(.is-flat) .solar-scene__key.is-installed {
         background: #24476f;
         box-shadow: inset 0 0 0 1px #c9d0d8;
     }
@@ -154,7 +167,9 @@
         min-height: 2.4rem;
     }
 
-    .solar-scene:not(.is-3d) .solar-scene__hud {
+    /* Kept while the scene loads, so the strip does not push the page down when it arrives. */
+    html:not(.solar-can-3d) .solar-scene__hud,
+    .solar-scene.is-flat .solar-scene__hud {
         display: none;
     }
 

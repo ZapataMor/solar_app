@@ -6,6 +6,7 @@ use App\Models\AmbientWeatherReading;
 use App\Models\SolarProject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Vite;
 use Tests\TestCase;
 
 /**
@@ -64,7 +65,11 @@ class SystemPanelTest extends TestCase
             ->assertSee('data-panels-fit="11"', false)
             ->assertSee('data-panels-missing="4"', false)
             ->assertSee('data-daily-kwh="29.29"', false)
-            ->assertSee('data-solar-scene-stage hidden', false)
+            // With WebGL the stage waits for the 3D with a loader instead of flashing the sketch, and the
+            // scene downloads with the page.
+            ->assertSee("classList.add('solar-can-3d')", false)
+            ->assertSee('Preparando la ilustración 3D…')
+            ->assertSee(Vite::asset('resources/js/solar-scene/scene.js'), false)
             ->assertSee('Ilustración: no es el plano de instalación')
             ->assertDontSee('Vista 3D: próximamente');
 

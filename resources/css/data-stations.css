@@ -92,7 +92,9 @@
         visibility: visible;
     }
 
-    .solar-station.is-3d .solar-station__sketches {
+    /* With WebGL the sketches wait hidden while the 3D loads (resources/js/scene-loader.js); .is-flat brings them back. */
+    .solar-station.is-3d .solar-station__sketches,
+    .solar-can-3d .solar-station:not(.is-flat) .solar-station__sketches {
         display: none;
     }
 

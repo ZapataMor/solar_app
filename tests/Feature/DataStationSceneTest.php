@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\AmbientWeatherImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Vite;
 use Tests\TestCase;
 
 /**
@@ -29,6 +30,9 @@ class DataStationSceneTest extends TestCase
             ->assertOk()
             ->assertSee('Viento de la última lectura: <span data-station-wind-text>13 km/h del noreste</span>', false)
             ->assertSee('Satélites de NASA POWER')
+            // The stations download with the page and a loader waits for them, instead of the sketch.
+            ->assertSee(Vite::asset('resources/js/station-scene/scene.js'), false)
+            ->assertSee('Preparando la estación en 3D…')
             ->assertDontSee('Total registros')
             ->assertDontSee('Base consolidada para decisiones')
             ->getContent();

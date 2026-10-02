@@ -1,7 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0012 — Ilustración 3D animada (Three.js) de la casa o el negocio con sus paneles, usando los números del proyecto
-actualizado: 2026-10-01
+actualizado: 2026-10-02
 ---
 
 # ADR-0012 · Ilustración 3D de la instalación
@@ -108,6 +108,18 @@ Una **ilustración 3D animada** construida con **Three.js**:
 - El contexto WebGL se libera al navegar con `wire:navigate`.
 - Con *reducir movimiento* se muestra el estado final (11 a. m. y "≈ X kWh al día").
 - Sin WebGL se queda el boceto plano que dibuja el servidor.
+
+**Carga sin destello (2026-10-02).** Al recargar o al abrir un proyecto se veía un instante el boceto plano antes del 3D.
+- **Con WebGL ya no se ve el boceto:**
+  - un script en el `<head>` marca la página (`solar-can-3d`) antes del primer pintado;
+  - el escenario ocupa su lugar desde el principio, así que nada se mueve cuando llega el 3D;
+  - mientras carga se ve un barrido de luz, y el texto "Preparando la ilustración 3D…" solo si tarda más de un tercio de segundo;
+  - el 3D entra con un fundido corto.
+- **El boceto queda de respaldo:** sin WebGL, si la escena falla o si tarda más de 8 s (`resources/js/scene-loader.js`). Si el 3D llega después, lo reemplaza.
+- **La escena baja antes:**
+  - "Mi sistema" la pide desde su `<head>`, al mismo tiempo que `app.js`;
+  - las demás páginas, al terminar de cargar, la bajan en segundo plano y con baja prioridad (`Vite::prefetch`). Así, el primer proyecto que se abre desde el portafolio ya la tiene.
+- **Con `wire:navigate`,** Livewire copia los atributos del `<html>` de la página nueva y borraría la marca. Se repone en el mismo cambio (`onSwap`), antes de pintar.
 
 ## Consecuencias
 - ➕ El cliente "ve" su sistema: es más persuasivo que las cifras y muy útil en el pitch.

@@ -64,6 +64,11 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   carga donde hay `[data-solar-scene]`). Dibuja lo que entregan los `data-*` de la figura en
   `system.blade.php` (los arma `DescribeProjectSystem`) y no calcula nada del negocio; sin WebGL queda
   el boceto plano del servidor. No tiene pruebas automáticas: revísala en el navegador.
+- **Carga de las escenas 3D:** `resources/js/scene-loader.js` las monta. Con WebGL, la figura espera
+  su escena con un indicador, sin mostrar el boceto (clase `solar-can-3d` en `<html>`, puesta en
+  `partials/head` y repuesta en cada `wire:navigate`). `.is-flat` devuelve el boceto si la escena
+  falla o tarda. Cada página con escena la pide en `@push('head')` con `@vite(...)`; las demás la
+  precargan en segundo plano (`Vite::prefetch` en `AppServiceProvider`).
 - **Estaciones en 3D (ADR-0018):** el encabezado de *Datos climáticos* muestra la estación de la
   pestaña elegida (`resources/js/station-scene/`, un solo lienzo para las tres; el globo y su mapa
   dibujado están en `earth.js`). La figura (`api-data/partials/station-figure.blade.php`) sigue la
@@ -112,6 +117,9 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 - Tests de vistas: los `data-*` y nombres de campos también aparecen en el JS inline de la página, así
   que `assertDontSee('data-x')` falla aunque el atributo no esté. Comprueba la etiqueta con una regex
   (`/<form[^>]*data-x/`).
+- **Tailwind v4 oculta `[hidden]` con `!important`** (preflight, capa base): ningún CSS lo vuelve a
+  mostrar. Lo que deba aparecer según un estado (p. ej. el escenario 3D mientras carga) se controla
+  con clases, no con el atributo `hidden`.
 - Pint ya reporta estilo en archivos heredados (`SolarProjectController`,
   `ClimateSourceFallbackService`, …). No reformatees archivos enteros: solo lo que tocas.
 - Radiación: se guarda como **W/m² promedio de 24 h**. HSP (kWh/m²/día) = W/m² × 24 / 1000.

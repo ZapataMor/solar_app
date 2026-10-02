@@ -40,6 +40,7 @@
                 <path d="M151 37L77 61" stroke-dasharray="3 4" />
             </svg>
         </div>
+        <p class="solar-3d-loading" aria-hidden="true"><span class="solar-sync-spinner"></span>Preparando la estación en 3D…</p>
         <div class="solar-station__stage" data-station-scene-stage hidden></div>
         <span class="solar-station__hint" aria-hidden="true">Ilustración · arrastra para girarla</span>
     </div>

@@ -46,6 +46,11 @@
 @endphp
 
 <x-layouts::app :title="'Mi sistema · '.$solarProject->name">
+    {{-- The 3D scene downloads with the page, so the loader gives way to it sooner (ADR-0012). --}}
+    @push('head')
+        @vite('resources/js/solar-scene/scene.js')
+    @endpush
+
     <div class="solar-project-detail" style="view-transition-name: project-{{ $solarProject->id }}">
         @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'system', 'backUrl' => $portfolioUrl])
 
@@ -120,8 +125,9 @@
                         @endif
                     </div>
 
-                    {{-- 3D scene: shown instead of the sketch when the browser has WebGL. --}}
-                    <div class="solar-scene__stage" data-solar-scene-stage hidden>
+                    {{-- 3D scene: with WebGL it takes the sketch's place from the first paint, with a loader until it arrives. --}}
+                    <div class="solar-scene__stage" data-solar-scene-stage>
+                        <p class="solar-3d-loading" aria-hidden="true"><span class="solar-sync-spinner"></span>Preparando la ilustración 3D…</p>
                         <button type="button" class="solar-scene__replay" data-solar-scene-replay title="Repetir la animación">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
                             <span class="sr-only">Repetir la animación</span>

@@ -55,6 +55,10 @@ Son figuras simples (*low-poly*), con el estilo de [[adr-0012-ilustracion-3d-de-
   - libera el contexto al navegar;
   - con *reducir movimiento* queda quieta;
   - sin WebGL quedan bocetos planos (SVG) de cada estación.
+- **Sin destello del boceto al cargar:**
+  - con WebGL, la figura espera el 3D con un indicador ("Preparando la estación en 3D…");
+  - el archivo de la escena se pide desde el `<head>` de la página;
+  - es el mismo mecanismo de [[adr-0012-ilustracion-3d-de-la-instalacion]] (*Carga sin destello*).
 
 ### 5. Los conteos, en las pestañas
 - El número de cada pestaña lleva ahora el atributo que actualiza la sincronización. Antes se quedaba con el valor de cuando cargó la página.

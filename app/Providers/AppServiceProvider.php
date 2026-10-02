@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -71,6 +72,10 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        // After any page loads, fetch the chunks app.js imports on demand (the 3D scenes and Three.js),
+        // quietly: the first project opened finds its 3D already downloaded (ADR-0012).
+        Vite::prefetch(concurrency: 3);
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),

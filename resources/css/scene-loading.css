@@ -1,0 +1,75 @@
+/* 3D scenes while they load (resources/js/scene-loader.js, ADR-0012 and ADR-0018). With WebGL
+   (html.solar-can-3d, set in partials/head before the first paint) the figure shows its empty stage
+   with a quiet loader instead of the flat sketch; .is-3d means the scene is on screen and .is-flat
+   that the sketch took over. */
+
+@layer components {
+    .solar-3d-loading {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: none;
+        place-content: center;
+        justify-items: center;
+        gap: 0.55rem;
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+        pointer-events: none;
+    }
+
+    .solar-can-3d :is([data-solar-scene], [data-station-scene]):not(.is-3d, .is-flat) .solar-3d-loading {
+        display: grid;
+        /* Invisible for a moment: a fast load never shows it. */
+        animation: solar-3d-appear 0.3s ease 0.35s both;
+    }
+
+    .solar-station[data-station='nasa'] .solar-3d-loading {
+        color: #c3cedd;
+    }
+
+    /* A soft sweep of light over the empty stage. */
+    .solar-can-3d :is([data-solar-scene], [data-station-scene]):not(.is-3d, .is-flat) :is(.solar-scene__stage, .solar-station__view)::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(100deg, transparent 35%, color-mix(in srgb, var(--solar-surface-strong) 26%, transparent) 50%, transparent 65%);
+        background-size: 250% 100%;
+        animation: solar-3d-sweep 1.6s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    /* The scene arrives with a short fade instead of popping in. */
+    .solar-scene__canvas,
+    .solar-station__canvas {
+        animation: solar-3d-appear 0.45s ease-out both;
+    }
+
+    @keyframes solar-3d-appear {
+        from {
+            opacity: 0;
+        }
+    }
+
+    @keyframes solar-3d-sweep {
+        from {
+            background-position: 120% 0;
+        }
+
+        to {
+            background-position: -20% 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-can-3d :is([data-solar-scene], [data-station-scene]):not(.is-3d, .is-flat) .solar-3d-loading,
+        .solar-scene__canvas,
+        .solar-station__canvas {
+            animation: none;
+        }
+
+        .solar-can-3d :is([data-solar-scene], [data-station-scene]):not(.is-3d, .is-flat) :is(.solar-scene__stage, .solar-station__view)::after {
+            display: none;
+        }
+    }
+}

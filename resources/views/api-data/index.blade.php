@@ -31,6 +31,11 @@
 @endphp
 
 <x-layouts::app :title="__('Datos APIs')">
+    {{-- The 3D stations download with the page, so the loader gives way to them sooner (ADR-0018). --}}
+    @push('head')
+        @vite('resources/js/station-scene/scene.js')
+    @endpush
+
     <style>
         .solar-api-page {
             width: 100%;
