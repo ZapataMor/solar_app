@@ -252,10 +252,11 @@
         // The 3D model (ADR-0019, resources/js/appliance-scene) follows the chosen appliance and options.
         const showModel = () => {
             const groups = state?.key ? catalog[state.key].groups : [];
+            // The chosen options ("18.000 BTU · Inverter"), or the appliance's name when it has none.
             model.dataset.variantLabel = groups
                 .map((group, index) => group.choices.find((choice) => choice.key === state.choices[index])?.label)
                 .filter(Boolean)
-                .join(' · ');
+                .join(' · ') || (state?.key ? catalog[state.key].label : '');
             model.dataset.variant = state?.key ? variantOf() : '';
             model.dataset.appliance = state?.key ?? '';
         };

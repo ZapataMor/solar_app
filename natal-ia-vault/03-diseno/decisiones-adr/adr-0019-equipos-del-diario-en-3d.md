@@ -1,15 +1,15 @@
 ---
 tipo: adr
-descripcion: ADR-0019 — Al agregar un equipo al diario de consumo, se ve en 3D como lo dejan sus opciones; los equipos se modelan por grupos, empezando por el aire acondicionado
+descripcion: ADR-0019 — Al agregar un equipo al diario de consumo, se ve en 3D como lo dejan sus opciones; los 15 equipos del catálogo, hechos por grupos
 actualizado: 2026-10-02
 ---
 
 # ADR-0019 · Equipos del diario en 3D
 
-- **Estado:** 🟢 Aceptada · grupo 1 (aire acondicionado) implementado el 2026-10-02; los demás grupos, pendientes
+- **Estado:** 🟢 Aceptada · los cuatro grupos (15 equipos) implementados el 2026-10-02
 - **Fecha:** 2026-10-02
 - **Contexto del repo:**
-  - `resources/js/appliance-scene/` (`index.js`, `scene.js` y un archivo por equipo, como `air-conditioner.js`);
+  - `resources/js/appliance-scene/` (`index.js`, `scene.js`, las piezas comunes en `parts.js` y un archivo por equipo, como `air-conditioner.js`);
   - la hoja "Agregar equipo" de `solar-projects/consumption.blade.php`;
   - `resources/css/appliance-model.css`.
 
@@ -34,8 +34,10 @@ actualizado: 2026-10-02
 - **Son ilustraciones,** como las de ADR-0012: no representan una marca ni un modelo comercial.
 
 ### 3. Reglas técnicas
-- **Un archivo por equipo** en `resources/js/appliance-scene/`. Exporta:
-  - `frame`, el encuadre común a todas las variantes;
+- **Un archivo por equipo** en `resources/js/appliance-scene/`.
+- **Las piezas que se repiten están en `parts.js`:** el pedazo de habitación, el mesón, la mesa, la puerta con bisagra, la pastilla *INVERTER*, las partículas (aire, frío, vapor) y el ciclo del compresor.
+- **Cada archivo exporta:**
+  - `frame`, el encuadre. Es el mismo para las variantes que solo cambian de tamaño, para que se comparen. Puede depender de la variante cuando son tipos distintos (abanico de mesa o de techo, portátil o de escritorio), y puede pedir su ángulo de cámara;
   - `build(materials, variant)`, que arma el equipo a partir de la clave de su variante (`'12000.inverter'`);
   - `note(variant)`, la frase de debajo.
 - **Se registra con una línea** en `MODELS` (`index.js`), con la clave del catálogo (`ApplianceCatalog`). Sin esa línea, el equipo no muestra recuadro.
@@ -52,20 +54,20 @@ Ordenados por cuánto pesan en el recibo y cuánto aparecen en la demo ([[pitch-
 | Grupo | Equipo | Opciones que debe mostrar | Estado |
 |---|---|---|---|
 | **1 · Clima** | Aire acondicionado | Capacidad: 9.000, 12.000, 18.000 y 24.000 BTU · Tecnología: convencional o inverter | ✅ 2026-10-02 |
-| **2 · Frío** | Nevera | Pequeña, mediana, grande o dos puertas · convencional o inverter | Pendiente |
-| | Congelador | Horizontal pequeño, horizontal grande o vertical | Pendiente |
-| | Enfriador de bebidas | 1 o 2 puertas | Pendiente |
-| | Vitrina refrigerada | Sin opciones | Pendiente |
-| **3 · Sala y oficina** | Televisor | 32", 43", 55" o 65" | Pendiente |
-| | Abanico | De mesa, de pie o de techo | Pendiente |
-| | Bombillos | LED, ahorrador o incandescente | Pendiente |
-| | Computador | Portátil o de escritorio | Pendiente |
-| | Internet (módem) | Sin opciones | Pendiente |
-| **4 · Cocina y patio** | Lavadora | Hasta 12 kg o más de 12 kg | Pendiente |
-| | Bomba de agua | ½ HP o 1 HP | Pendiente |
-| | Microondas | Sin opciones | Pendiente |
-| | Licuadora | Sin opciones | Pendiente |
-| | Plancha | Sin opciones | Pendiente |
+| **2 · Frío** | Nevera | Pequeña, mediana, grande o dos puertas · convencional o inverter | ✅ 2026-10-02 |
+| | Congelador | Horizontal pequeño, horizontal grande o vertical | ✅ 2026-10-02 |
+| | Enfriador de bebidas | 1 o 2 puertas | ✅ 2026-10-02 |
+| | Vitrina refrigerada | Sin opciones | ✅ 2026-10-02 |
+| **3 · Sala y oficina** | Televisor | 32", 43", 55" o 65" | ✅ 2026-10-02 |
+| | Abanico | De mesa, de pie o de techo | ✅ 2026-10-02 |
+| | Bombillos | LED, ahorrador o incandescente | ✅ 2026-10-02 |
+| | Computador | Portátil o de escritorio | ✅ 2026-10-02 |
+| | Internet (módem) | Sin opciones | ✅ 2026-10-02 |
+| **4 · Cocina y patio** | Lavadora | Hasta 12 kg o más de 12 kg | ✅ 2026-10-02 |
+| | Bomba de agua | ½ HP o 1 HP | ✅ 2026-10-02 |
+| | Microondas | Sin opciones | ✅ 2026-10-02 |
+| | Licuadora | Sin opciones | ✅ 2026-10-02 |
+| | Plancha | Sin opciones | ✅ 2026-10-02 |
 
 **Los equipos que agrega el administrador** ([[adr-0017-catalogo-de-equipos-administrable]]) no tienen modelo propio: se quedan con su ícono. Después de los cuatro grupos se puede decidir un modelo genérico por dibujo (tostadora, enchufe…).
 
@@ -88,6 +90,52 @@ Ordenados por cuánto pesan en el recibo y cuánto aparecen en la demo ([[pitch-
 - **Inverter:** el flujo es parejo y más suave. Las dos unidades llevan la etiqueta *INVERTER*.
 
 **La frase de debajo** explica esa diferencia: el inverter "casi nunca se apaga, por eso gasta menos". Coincide con el catálogo, donde gasta un tercio menos.
+
+## Cómo quedaron los grupos 2 a 4 (2026-10-02)
+Cada equipo muestra lo que cambian sus opciones, con una frase que lo explica.
+
+**Grupo 2 · Frío**
+- **Nevera:**
+  - el tamaño cambia sus medidas, de 55 × 125 cm a la de dos puertas de 91 × 178 cm; las grandes son de acero;
+  - la puerta se abre de vez en cuando: se ven la luz, las repisas con comida y el frío que sale;
+  - la tecnología se ve en el calor que el compresor bota por detrás, a ráfagas en la convencional y parejo en la inverter, que lleva la etiqueta.
+- **Congelador:**
+  - el horizontal sube la tapa y el frío se queda adentro, porque pesa;
+  - el vertical abre la puerta: se ven los cajones y el frío cae al piso;
+  - la frase explica por qué el horizontal pierde menos.
+- **Enfriador de bebidas:** de tienda, con un aviso iluminado ("BEBIDAS FRÍAS"), puertas de vidrio y repisas llenas de botellas y latas. Una puerta se abre de vez en cuando.
+- **Vitrina refrigerada:** mostrador con vidrio inclinado, bandejas de queso, jamón, tortas y salchichas, y frío suave detrás del vidrio.
+
+**Grupo 3 · Sala y oficina**
+- **Televisor:**
+  - la pantalla 16:9 tiene su tamaño real por pulgadas;
+  - el mueble no cambia, y una planta al lado sirve de referencia;
+  - muestra un paisaje de La Guajira animado.
+- **Abanico:**
+  - el de mesa y el de pie giran de lado a lado y muestran el aire que mueven;
+  - el de techo se ve desde abajo, con sus cinco aspas.
+- **Bombillos:**
+  - LED: una cúpula blanca de luz fría;
+  - ahorrador: una espiral que tarda en encender del todo;
+  - incandescente: el filamento al rojo, luz cálida y el calor que sube.
+- **Computador:**
+  - el portátil, de cerca, con la pantalla dibujando una gráfica;
+  - el de escritorio, con monitor, teclado, mouse y la torre en el piso con su luz.
+- **Internet (módem):** en una repisa, con antenas, luces que parpadean y ondas de Wi-Fi.
+
+**Grupo 4 · Cocina y patio**
+- **Lavadora:**
+  - de carga frontal: por el vidrio se ve el tambor girando con la ropa y el agua;
+  - cada cierto tiempo centrifuga y vibra;
+  - la de más de 12 kg es más grande.
+- **Bomba de agua:**
+  - saca agua del tanque y la sube por el tubo; se ve el agua corriendo y un manómetro;
+  - la de 1 HP tiene el motor más grande, más flujo y más presión.
+- **Microondas:** en el mesón. Por la ventana se ve el plato girando con una taza y la luz encendida mientras calienta, y la pantalla lleva la cuenta regresiva.
+- **Licuadora:** en el mesón. En ratos cortos giran las cuchillas, la fruta da vueltas en el batido y se abre un remolino.
+- **Plancha:** sobre su tabla con una camisa. Va y viene, con la luz de calentado y vapor por delante.
+
+**Una prueba (`ApplianceConsumptionTest`) falla** si algún equipo del catálogo queda sin modelo registrado.
 
 ## Consecuencias
 - ➕ El cliente reconoce su equipo y entiende cómo las opciones cambian su consumo.

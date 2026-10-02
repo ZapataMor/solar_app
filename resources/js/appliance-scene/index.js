@@ -6,7 +6,25 @@
 
 /** One entry per appliance key of ApplianceCatalog; they arrive in groups (see ADR-0019). */
 const MODELS = {
+    // Group 1 · Clima
     air_conditioner: () => import('./air-conditioner.js'),
+    // Group 2 · Frío
+    fridge: () => import('./fridge.js'),
+    freezer: () => import('./freezer.js'),
+    beverage_cooler: () => import('./beverage-cooler.js'),
+    display_case: () => import('./display-case.js'),
+    // Group 3 · Sala y oficina
+    tv: () => import('./tv.js'),
+    fan: () => import('./fan.js'),
+    lighting: () => import('./lighting.js'),
+    computer: () => import('./computer.js'),
+    router: () => import('./router.js'),
+    // Group 4 · Cocina y patio
+    washing_machine: () => import('./washing-machine.js'),
+    water_pump: () => import('./water-pump.js'),
+    microwave: () => import('./microwave.js'),
+    blender: () => import('./blender.js'),
+    iron: () => import('./iron.js'),
 };
 
 const figures = new Map();

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\SolarProjects\CheckCalculationFreshness;
+use App\Domain\Consumption\ApplianceCatalog;
 use App\Models\Municipality;
 use App\Models\SolarProject;
 use App\Models\User;
@@ -274,6 +275,16 @@ class ApplianceConsumptionTest extends TestCase
             ->getContent();
 
         $this->assertMatchesRegularExpression('/<figure[^>]*data-appliance-scene[^>]*data-appliance=""[^>]*data-variant=""/', $html);
+    }
+
+    public function test_every_built_in_appliance_has_its_3d_model(): void
+    {
+        // ADR-0019: one model per appliance of the catalog, registered in MODELS with its key.
+        $registry = file_get_contents(resource_path('js/appliance-scene/index.js'));
+
+        foreach (array_keys((new ApplianceCatalog)->all()) as $key) {
+            $this->assertMatchesRegularExpression("/^\s+{$key}: \(\) => import\('\.\/[a-z-]+\.js'\),$/m", $registry, "{$key} has no 3D model.");
+        }
     }
 
     public function test_the_diary_can_also_show_what_each_appliance_costs_per_month(): void

@@ -71,9 +71,10 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   precargan en segundo plano (`Vite::prefetch` en `AppServiceProvider`).
 - **Equipos en 3D (ADR-0019):** al agregar o editar un equipo del diario, la hoja muestra a la derecha
   el equipo como lo dejan sus opciones (`resources/js/appliance-scene/`). Un archivo por equipo
-  (`frame`, `build(materials, variant)`, `note(variant)`) registrado en `MODELS` de `index.js` con la
-  clave del catálogo; sin esa línea no hay recuadro. El script del diario escribe `data-appliance`,
-  `data-variant` y `data-variant-label` en la figura. La lista de equipos por grupos está en el ADR.
+  (`frame`, `build(materials, variant)`, `note(variant)`; las piezas comunes en `parts.js`) registrado
+  en `MODELS` de `index.js` con la clave del catálogo; sin esa línea no hay recuadro, y
+  `ApplianceConsumptionTest` falla si un equipo del catálogo queda sin modelo. El script del diario
+  escribe `data-appliance`, `data-variant` y `data-variant-label` en la figura.
 - **Estaciones en 3D (ADR-0018):** el encabezado de *Datos climáticos* muestra la estación de la
   pestaña elegida (`resources/js/station-scene/`, un solo lienzo para las tres; el globo y su mapa
   dibujado están en `earth.js`). La figura (`api-data/partials/station-figure.blade.php`) sigue la

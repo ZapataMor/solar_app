@@ -6,8 +6,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
  * only frames, lights and animates: each model module builds the appliance from its variant
  * ('12000.inverter'…) and says what to tell about it.
  *
- * A model module exports:
- *   frame: {target: THREE.Vector3, radius: number}, the same for every variant, so sizes compare;
+ * A model module (one per appliance, shared pieces in parts.js) exports:
+ *   frame: {target: THREE.Vector3, radius: number, polar?: number, azimuth?: number}, or a function of
+ *          the variant that returns one; the same for variants that differ in size, so sizes compare;
  *   build(materials, variant): {group, update(dt, still)};
  *   note(variant): one sentence under the figure.
  */
@@ -19,14 +20,17 @@ const AZIMUTH = 28 * DEG;
 const POLAR = 78 * DEG;
 const SWING = 0.7;
 
+/** Colors that follow the light or dark theme; the models' own colors (screens, bottles…) stay. */
 const PALETTES = {
     light: {
         wall: '#efe7da', trim: '#d9ccb6', floor: '#cdbfa6', pad: '#bdb4a5', plastic: '#f8f7f3', casing: '#e3e5e2',
         dark: '#2e333a', metal: '#a7b0ba', insulation: '#f0efea', copper: '#c27a45',
+        counter: '#d8d3ca', cabinet: '#ebe5da', wood: '#a97b50', steel: '#cdd2d7', glass: '#d6eef7',
     },
     dark: {
         wall: '#6b655c', trim: '#7d7568', floor: '#544d45', pad: '#6e685f', plastic: '#e8e6e0', casing: '#c6c9ca',
         dark: '#1d2127', metal: '#8d97a2', insulation: '#d9d7d1', copper: '#b06c3b',
+        counter: '#928c83', cabinet: '#cdc6b9', wood: '#8b6442', steel: '#b2b8be', glass: '#a9cfe0',
     },
 };
 
@@ -47,6 +51,11 @@ const createMaterials = () => {
         metal: standard({ roughness: 0.4, metalness: 0.6 }),
         insulation: standard({ roughness: 0.8 }),
         copper: standard({ roughness: 0.35, metalness: 0.7 }),
+        counter: standard({ roughness: 0.55 }),
+        cabinet: standard({ roughness: 0.6 }),
+        wood: standard({ roughness: 0.7 }),
+        steel: standard({ roughness: 0.3, metalness: 0.55 }),
+        glass: standard({ roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.25, depthWrite: false }),
     };
 };
 
@@ -105,28 +114,35 @@ export const mountApplianceScene = (figure) => {
     controls.enableDamping = !reduceMotion;
     controls.dampingFactor = 0.08;
     controls.rotateSpeed = 0.55;
-    // It stands against a wall: it turns a little, never around.
-    controls.minAzimuthAngle = AZIMUTH - SWING;
-    controls.maxAzimuthAngle = AZIMUTH + SWING;
-    controls.minPolarAngle = POLAR - 0.35;
-    controls.maxPolarAngle = POLAR + 0.12;
     canvas.style.touchAction = 'pan-y';
 
     const spherical = new THREE.Spherical();
-    let framedModule = null;
+    let framed = null;
+    let framedKey = '';
     let current = null;
     let shownAt = 0;
     let elapsed = 0;
 
-    const frameFor = (model) => {
-        if (framedModule === model) {
+    /** Moves the camera only when the frame changes, so a new option keeps the user's turn. */
+    const frameFor = (model, variant) => {
+        const frame = typeof model.frame === 'function' ? model.frame(variant) : model.frame;
+        const polar = frame.polar ?? POLAR;
+        const azimuth = frame.azimuth ?? AZIMUTH;
+        const signature = [frame.target.toArray().join(), frame.radius, polar, azimuth].join('|');
+        framed = frame;
+        if (signature === framedKey) {
             return;
         }
-        framedModule = model;
-        const { target, radius } = model.frame;
-        controls.target.copy(target);
-        camera.position.setFromSpherical(spherical.set(radius / Math.sin((FOV / 2) * DEG), POLAR, AZIMUTH)).add(target);
-        camera.lookAt(target);
+        framedKey = signature;
+
+        // It stands against a wall: it turns a little, never around.
+        controls.minAzimuthAngle = azimuth - SWING;
+        controls.maxAzimuthAngle = azimuth + SWING;
+        controls.minPolarAngle = polar - 0.35;
+        controls.maxPolarAngle = polar + 0.12;
+        controls.target.copy(frame.target);
+        camera.position.setFromSpherical(spherical.set(frame.radius / Math.sin((FOV / 2) * DEG), polar, azimuth)).add(frame.target);
+        camera.lookAt(frame.target);
         controls.update();
     };
 
@@ -157,7 +173,7 @@ export const mountApplianceScene = (figure) => {
             const grow = reduceMotion ? 1 : clamp01((elapsed - shownAt) / POP_SECONDS);
             const scale = 0.86 + 0.14 * easeOutBack(grow);
             current.group.scale.setScalar(scale);
-            current.group.position.copy(framedModule.frame.target).multiplyScalar(1 - scale);
+            current.group.position.copy(framed.target).multiplyScalar(1 - scale);
             current.update(dt, reduceMotion);
         }
         controls.update(dt);
@@ -252,7 +268,7 @@ export const mountApplianceScene = (figure) => {
                 scene.remove(current.group);
                 release(current.group);
             }
-            frameFor(model);
+            frameFor(model, variant);
             current = model.build(materials, variant);
             scene.add(current.group);
             shownAt = elapsed;
