@@ -194,18 +194,13 @@ class ApiDataController extends Controller
         Request $request,
         AmbientWeatherImportService $ambientWeatherImportService,
     ): RedirectResponse|JsonResponse {
-        // Allow long-running historical imports without hitting PHP's default limit.
-        set_time_limit(0);
-
-        $from = Carbon::now('UTC')->subYear()->startOfDay();
+        // A long gap takes a few paced requests (one per second).
+        set_time_limit(120);
 
         try {
-            $imported = $request->boolean('auto_sync')
-                ? $ambientWeatherImportService->importLatestForAllDevices()
-                : $ambientWeatherImportService->importHistoricalForAllDevices(
-                    from: $from,
-                    sleepSeconds: 1,
-                );
+            // From the last stored reading to now (the button and the automatic sync alike). The full
+            // year of history is a console job: php artisan ambient:sync-history.
+            $imported = $ambientWeatherImportService->importRecentForAllDevices();
         } catch (Throwable $exception) {
             report($exception);
 
@@ -232,11 +227,12 @@ class ApiDataController extends Controller
             ]);
         }
 
-        $since = $from->format('d/m/Y');
         $total = $this->ambientRowsCount();
-        $message = $request->boolean('auto_sync')
-            ? "Ambient Weather actualizado. Nuevos: {$imported['created']}. Omitidos (duplicados): {$imported['skipped']}. Total global: {$total}."
-            : "Ambient Weather sincronizado desde {$since}. Nuevos: {$imported['created']}. Omitidos (duplicados): {$imported['skipped']}. Total recibidos: {$imported['received']}.";
+        // "12:20 a. m. del 2 de octubre": the date goes last, so the sentence does not end in "a. m..".
+        $latest = $imported['latest']?->timezone(config('app.display_timezone'))->locale('es')->isoFormat('h:mm a [del] D [de] MMMM') ?? 'sin fecha';
+        $message = $imported['created'] > 0
+            ? "Ambient Weather al día: {$imported['created']} ".($imported['created'] === 1 ? 'lectura nueva' : 'lecturas nuevas').". La última es de las {$latest}."
+            : "No hay lecturas nuevas todavía: la última de la estación es de las {$latest}.";
 
         if ($request->wantsJson()) {
             return response()->json([

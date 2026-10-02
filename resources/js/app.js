@@ -1151,8 +1151,8 @@ const apiSourceConfig = {
             </tr>
         `).join(''),
         rowsSelector: '[data-ambient-rows]',
-        statusBusy: 'Sincronizando Ambient Weather...',
-        statusAuto: 'Buscando nuevas lecturas de Ambient...',
+        statusBusy: 'Sincronizando Ambient Weather…',
+        statusAuto: 'Buscando nuevas lecturas de Ambient…',
         updateChart: upsertAmbientRealtimeChart,
     },
     'weather-station': {
@@ -1164,8 +1164,8 @@ const apiSourceConfig = {
         pillSelector: '[data-weather-station-count-pill]',
         renderRows: (rows) => renderWeatherStationRows(rows),
         rowsSelector: '[data-weather-station-rows]',
-        statusBusy: 'Consultando estacion...',
-        statusAuto: 'Buscando nuevas lecturas meteorologicas...',
+        statusBusy: 'Consultando estación…',
+        statusAuto: 'Buscando nuevas lecturas meteorológicas…',
         updateChart: upsertWeatherStationRealtimeChart,
     },
     nasa: {
@@ -1178,7 +1178,7 @@ const apiSourceConfig = {
         pillSelector: '[data-api-data-nasa-count-pill]',
         renderRows: (rows) => renderNasaRows(rows),
         rowsSelector: '[data-nasa-rows]',
-        statusBusy: 'Consultando NASA POWER...',
+        statusBusy: 'Consultando NASA POWER…',
         statusAuto: 'NASA POWER se actualiza manualmente.',
     },
 };
@@ -1254,14 +1254,27 @@ const renderEmptyApiRows = (config) => `
     </tr>
 `;
 
-const setApiDataStatus = (section, source, message, tone = 'neutral') => {
+const setApiDataStatus = (section, source, message, tone = 'neutral', { busy = false } = {}) => {
     const status = section.querySelector(`[data-api-sync-status="${source}"]`);
 
     if (!status) {
         return;
     }
 
-    status.textContent = message;
+    // While waiting: a small spinner and the seconds it has taken so far (filled by the sync timer).
+    status.replaceChildren();
+    if (busy) {
+        const spinner = document.createElement('span');
+        spinner.className = 'solar-sync-spinner';
+        spinner.setAttribute('aria-hidden', 'true');
+        const elapsed = document.createElement('span');
+        elapsed.className = 'solar-sync-elapsed';
+        elapsed.dataset.apiSyncElapsed = '';
+        status.append(spinner, `${message} `, elapsed);
+    } else {
+        status.append(message);
+    }
+    status.toggleAttribute('aria-busy', busy);
     status.classList.toggle('text-red-600', tone === 'error');
     status.classList.toggle('dark:text-red-300', tone === 'error');
     status.classList.toggle('text-zinc-500', tone !== 'error');
@@ -1332,7 +1345,24 @@ const syncApiDataSource = async (source, { manual = false } = {}) => {
 
     apiDataSyncController = new AbortController();
     apiDataManualSyncActive = manual;
-    setApiDataStatus(section, source, manual ? config.statusBusy : config.statusAuto);
+    setApiDataStatus(section, source, manual ? config.statusBusy : config.statusAuto, 'neutral', { busy: true });
+
+    // The button waits too, and the status counts the seconds.
+    const button = form.querySelector('button[type="submit"]');
+    const startedAt = performance.now();
+    const seconds = () => Math.round((performance.now() - startedAt) / 1000);
+    const showElapsed = () => {
+        const elapsed = section.querySelector('[data-api-sync-elapsed]');
+        if (elapsed) {
+            elapsed.textContent = `${seconds()} s`;
+        }
+    };
+    showElapsed();
+    const elapsedTimer = window.setInterval(showElapsed, 1000);
+    if (button) {
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+    }
 
     const formData = new FormData(form);
 
@@ -1359,12 +1389,17 @@ const syncApiDataSource = async (source, { manual = false } = {}) => {
         }
 
         updateApiSourceDom(section, source, payload);
-        setApiDataStatus(section, source, payload.message ?? 'Datos actualizados.');
+        setApiDataStatus(section, source, `${payload.message ?? 'Datos actualizados.'} (tardó ${seconds()} s)`);
     } catch (error) {
         if (error.name !== 'AbortError') {
-            setApiDataStatus(section, source, error.message, 'error');
+            setApiDataStatus(section, source, `${error.message} (después de ${seconds()} s)`, 'error');
         }
     } finally {
+        window.clearInterval(elapsedTimer);
+        if (button) {
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+        }
         apiDataSyncController = null;
         apiDataManualSyncActive = false;
     }

@@ -80,13 +80,21 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 
 ## Trampas conocidas
 
-- **La suite ya falla en `main`: 23 tests** (16 fallos + 7 errores). Antes de concluir que rompiste
-  algo, compara contra esta línea base (por clase):
+- **La suite ya falla en `main`: 22 tests.** Antes de concluir que rompiste algo, compara contra
+  esta línea base (por clase):
   `SolarDashboardTest` 10 · `ApiDataTest` 4 · `AmbientWeatherImportServiceTest` 4 ·
-  `AmbientWeatherServiceTest` 1 · `SolarCalculationTest` 1 (mensaje de estado desactualizado) ·
-  `SolarProjectTest` 1 · `NasaRadiationFallbackServiceTest` 1 · `ProjectDashboardServiceTest` 1.
+  `SolarCalculationTest` 1 (mensaje de estado desactualizado) · `SolarProjectTest` 1 ·
+  `NasaRadiationFallbackServiceTest` 1 · `ProjectDashboardServiceTest` 1.
   Para comparar con precisión: `vendor/bin/phpunit --log-junit <archivo>`.
-- Los tests de `AmbientWeather*` hacen **HTTP real** (fallan sin red o por SSL).
+- Los tests viejos de `AmbientWeather*` hacen **HTTP real** (fallan sin red o por SSL); los nuevos
+  (`AmbientWeatherSyncTest`) usan `Http::fake()` y `Sleep::fake()`.
+- **Ambient Weather:** `ambient:sync` (cada 5 min, todo el día) y el botón traen desde la última
+  lectura guardada hasta ahora (`importRecentForAllDevices`). La API admite 1 petición por segundo:
+  `AmbientWeatherService::get()` espacia las peticiones y reintenta los 429. Las URLs llevan las
+  llaves: los errores pasan por `AmbientWeatherService::withoutKeys()`. El año completo de historial
+  es `php artisan ambient:sync-history`.
+- **PHP en Windows:** el PHP de WinGet no trae certificados (cURL error 60 con las APIs HTTPS); el de
+  Herd sí. `scripts/windows/schedule-run.vbs` usa `C:\tools\php84`, luego Herd y luego el del PATH.
 - SQLite + `php artisan serve` en Windows: el servidor no recibe `TEMP`/`TMP` y las consultas grandes
   fallaban con "unable to open database file". `AppServiceProvider` fija `PRAGMA temp_store = MEMORY`.
 - Resultados mensuales: la generación cubre solo los días con datos (`days_in_month`); compara

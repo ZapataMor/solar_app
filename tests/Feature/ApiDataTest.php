@@ -9,6 +9,7 @@ use App\Models\WeatherStationReading;
 use App\Services\AmbientWeatherImportService;
 use App\Services\WeatherStationImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -280,7 +281,7 @@ class ApiDataTest extends TestCase
         {
             public function __construct() {}
 
-            public function importLatestForAllDevices(): array
+            public function importRecentForAllDevices(int $maxDays = 7): array
             {
                 AmbientWeatherReading::query()->create([
                     'mac_address' => 'AA:BB:CC:DD:EE:FF',
@@ -298,6 +299,7 @@ class ApiDataTest extends TestCase
                     'received' => 1,
                     'created' => 1,
                     'skipped' => 0,
+                    'latest' => Carbon::parse('2026-05-21 13:45:00', 'UTC'),
                 ];
             }
         });
@@ -305,6 +307,7 @@ class ApiDataTest extends TestCase
         $this->actingAs($user)
             ->postJson(route('api-data.fetch-ambient-data'), ['auto_sync' => true])
             ->assertOk()
+            ->assertJsonPath('message', 'Ambient Weather al día: 1 lectura nueva. La última es de las 8:45 a. m. del 21 de mayo.')
             ->assertJsonPath('ambientCount', 1)
             ->assertJsonPath('rows.0.mac_address', 'AA:BB:CC:DD:EE:FF')
             ->assertJsonPath('rows.0.recorded_at', '2026-05-21 13:45')

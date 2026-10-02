@@ -11,14 +11,14 @@ class SyncAmbientWeather extends Command
 {
     protected $signature = 'ambient:sync';
 
-    protected $description = 'Fetch and persist the latest readings from all Ambient Weather stations.';
+    protected $description = 'Bring every Ambient Weather station up to now (from its last stored reading, filling gaps).';
 
     public function handle(AmbientWeatherImportService $importService): int
     {
         Log::info('Ambient Weather sync started.');
 
         try {
-            $summary = $importService->importLatestForAllDevices();
+            $summary = $importService->importRecentForAllDevices();
         } catch (Throwable $exception) {
             report($exception);
 
@@ -31,13 +31,14 @@ class SyncAmbientWeather extends Command
             return self::FAILURE;
         }
 
-        Log::info('Ambient Weather sync finished.', $summary);
+        Log::info('Ambient Weather sync finished.', [...$summary, 'latest' => $summary['latest']?->toDateTimeString()]);
 
         $this->info(
             "Ambient Weather sincronizado. "
             . "Recibidos: {$summary['received']}. "
             . "Guardados: {$summary['created']}. "
-            . "Omitidos (duplicados): {$summary['skipped']}."
+            . "Omitidos (duplicados): {$summary['skipped']}. "
+            . 'Última lectura: '.($summary['latest']?->timezone(config('app.display_timezone'))->format('Y-m-d H:i') ?? 'ninguna').'.'
         );
 
         return self::SUCCESS;

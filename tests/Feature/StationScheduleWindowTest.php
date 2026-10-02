@@ -25,10 +25,11 @@ class StationScheduleWindowTest extends TestCase
         $this->assertSame(['ambient:sync', 'weather-station:fetch'], $due);
     }
 
-    public function test_station_syncs_stop_after_the_colombian_window(): void
+    public function test_the_local_station_stops_after_the_window_but_ambient_keeps_syncing(): void
     {
-        // 20:00 in Bogotá (01:00 UTC next day): outside the window.
-        $this->assertSame([], $this->dueStationCommandsAt('2026-10-02 01:00:00'));
+        // 20:00 in Bogotá (01:00 UTC next day): outside the local station's window. Ambient reports all
+        // night and each run fills the gap since its last reading, so it keeps going.
+        $this->assertSame(['ambient:sync'], $this->dueStationCommandsAt('2026-10-02 01:00:00'));
     }
 
     /**

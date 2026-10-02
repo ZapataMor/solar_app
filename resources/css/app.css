@@ -108,6 +108,16 @@
         color-scheme: dark;
     }
 
+    /* Tailwind v4 gives buttons the default arrow: clickable things show the hand again. */
+    button:not(:disabled),
+    [role='button']:not([aria-disabled='true']) {
+        cursor: pointer;
+    }
+
+    button:disabled {
+        cursor: not-allowed;
+    }
+
     body {
         position: relative;
         background: #f8fbff;
@@ -1020,6 +1030,45 @@ select:focus[data-flux-control] {
     .dark .solar-api-actions .solar-button-secondary {
         background: color-mix(in srgb, var(--solar-surface-elevated) 78%, transparent) !important;
         color: var(--solar-text) !important;
+    }
+
+    .solar-api-actions .solar-button-secondary[aria-busy='true'] {
+        opacity: 0.6;
+    }
+
+    /* Sync in progress (setApiDataStatus in app.js): spinner + seconds so far. */
+    [data-api-sync-status][aria-busy] {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .solar-sync-spinner {
+        display: inline-block;
+        flex: none;
+        width: 0.95rem;
+        height: 0.95rem;
+        border: 2px solid color-mix(in srgb, var(--solar-sun) 25%, transparent);
+        border-top-color: var(--solar-sun);
+        border-radius: 999px;
+        animation: solar-sync-spin 0.8s linear infinite;
+    }
+
+    .solar-sync-elapsed {
+        color: var(--solar-text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    @keyframes solar-sync-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-sync-spinner {
+            animation-duration: 2.4s;
+        }
     }
 
     .solar-kicker {

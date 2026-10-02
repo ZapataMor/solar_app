@@ -22,12 +22,11 @@ Schedule::command('nasa-power:fetch')
     ->timezone(config('app.display_timezone', 'America/Bogota'))
     ->withoutOverlapping();
 
-// Ambient Weather — every 5 minutes, same window as the local station.
+// Ambient Weather — every 5 minutes, all day: the station also reports at night ("Ahora mismo" shows
+// it) and each run fills the gap since the last stored reading (1–2 requests).
 // withoutOverlapping() prevents pile-up when the API is slow.
 // onOneServer() is a no-op on single-server deployments but safe to include.
 Schedule::command('ambient:sync')
-    ->timezone(config('app.display_timezone', 'America/Bogota'))
     ->everyFiveMinutes()
-    ->between('06:00', '18:30')
     ->withoutOverlapping()
     ->onOneServer();

@@ -6,6 +6,7 @@ use App\Models\AmbientWeatherReading;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 use Throwable;
 
 /**
@@ -82,6 +83,52 @@ class AmbientWeatherImportService
         }
 
         return compact('received', 'created', 'skipped');
+    }
+
+    /**
+     * Bring every station up to now: from its last stored reading (or $maxDays back when it has
+     * none, or the gap is longer) to the newest one the API has. It fills gaps left while nothing
+     * was syncing, and usually costs one request per station (288 readings ≈ 24 h).
+     *
+     * @return array{received: int, created: int, skipped: int, latest: CarbonInterface|null}
+     */
+    public function importRecentForAllDevices(int $maxDays = 7): array
+    {
+        $received = 0;
+        $created = 0;
+        $skipped = 0;
+        $now = Carbon::now('UTC');
+
+        if ($this->ambientWeatherService->isEnabled()) {
+            foreach ($this->ambientWeatherService->getDevices() as $device) {
+                $mac = is_array($device) ? $this->extractMacAddress($device) : null;
+
+                if ($mac === null) {
+                    continue;
+                }
+
+                $lastStored = AmbientWeatherReading::query()->where('mac_address', $mac)->max('recorded_at');
+                $from = $lastStored !== null
+                    ? Carbon::parse($lastStored, 'UTC')->max($now->copy()->subDays($maxDays))
+                    : $now->copy()->subDays($maxDays);
+
+                [$r, $c, $s] = $this->importHistoricalForDevice($mac, $from, $now, sleepSeconds: 0);
+                $received += $r;
+                $created += $c;
+                $skipped += $s;
+            }
+        } else {
+            Log::info('Ambient Weather import skipped: integration is disabled or credentials are missing.');
+        }
+
+        $latest = AmbientWeatherReading::query()->max('recorded_at');
+
+        return [
+            'received' => $received,
+            'created' => $created,
+            'skipped' => $skipped,
+            'latest' => $latest !== null ? Carbon::parse($latest, 'UTC') : null,
+        ];
     }
 
     /**
@@ -222,7 +269,8 @@ class AmbientWeatherImportService
             return compact('received', 'created', 'skipped');
         }
 
-        $to ??= Carbon::yesterday('UTC')->endOfDay();
+        // Up to now: "end of yesterday in UTC" stopped at 7 p. m. of the day before in Colombia.
+        $to ??= Carbon::now('UTC');
 
         foreach ($devices as $device) {
             if (! is_array($device)) {
@@ -259,6 +307,7 @@ class AmbientWeatherImportService
         $created  = 0;
         $skipped  = 0;
         $endDate  = Carbon::instance($to);
+        $previousOldest = null;
 
         while ($endDate->greaterThan($from)) {
             try {
@@ -275,7 +324,7 @@ class AmbientWeatherImportService
                     'error'       => $e->getMessage(),
                 ]);
                 // Back off and retry once
-                sleep(5);
+                Sleep::for(5)->seconds();
 
                 try {
                     $readings = $this->ambientWeatherService->getHistoricalData(
@@ -330,15 +379,18 @@ class AmbientWeatherImportService
                 }
             }
 
-            // Move endDate back past the oldest reading in this batch
-            if ($oldestTs === null || $oldestTs->lessThanOrEqualTo($from)) {
+            // Move endDate back past the oldest reading in this batch. Stop at $from, and also when a
+            // batch does not go further back than the previous one (it would ask for the same page forever).
+            if ($oldestTs === null || $oldestTs->lessThanOrEqualTo($from)
+                || ($previousOldest !== null && $oldestTs->greaterThanOrEqualTo($previousOldest))) {
                 break;
             }
 
+            $previousOldest = $oldestTs->copy();
             $endDate = $oldestTs->subMinute();
 
             if ($sleepSeconds > 0) {
-                sleep($sleepSeconds);
+                Sleep::for($sleepSeconds)->seconds();
             }
         }
 

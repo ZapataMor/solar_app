@@ -4,11 +4,14 @@ namespace App\Services;
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 use RuntimeException;
 use Throwable;
 
@@ -27,6 +30,15 @@ use Throwable;
 class AmbientWeatherService
 {
     private const RATE_LIMIT_STATUS = 429;
+
+    /** Ambient allows one request per second per API key; a little margin avoids the 429. */
+    private const MIN_SECONDS_BETWEEN_REQUESTS = 1.1;
+
+    /** Tries per request when Ambient answers 429 (the pause grows: 1.5 s, 3 s, …). */
+    private const RATE_LIMIT_ATTEMPTS = 4;
+
+    /** When this process last called the API (shared by every instance). */
+    private static float $lastRequestAt = 0.0;
 
     /** Ambient returns this sentinel when a sensor reading is invalid. */
     private const AMBIENT_INVALID_SENTINEL = -9999;
@@ -56,9 +68,7 @@ class AmbientWeatherService
         $ttl = $this->cacheTtl();
 
         return Cache::remember($cacheKey, $ttl, function (): Collection {
-            $response = $this->http()
-                ->retry(2, 1000, fn (Throwable $e) => ! $this->isRateLimitException($e))
-                ->get($this->endpoint('/devices'), $this->buildQueryParams());
+            $response = $this->get('/devices', $this->buildQueryParams());
 
             if ($response->status() === self::RATE_LIMIT_STATUS) {
                 Log::warning('Ambient Weather API rate limit hit on getDevices().');
@@ -93,12 +103,7 @@ class AmbientWeatherService
         $ttl = $this->cacheTtl();
 
         return Cache::remember($cacheKey, $ttl, function () use ($macAddress): ?array {
-            $response = $this->http()
-                ->retry(2, 1000, fn (Throwable $e) => ! $this->isRateLimitException($e))
-                ->get(
-                    $this->endpoint("/devices/{$macAddress}"),
-                    $this->buildQueryParams(['limit' => 1])
-                );
+            $response = $this->get("/devices/{$macAddress}", $this->buildQueryParams(['limit' => 1]));
 
             if ($response->status() === self::RATE_LIMIT_STATUS) {
                 Log::warning('Ambient Weather API rate limit hit on getLatestData().', [
@@ -146,12 +151,7 @@ class AmbientWeatherService
 
         $extra = ['limit' => min(max(1, $limit), 288), 'endDate' => $endEpochMs];
 
-        $response = $this->http()
-            ->retry(2, 1000, fn (Throwable $e) => ! $this->isRateLimitException($e))
-            ->get(
-                $this->endpoint("/devices/{$macAddress}"),
-                $this->buildQueryParams($extra)
-            );
+        $response = $this->get("/devices/{$macAddress}", $this->buildQueryParams($extra));
 
         if ($response->status() === self::RATE_LIMIT_STATUS) {
             Log::warning('Ambient Weather API rate limit hit on getHistoricalData().', [
@@ -265,6 +265,48 @@ class AmbientWeatherService
         return (int) config('ambient.request_timeout', 20);
     }
 
+    /**
+     * GET with Ambient's pace: at most one request per second per API key, so requests are spaced
+     * and a 429 is retried after a growing pause instead of failing the whole sync. Network errors
+     * get one quick retry. The caller still sees a final 429 and decides what to do.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function get(string $path, array $params): Response
+    {
+        for ($attempt = 1; ; $attempt++) {
+            $wait = self::$lastRequestAt + self::MIN_SECONDS_BETWEEN_REQUESTS - microtime(true);
+            if ($wait > 0) {
+                Sleep::for((int) ceil($wait * 1000))->milliseconds();
+            }
+
+            try {
+                $response = $this->http()
+                    ->retry(2, 500, fn (Throwable $e) => $e instanceof ConnectionException, throw: false)
+                    ->get($this->endpoint($path), $params);
+            } catch (ConnectionException $exception) {
+                // cURL errors quote the URL, and the URL carries the keys: never let them reach logs or screens.
+                throw new ConnectionException(self::withoutKeys($exception->getMessage()), (int) $exception->getCode());
+            } finally {
+                self::$lastRequestAt = microtime(true);
+            }
+
+            if ($response->status() !== self::RATE_LIMIT_STATUS || $attempt >= self::RATE_LIMIT_ATTEMPTS) {
+                return $response;
+            }
+
+            Sleep::for(1500 * $attempt)->milliseconds();
+        }
+    }
+
+    /**
+     * "…?apiKey=abc&applicationKey=def" → "…?apiKey=***&applicationKey=***".
+     */
+    public static function withoutKeys(string $text): string
+    {
+        return (string) preg_replace('/(apiKey|applicationKey)=[^&\s"\']+/i', '$1=***', $text);
+    }
+
     private function http(): PendingRequest
     {
         return Http::timeout($this->timeout())->withOptions([
@@ -286,11 +328,6 @@ class AmbientWeatherService
     private function cacheTtl(): \DateInterval
     {
         return now()->addMinutes((int) config('ambient.cache_minutes', 10))->diffAsCarbonInterval();
-    }
-
-    private function isRateLimitException(Throwable $e): bool
-    {
-        return str_contains($e->getMessage(), (string) self::RATE_LIMIT_STATUS);
     }
 
     /**
