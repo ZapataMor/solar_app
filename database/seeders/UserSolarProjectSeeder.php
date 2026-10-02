@@ -2,22 +2,26 @@
 
 namespace Database\Seeders;
 
+use App\Actions\SolarProjects\CalculateSolarProject;
 use App\Actions\SolarProjects\SyncProjectConsumption;
+use App\Domain\Climate\NoClimateData;
 use App\Domain\Property\PropertyType;
 use App\Models\Municipality;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Sample projects of the "cliente" account: one per kind of property, with their appliances
- * by space (ADR-0013). Their consumption comes from those appliances, as in the app.
+ * The three demo projects of the "cliente" account (pitch of 2026-10-15): a house in Riohacha, a
+ * minimarket in Maicao whose roof falls short, and a rural school in Uribia. Each one has its
+ * appliances by space (ADR-0013), and its consumption comes from them, as in the app.
+ * DatabaseSeederTest pins these numbers.
  */
 class UserSolarProjectSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
-    public function run(SyncProjectConsumption $syncProjectConsumption): void
+    public function run(SyncProjectConsumption $syncProjectConsumption, CalculateSolarProject $calculateSolarProject): void
     {
         $user = User::where('username', 'cliente')->firstOrFail();
 
@@ -122,7 +126,7 @@ class UserSolarProjectSeeder extends Seeder
                 'municipality' => 'Uribia',
 
                 'project' => [
-                    'name' => 'Institucion educativa rural',
+                    'name' => 'Institución educativa rural',
                     'property_type' => PropertyType::INSTITUTION,
                     'location_type' => 'rural',
                     'description' => 'Colegio rural de jornada de mañana, con sala de sistemas y comedor escolar (PAE). Clases de lunes a viernes.',
@@ -196,6 +200,13 @@ class UserSolarProjectSeeder extends Seeder
 
             // Consumption, suggested power and quote follow the appliances, as in the app.
             $syncProjectConsumption($project);
+
+            // Ready for the demo when there is climate data; on a new database they wait for "Recalcular".
+            try {
+                $calculateSolarProject($project->fresh());
+            } catch (NoClimateData) {
+                $this->command?->warn("{$project->name}: sin datos climáticos todavía; calcúlalo después.");
+            }
         }
     }
 }
