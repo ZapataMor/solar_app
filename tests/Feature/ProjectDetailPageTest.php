@@ -55,6 +55,22 @@ class ProjectDetailPageTest extends TestCase
         $this->assertMatchesRegularExpression('/<a[^>]*data-portfolio-clear(?![^>]*hidden)/', $response->getContent());
     }
 
+    public function test_a_project_opens_in_mi_sistema_and_its_back_link_keeps_the_search(): void
+    {
+        [$user, $solarProject] = $this->projectWithOwner();
+        $system = route('solar-projects.system', ['solarProject' => $solarProject, 'search' => 'casa']);
+
+        $this->actingAs($user)
+            ->get(route('solar-projects.index', ['search' => 'casa']))
+            ->assertOk()
+            ->assertSee('href="'.e($system).'"', false);
+
+        $this->actingAs($user)
+            ->get($system)
+            ->assertOk()
+            ->assertSee('href="'.e(route('solar-projects.index', ['search' => 'casa'])).'" class="solar-project-nav__back"', false);
+    }
+
     public function test_the_card_and_the_project_pages_share_a_transition_name(): void
     {
         [$user, $solarProject] = $this->projectWithOwner();

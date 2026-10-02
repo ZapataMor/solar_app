@@ -47,7 +47,7 @@
 
 <x-layouts::app :title="'Mi sistema · '.$solarProject->name">
     <div class="solar-project-detail" style="view-transition-name: project-{{ $solarProject->id }}">
-        @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'system'])
+        @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'system', 'backUrl' => $portfolioUrl])
 
         @include('solar-projects.partials.project-explainer', ['questions' => $projectQuestions, 'solarProject' => $solarProject])
 

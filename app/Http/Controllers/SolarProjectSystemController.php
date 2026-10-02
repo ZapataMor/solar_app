@@ -31,6 +31,8 @@ class SolarProjectSystemController extends Controller
             'system' => $describeProjectSystem($solarProject),
             'calculationFreshness' => $calculationFreshness,
             'projectQuestions' => $explainSolarProject($solarProject, $calculationFreshness),
+            // Projects open here from the portfolio: going back keeps its search and page.
+            'portfolioUrl' => $this->portfolioUrl($request),
         ]);
     }
 }

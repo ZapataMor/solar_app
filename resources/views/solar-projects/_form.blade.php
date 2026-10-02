@@ -50,12 +50,15 @@
     ];
 
     // Guided stages (ADR-0013) and the fields each one owns, used to reopen the stage with server errors.
-    $wizardSteps = [
-        ['key' => 'property', 'label' => 'Tu lugar', 'fields' => ['property_type']],
+    // The kind of place is chosen only when creating: it defines the diary spaces, so editing skips it.
+    $wizardSteps = array_values(array_filter([
+        $isCreating ? ['key' => 'property', 'label' => 'Tu lugar', 'fields' => ['property_type']] : null,
         ['key' => 'location', 'label' => 'Ubicación', 'fields' => ['municipality_id', 'location_type', 'latitude', 'longitude']],
         ['key' => 'roof', 'label' => 'Techo', 'fields' => ['available_area_m2', 'usable_area_percentage', 'panel_power_w', 'panel_area_m2', 'system_losses_percentage', 'start_date', 'end_date']],
         ['key' => 'details', 'label' => 'Tu proyecto', 'fields' => ['energy_rate_cop_kwh', 'name']],
-    ];
+    ]));
+    // "Paso 2 de 4" and the summary's "Editar" buttons follow the stages that are shown.
+    $stepIndex = fn (string $key): int => array_search($key, array_column($wizardSteps, 'key'), true);
     $errorKeys = collect($errors->keys());
     $stepsWithErrors = collect($wizardSteps)
         ->keys()
@@ -88,6 +91,7 @@
     data-wizard-furthest="{{ $furthestStep }}"
     @if ($errors->any()) data-wizard-has-errors @endif
     @if ($isCreating) data-draft-key="natalia:project-draft:{{ auth()->id() }}" @endif
+    @unless ($isCreating) data-property-option="{{ PropertyType::optionLabel($solarProject?->property_type) }}" @endunless
 >
     @csrf
     @if ($method !== 'POST')
@@ -120,11 +124,12 @@
         <p class="solar-wizard-progress" data-wizard-progress aria-live="polite"></p>
     </nav>
 
-    {{-- 1 · Tu lugar --}}
+    {{-- 1 · Tu lugar (only when creating) --}}
+    @if ($isCreating)
     <section class="solar-card-strong" data-wizard-step="property" data-wizard-label="Tu lugar">
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Paso 1 de {{ $lastStepNumber }} · Tu lugar</p>
+                <p class="solar-kicker">Paso {{ $stepIndex('property') + 1 }} de {{ $lastStepNumber }} · Tu lugar</p>
                 <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Para qué lugar quieres energía solar?</h2>
                 <p class="solar-subtitle mt-2">Con esto te mostramos los espacios y equipos que tienen sentido para ti.</p>
             </div>
@@ -162,13 +167,14 @@
             @endforeach
         </fieldset>
     </section>
+    @endif
 
     {{-- 2 · Ubicación --}}
     <section class="solar-card" data-location-quote data-wizard-step="location" data-wizard-label="Ubicación">
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Paso 2 de {{ $lastStepNumber }} · Ubicación</p>
+                <p class="solar-kicker">Paso {{ $stepIndex('location') + 1 }} de {{ $lastStepNumber }} · Ubicación</p>
                 <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Dónde está?</h2>
                 <p class="solar-subtitle mt-2">Elige tu municipio en el listado o haz clic en el mapa. El precio de instalación se ajusta a cada municipio.</p>
             </div>
@@ -251,7 +257,7 @@
     <section class="solar-card" data-wizard-step="roof" data-wizard-label="Techo" data-roof>
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Paso 3 de {{ $lastStepNumber }} · Techo</p>
+                <p class="solar-kicker">Paso {{ $stepIndex('roof') + 1 }} de {{ $lastStepNumber }} · Techo</p>
                 <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Cuánto espacio tienes en el techo?</h2>
                 <p class="solar-subtitle mt-2">El área del techo o terreno donde podrían ir los paneles. Si no la sabes exacta, elige el tamaño más parecido.</p>
             </div>
@@ -375,7 +381,7 @@
     <section class="solar-card" data-wizard-step="details" data-wizard-label="Tu proyecto">
         <div class="solar-page-header">
             <div>
-                <p class="solar-kicker">Paso 4 de {{ $lastStepNumber }} · Tu proyecto</p>
+                <p class="solar-kicker">Paso {{ $stepIndex('details') + 1 }} de {{ $lastStepNumber }} · Tu proyecto</p>
                 <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">Últimos datos</h2>
                 <p class="solar-subtitle mt-2">
                     @if ($isCreating)
@@ -432,15 +438,20 @@
         <dl class="solar-wizard-summary mt-6">
             <div class="solar-wizard-summary-row">
                 <dt>Lugar</dt>
-                <dd><span data-summary="property">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="0">Editar</button></dd>
+                @if ($isCreating)
+                    <dd><span data-summary="property">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="{{ $stepIndex('property') }}">Editar</button></dd>
+                @else
+                    {{-- Fixed once created: its appliances are organized by the spaces of this kind of place. --}}
+                    <dd><span>{{ PropertyType::optionLabel($solarProject?->property_type) }}</span> <span class="solar-wizard-fixed">no se cambia</span></dd>
+                @endif
             </div>
             <div class="solar-wizard-summary-row">
                 <dt>Ubicación</dt>
-                <dd><span data-summary="location">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="1">Editar</button></dd>
+                <dd><span data-summary="location">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="{{ $stepIndex('location') }}">Editar</button></dd>
             </div>
             <div class="solar-wizard-summary-row">
                 <dt>Techo</dt>
-                <dd><span data-summary="area">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="2">Editar</button></dd>
+                <dd><span data-summary="area">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="{{ $stepIndex('roof') }}">Editar</button></dd>
             </div>
         </dl>
     </section>
@@ -662,7 +673,8 @@
     };
     const numberFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
     const formatNumber = (value) => (value === '' ? '' : numberFormatter.format(Number(value)));
-    const propertyOption = () => form.querySelector('[name="property_type"]:checked')?.dataset.propertyOption ?? '';
+    // When editing there is no choice: the form carries the project's kind of place.
+    const propertyOption = () => form.querySelector('[name="property_type"]:checked')?.dataset.propertyOption ?? form.dataset.propertyOption ?? '';
 
     const fillSummary = () => {
         const set = (key, text) => {

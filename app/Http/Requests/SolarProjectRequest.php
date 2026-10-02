@@ -33,7 +33,8 @@ class SolarProjectRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'property_type' => ['required', 'string', Rule::in(PropertyType::ALL)],
+            // Chosen when creating; afterwards it is fixed (it defines the diary spaces), so an edit ignores it.
+            'property_type' => $this->isMethod('POST') ? ['required', 'string', Rule::in(PropertyType::ALL)] : ['exclude'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'start_date' => ['required', 'date'],

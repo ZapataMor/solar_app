@@ -44,7 +44,12 @@ final class SaveSolarProject
             ];
 
             if ($solarProject === null) {
-                $solarProject = $owner->solarProjects()->create([...$attributes, 'monthly_consumption_kwh' => 0]);
+                $solarProject = $owner->solarProjects()->create([
+                    ...$attributes,
+                    // Only when creating: it defines the diary spaces, so it never changes afterwards.
+                    'property_type' => $data['property_type'],
+                    'monthly_consumption_kwh' => 0,
+                ]);
             } else {
                 $solarProject->update($attributes);
             }
@@ -66,7 +71,6 @@ final class SaveSolarProject
     {
         $attributes = [
             'name' => $data['name'],
-            'property_type' => $data['property_type'],
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
             'energy_rate_cop_kwh' => $data['energy_rate_cop_kwh'],

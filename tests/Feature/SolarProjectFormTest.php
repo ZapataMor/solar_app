@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Solar\SystemSpecification;
+use App\Models\Municipality;
 use App\Models\SolarProject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,7 +27,10 @@ class SolarProjectFormTest extends TestCase
                 'data-wizard-step="details"',
             ], false)
             ->assertSee('¿Para qué lugar quieres energía solar?')
-            ->assertSeeInOrder(['Mi casa', 'Mi negocio', 'Institución o finca'])
+            ->assertSeeInOrder(['Mi casa', 'Mi negocio', 'Mi institución'])
+            // A farm is not a kind of its own: a farmhouse is a home and a productive farm a business.
+            ->assertSee('en el pueblo o en el campo')
+            ->assertSee('finca productiva')
             ->assertSee('data-wizard-initial="0"', false)
             ->assertSee('data-wizard-furthest="0"', false);
 
@@ -107,13 +111,53 @@ class SolarProjectFormTest extends TestCase
         $response = $this->actingAs($user)
             ->get(route('solar-projects.edit', $solarProject))
             ->assertOk()
-            ->assertSee('data-wizard-furthest="3"', false)
+            ->assertSee('data-wizard-furthest="2"', false)
+            ->assertSee('Paso 1 de 3 · Ubicación')
             ->assertSee('value="610.00"', false)
             ->assertSee('value="2025-03-31"', false)
             ->assertSee('value="Escuela en Uribia"', false)
             ->assertDontSee('value="'.SystemSpecification::DEFAULT_PANEL_POWER_W.'"', false);
 
-        $this->assertMatchesRegularExpression('/name="property_type"\s+value="institution"[^>]*checked/', $response->getContent());
+        // The kind of place is not a stage when editing: it is shown in the summary and cannot change.
+        $this->assertDoesNotMatchRegularExpression('/<section[^>]*data-wizard-step="property"|<input[^>]*name="property_type"/', $response->getContent());
+        $this->assertMatchesRegularExpression('/<span>Mi institución<\/span> <span class="solar-wizard-fixed">no se cambia/', $response->getContent());
+    }
+
+    public function test_editing_never_changes_the_kind_of_place(): void
+    {
+        $user = User::factory()->create();
+        $municipality = Municipality::query()->create(['name' => 'Uribia', 'department' => 'La Guajira', 'zone' => 'Alta Guajira', 'active' => true]);
+        $municipality->solarPrices()->create(['zone_name' => 'Alta Guajira', 'location_type' => 'urbana', 'base_price_per_kw' => 4700000, 'logistic_factor' => 1.18, 'active' => true]);
+        $solarProject = $user->solarProjects()->create([
+            'name' => 'Escuela en Uribia',
+            'property_type' => 'institution',
+            'location_name' => SolarProject::LOCATION_NAME,
+            'start_date' => '2025-03-01',
+            'end_date' => '2025-03-31',
+            'monthly_consumption_kwh' => 320,
+            'energy_rate_cop_kwh' => 910,
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('solar-projects.update', $solarProject), [
+                'property_type' => 'business',
+                'name' => 'Escuela en Uribia',
+                'start_date' => '2025-03-01',
+                'end_date' => '2025-03-31',
+                'energy_rate_cop_kwh' => 890,
+                'available_area_m2' => 60,
+                'usable_area_percentage' => 70,
+                'panel_power_w' => 580,
+                'panel_area_m2' => 2.65,
+                'system_losses_percentage' => 15,
+                'municipality_id' => $municipality->id,
+                'location_type' => 'urbana',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('solar-projects.show', $solarProject));
+
+        $this->assertSame('institution', $solarProject->fresh()->property_type);
+        $this->assertEquals(890, $solarProject->fresh()->energy_rate_cop_kwh);
     }
 
     public function test_validation_errors_reopen_the_first_stage_with_a_problem(): void

@@ -25,7 +25,8 @@ final class PropertyType
         self::HOUSE => [
             'label' => 'Casa',
             'option' => 'Mi casa',
-            'hint' => 'Vivienda familiar',
+            // A farmhouse is a home too; a farm that produces goes as a business. A farm is not a kind of its own.
+            'hint' => 'Vivienda familiar, en el pueblo o en el campo',
             'segments' => [ApplianceCatalog::SEGMENT_HOME],
             'spaces' => [
                 'kitchen' => 'Cocina',
@@ -38,7 +39,7 @@ final class PropertyType
         self::BUSINESS => [
             'label' => 'Negocio',
             'option' => 'Mi negocio',
-            'hint' => 'Tienda, local u oficina',
+            'hint' => 'Tienda, local, oficina o finca productiva',
             'segments' => [ApplianceCatalog::SEGMENT_BUSINESS],
             'spaces' => [
                 'sales' => 'Área de atención',
@@ -49,8 +50,8 @@ final class PropertyType
         ],
         self::INSTITUTION => [
             'label' => 'Institución',
-            'option' => 'Institución o finca',
-            'hint' => 'Colegio, centro de salud, finca',
+            'option' => 'Mi institución',
+            'hint' => 'Colegio, centro de salud o espacio comunitario',
             'segments' => [ApplianceCatalog::SEGMENT_HOME, ApplianceCatalog::SEGMENT_BUSINESS],
             'spaces' => [
                 'classrooms' => 'Aulas',

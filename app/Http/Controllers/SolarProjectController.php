@@ -135,17 +135,6 @@ class SolarProjectController extends Controller
         return back()->with('status', $message);
     }
 
-    /**
-     * Portfolio URL that keeps the search and page the user came from.
-     */
-    private function portfolioUrl(Request $request): string
-    {
-        return route('solar-projects.index', array_filter([
-            'search' => trim((string) $request->query('search', '')),
-            'page' => $request->query('page'),
-        ], fn ($value) => filled($value)));
-    }
-
     public function create(): View
     {
         return view('solar-projects.create', [

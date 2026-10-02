@@ -179,6 +179,14 @@
         cursor: pointer;
     }
 
+    /* In place of "Editar" for what cannot change after creating (the kind of place). */
+    .solar-wizard-fixed {
+        padding: 0.25rem 0.4rem;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+        font-style: italic;
+    }
+
     .solar-wizard-edit:hover {
         background: color-mix(in srgb, var(--solar-sun) 12%, transparent);
     }

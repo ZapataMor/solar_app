@@ -10,9 +10,10 @@
     $freshness = $projectFreshness[$solarProject->id] ?? null;
 @endphp
 
-{{-- A full navigation on purpose: the card morphs into the project page (resources/css/project-transitions.css). --}}
+{{-- Opens in "Mi sistema". A full navigation on purpose: the card morphs into the project page
+     (resources/css/project-transitions.css). --}}
 <a
-    href="{{ route('solar-projects.show', ['solarProject' => $solarProject, ...($portfolioQuery ?? [])]) }}"
+    href="{{ route('solar-projects.system', ['solarProject' => $solarProject, ...($portfolioQuery ?? [])]) }}"
     class="solar-project-card"
     style="view-transition-name: project-{{ $solarProject->id }}"
 >
