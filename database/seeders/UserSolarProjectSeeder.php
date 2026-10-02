@@ -30,10 +30,12 @@ class UserSolarProjectSeeder extends Seeder
                     'name' => 'Vivienda familiar Riohacha',
                     'property_type' => PropertyType::HOUSE,
                     'location_type' => 'urbana',
-                    'description' => 'Sistema fotovoltaico residencial para cubrir consumo basico del hogar.',
+                    'description' => 'Casa estrato 3 de una familia de cuatro. Aire en la habitación principal y en la de los niños; motobomba para el tanque.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
-                    'energy_rate_cop_kwh' => 930,
+                    // Air-e, La Guajira, agosto de 2026 (CU ≈ $890/kWh). Pasado el consumo de subsistencia,
+                    // estrato 3 paga el kWh completo: es el que dejaría de comprar con paneles.
+                    'energy_rate_cop_kwh' => 890,
                 ],
 
                 'technical_parameters' => [
@@ -51,17 +53,19 @@ class UserSolarProjectSeeder extends Seeder
                     'system_losses_percentage' => 15,
                 ],
 
-                // Hogar con nevera, TV, abanicos, lavadora y aires en las habitaciones (≈ 750 kWh/mes).
+                // Familia de cuatro: los aires de noche son casi el 70 % del consumo (≈ 535 kWh/mes, ≈ $476.000).
                 // [space, appliance, variant, quantity, hours per day]
                 'appliances' => [
                     ['kitchen', 'fridge', 'medium.conventional', 1, 24],
-                    ['kitchen', 'microwave', 'default', 1, 2 / 7],
-                    ['kitchen', 'blender', 'default', 1, 1 / 7],
+                    ['kitchen', 'microwave', 'default', 1, 0.25],
+                    ['kitchen', 'blender', 'default', 1, 0.15],
                     ['living', 'tv', '43', 1, 5],
                     ['living', 'fan', 'stand', 2, 8],
-                    ['living', 'lighting', 'led', 6, 6],
-                    ['bedrooms', 'air_conditioner', '12000.conventional', 2, 8],
+                    ['living', 'lighting', 'led', 8, 6],
+                    ['bedrooms', 'air_conditioner', '12000.inverter', 1, 8],
+                    ['bedrooms', 'air_conditioner', '9000.conventional', 1, 6],
                     ['bedrooms', 'fan', 'ceiling', 2, 8],
+                    ['bedrooms', 'computer', 'laptop', 1, 4],
                     ['laundry', 'washing_machine', 'up_to_12', 1, 4 / 7],
                     ['laundry', 'water_pump', 'half_hp', 1, 1],
                     ['laundry', 'iron', 'default', 1, 2 / 7],
@@ -76,15 +80,16 @@ class UserSolarProjectSeeder extends Seeder
                     'name' => 'Local comercial centro',
                     'property_type' => PropertyType::BUSINESS,
                     'location_type' => 'urbana',
-                    'description' => 'Proyecto solar para reducir costos de energia en horario diurno.',
+                    'description' => 'Minimercado en el centro de Maicao, abierto de 7 a. m. a 9 p. m. Local angosto: el techo no alcanza para todo el consumo.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
-                    'energy_rate_cop_kwh' => 930,
+                    // Comercial: CU de Air-e (≈ $890/kWh) más la contribución del 20 %.
+                    'energy_rate_cop_kwh' => 1070,
                 ],
 
                 'technical_parameters' => [
-                    // Techo comercial mediano
-                    'available_area_m2' => 85,
+                    // Local angosto del centro: caben 14 paneles y harían falta unos 17.
+                    'available_area_m2' => 50,
                     // Área útil comercial
                     'usable_area_percentage' => 75,
                     // Panel estándar comercial
@@ -96,17 +101,20 @@ class UserSolarProjectSeeder extends Seeder
                     'system_losses_percentage' => 12,
                 ],
 
-                // Tienda con enfriadores, vitrina, aire y computadores (≈ 1.200 kWh/mes).
+                // Minimercado: la refrigeración trabaja día y noche y el aire, en horario de atención
+                // (≈ 1.115 kWh/mes, ≈ $1,19 M).
                 'appliances' => [
                     ['sales', 'beverage_cooler', 'two_doors', 1, 24],
+                    ['sales', 'beverage_cooler', 'one_door', 1, 24],
                     ['sales', 'display_case', 'default', 1, 24],
-                    ['sales', 'air_conditioner', '18000.conventional', 1, 10],
+                    ['sales', 'air_conditioner', '18000.inverter', 1, 10],
                     ['sales', 'lighting', 'led', 12, 12],
+                    ['sales', 'fan', 'stand', 2, 10],
                     ['sales', 'tv', '43', 1, 10],
-                    ['office', 'computer', 'desktop', 2, 10],
+                    ['office', 'computer', 'desktop', 1, 12],
+                    ['office', 'computer', 'laptop', 1, 8],
                     ['office', 'router', 'default', 1, 24],
-                    ['storage', 'freezer', 'chest_large', 1, 24],
-                    ['storage', 'fridge', 'large.conventional', 1, 24],
+                    ['storage', 'freezer', 'chest_large', 2, 24],
                 ],
             ],
 
@@ -117,10 +125,11 @@ class UserSolarProjectSeeder extends Seeder
                     'name' => 'Institucion educativa rural',
                     'property_type' => PropertyType::INSTITUTION,
                     'location_type' => 'rural',
-                    'description' => 'Dimensionamiento inicial para aulas, oficina administrativa y equipos basicos.',
+                    'description' => 'Colegio rural de jornada de mañana, con sala de sistemas y comedor escolar (PAE). Clases de lunes a viernes.',
                     'start_date' => '2026-01-01',
                     'end_date' => '2026-12-31',
-                    'energy_rate_cop_kwh' => 930,
+                    // Oficial: paga el CU de Air-e (≈ $890/kWh), sin subsidio ni contribución.
+                    'energy_rate_cop_kwh' => 890,
                 ],
 
                 'technical_parameters' => [
@@ -137,18 +146,21 @@ class UserSolarProjectSeeder extends Seeder
                     'system_losses_percentage' => 15,
                 ],
 
-                // Aulas con abanicos y luces, oficinas con aires y computadores, comedor escolar (≈ 1.350 kWh/mes).
+                // Aulas, sala de sistemas, rectoría y comedor escolar (≈ 900 kWh/mes, ≈ $800.000). Lo que
+                // solo se usa en clase cuenta 5 días de 7; la refrigeración y la vigilancia, todos los días.
                 'appliances' => [
-                    ['classrooms', 'fan', 'ceiling', 12, 6],
-                    ['classrooms', 'lighting', 'led', 30, 6],
-                    ['classrooms', 'tv', '55', 2, 4],
-                    ['offices', 'computer', 'desktop', 6, 8],
-                    ['offices', 'air_conditioner', '12000.conventional', 2, 8],
+                    ['classrooms', 'fan', 'ceiling', 16, 6 * 5 / 7],
+                    ['classrooms', 'lighting', 'led', 24, 5 * 5 / 7],
+                    ['classrooms', 'tv', '55', 2, 3 * 5 / 7],
+                    ['classrooms', 'computer', 'laptop', 20, 4 * 5 / 7],
+                    ['offices', 'computer', 'desktop', 3, 8 * 5 / 7],
+                    ['offices', 'air_conditioner', '12000.inverter', 1, 8 * 5 / 7],
                     ['offices', 'router', 'default', 1, 24],
                     ['kitchen', 'fridge', 'large.conventional', 2, 24],
-                    ['kitchen', 'freezer', 'chest_large', 1, 24],
-                    ['common', 'water_pump', 'one_hp', 1, 2],
-                    ['common', 'lighting', 'led', 10, 12],
+                    ['kitchen', 'freezer', 'chest_large', 2, 24],
+                    ['kitchen', 'blender', 'default', 1, 1 * 5 / 7],
+                    ['common', 'water_pump', 'one_hp', 1, 3],
+                    ['common', 'lighting', 'led', 12, 12],
                 ],
             ],
         ];
@@ -160,6 +172,8 @@ class UserSolarProjectSeeder extends Seeder
                 ['name' => $projectData['project']['name']],
                 [
                     ...$projectData['project'],
+                    // Same as the app (SaveSolarProject); the column's default says Riohacha.
+                    'location_name' => "{$municipality->name}, La Guajira, Colombia",
                     'municipality_id' => $municipality->id,
                     'latitude' => $municipality->latitude,
                     'longitude' => $municipality->longitude,

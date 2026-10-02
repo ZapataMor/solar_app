@@ -1,0 +1,52 @@
+/*
+ * Opening a project: the portfolio card grows into the project page, and going back shrinks the page
+ * into its card. It is a cross-document view transition: the card (project-card.blade.php) and the
+ * project pages (.solar-project-detail) share the name project-<id>, and the card title and the
+ * breadcrumb share project-title-<id>. Browsers without view transitions just load the page.
+ * Navigations with wire:navigate (the project tabs) do not go through here.
+ */
+@view-transition {
+    navigation: auto;
+}
+
+@layer components {
+    .solar-project-card,
+    .solar-project-detail {
+        view-transition-class: solar-project-open;
+    }
+}
+
+/* The rest of the page (sidebar, header) is the same on both sides: a quick cross-fade. */
+::view-transition-group(root) {
+    animation-duration: 0.22s;
+}
+
+::view-transition-group(*.solar-project-open) {
+    animation-duration: 0.45s;
+    animation-timing-function: cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+/* Both pictures keep their top edge and their scale, instead of stretching with the box. */
+::view-transition-old(*.solar-project-open),
+::view-transition-new(*.solar-project-open) {
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    overflow: clip;
+}
+
+::view-transition-old(*.solar-project-open) {
+    animation-duration: 0.2s;
+}
+
+::view-transition-new(*.solar-project-open) {
+    animation-duration: 0.35s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+}

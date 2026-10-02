@@ -19,7 +19,7 @@
 @endphp
 
 <x-layouts::app :title="__('Consumo').' · '.$solarProject->name">
-    <div class="solar-project-detail">
+    <div class="solar-project-detail" style="view-transition-name: project-{{ $solarProject->id }}">
         @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'consumption'])
 
         <div

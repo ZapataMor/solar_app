@@ -10,14 +10,19 @@
     $freshness = $projectFreshness[$solarProject->id] ?? null;
 @endphp
 
-<a href="{{ route('solar-projects.show', ['solarProject' => $solarProject, ...($portfolioQuery ?? [])]) }}" class="solar-project-card">
+{{-- A full navigation on purpose: the card morphs into the project page (resources/css/project-transitions.css). --}}
+<a
+    href="{{ route('solar-projects.show', ['solarProject' => $solarProject, ...($portfolioQuery ?? [])]) }}"
+    class="solar-project-card"
+    style="view-transition-name: project-{{ $solarProject->id }}"
+>
     @if ($freshness?->needsRecalculation())
         <span class="solar-recalc-chip" title="{{ implode(' ', $freshness->reasons) }}">
             <span class="solar-recalc-chip__dot" aria-hidden="true">!</span>
             {{ $freshness->status === \App\Domain\Solar\CalculationFreshness::PENDING ? 'Sin calcular' : 'Por recalcular' }}
         </span>
     @endif
-    <h3 class="solar-project-card__title">{{ $solarProject->name }}</h3>
+    <h3 class="solar-project-card__title" style="view-transition-name: project-title-{{ $solarProject->id }}">{{ $solarProject->name }}</h3>
     <p class="solar-project-card__summary">{{ $description }}</p>
 
     <dl class="solar-project-card__details">

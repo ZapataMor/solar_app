@@ -8,6 +8,7 @@
 @import './project-explainer.css';
 @import './consumption-diary.css';
 @import './system-panel.css';
+@import './project-transitions.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -3112,6 +3113,21 @@ select:focus[data-flux-control] {
     .solar-project-search .solar-input {
         flex: 1 1 16rem;
         font-size: 1rem;
+    }
+
+    .solar-project-search [hidden] {
+        display: none;
+    }
+
+    /* Results of the portfolio search, replaced while typing (see initPortfolioSearch in app.js). */
+    .solar-portfolio-results {
+        display: grid;
+        gap: 1.5rem;
+        transition: opacity 150ms ease;
+    }
+
+    .solar-portfolio-results[aria-busy='true'] {
+        opacity: 0.55;
     }
 
 

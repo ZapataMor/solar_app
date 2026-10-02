@@ -1,6 +1,6 @@
 {{-- Free notes of a project (the former description, ADR-0013). --}}
 <x-layouts::app :title="__('Notas').' · '.$solarProject->name">
-    <div class="solar-project-detail">
+    <div class="solar-project-detail" style="view-transition-name: project-{{ $solarProject->id }}">
         @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'notes'])
 
         <div class="solar-page solar-page-narrow">

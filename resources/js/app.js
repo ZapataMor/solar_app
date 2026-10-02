@@ -1706,6 +1706,91 @@ const initUnitSwitches = () => {
 document.addEventListener('DOMContentLoaded', initUnitSwitches);
 document.addEventListener('livewire:navigated', initUnitSwitches);
 
+// Portfolio: search while typing. The server renders the results (same page, same query) and only
+// [data-portfolio-results] is replaced; the URL keeps the search for reloads and the back button.
+const PORTFOLIO_SEARCH_DELAY_MS = 300;
+// Not a data-* flag: Livewire's back-button copy of the page would keep it without the listeners.
+const portfolioSearchForms = new WeakSet();
+
+const initPortfolioSearch = () => {
+    const form = document.querySelector('[data-portfolio-search]');
+
+    if (!form || portfolioSearchForms.has(form)) {
+        return;
+    }
+    portfolioSearchForms.add(form);
+
+    const input = form.querySelector('input[name="search"]');
+    const clear = form.querySelector('[data-portfolio-clear]');
+    let timer = null;
+    let request = null;
+    let lastTerm = input.value.trim();
+
+    const search = async () => {
+        const term = input.value.trim();
+
+        if (term === lastTerm) {
+            return;
+        }
+        lastTerm = term;
+
+        const url = new URL(form.action);
+        if (term !== '') {
+            url.searchParams.set('search', term);
+        }
+
+        request?.abort();
+        const current = new AbortController();
+        request = current;
+        const results = document.querySelector('[data-portfolio-results]');
+        results?.setAttribute('aria-busy', 'true');
+
+        try {
+            const response = await fetch(url, { signal: current.signal, headers: { Accept: 'text/html' } });
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const next = page.querySelector('[data-portfolio-results]');
+
+            if (!response.ok || !next || !results) {
+                throw new Error(`Portfolio search failed (${response.status}).`);
+            }
+
+            results.replaceWith(next);
+            clear.hidden = term === '';
+            window.history.replaceState(window.history.state, '', url);
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                form.submit(); // The classic search still works.
+            }
+        } finally {
+            if (request === current) {
+                results?.removeAttribute('aria-busy');
+            }
+        }
+    };
+
+    input.addEventListener('input', () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(search, PORTFOLIO_SEARCH_DELAY_MS);
+    });
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        window.clearTimeout(timer);
+        search();
+    });
+
+    clear?.addEventListener('click', (event) => {
+        event.preventDefault();
+        input.value = '';
+        input.focus();
+        window.clearTimeout(timer);
+        search();
+    });
+};
+
+document.addEventListener('DOMContentLoaded', initPortfolioSearch);
+document.addEventListener('livewire:navigated', initPortfolioSearch);
+
 // 3D illustration of "Mi sistema" (ADR-0012, resources/js/solar-scene): Three.js loads only where it is used.
 document.addEventListener('DOMContentLoaded', initSolarScenes);
 document.addEventListener('livewire:navigated', initSolarScenes);

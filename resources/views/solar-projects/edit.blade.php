@@ -1,5 +1,5 @@
 <x-layouts::app :title="__('Editar').' · '.$solarProject->name">
-    <div class="solar-project-detail">
+    <div class="solar-project-detail" style="view-transition-name: project-{{ $solarProject->id }}">
         @include('solar-projects.partials.project-nav', ['solarProject' => $solarProject, 'active' => 'edit', 'backUrl' => $portfolioUrl])
 
         <div class="solar-page solar-page-narrow">

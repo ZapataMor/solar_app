@@ -30,7 +30,8 @@
         </div>
     </div>
 
-    <form method="GET" action="{{ route('solar-projects.index') }}" class="solar-project-search" role="search">
+    {{-- Searches while typing (app.js); Enter still submits it without JavaScript. --}}
+    <form method="GET" action="{{ route('solar-projects.index') }}" class="solar-project-search" role="search" data-portfolio-search>
         <input
             type="search"
             name="search"
@@ -38,13 +39,13 @@
             class="solar-input"
             placeholder="Buscar proyecto por nombre"
             aria-label="Buscar proyecto por nombre"
+            aria-controls="portfolio-results"
+            autocomplete="off"
         >
-        <button type="submit" class="solar-button">Buscar</button>
-        @if ($search !== '')
-            <a href="{{ route('solar-projects.index') }}" class="solar-button-ghost">Limpiar</a>
-        @endif
+        <a href="{{ route('solar-projects.index') }}" class="solar-button-ghost" data-portfolio-clear @if ($search === '') hidden @endif>Limpiar</a>
     </form>
 
+    <div id="portfolio-results" class="solar-portfolio-results" data-portfolio-results>
     @if ($solarProjects->isEmpty() && $search !== '')
         <div class="solar-empty-state">
             <p class="solar-kicker">Sin resultados</p>
@@ -79,5 +80,6 @@
 
     <div class="solar-pagination">
         {{ $solarProjects->links() }}
+    </div>
     </div>
 </div>

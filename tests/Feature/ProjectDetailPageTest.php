@@ -37,6 +37,42 @@ class ProjectDetailPageTest extends TestCase
             ->assertSee(e(route('solar-projects.index', ['search' => 'casa', 'page' => 2])), false);
     }
 
+    public function test_portfolio_searches_while_typing_and_only_renders_the_results_it_replaces(): void
+    {
+        [$user] = $this->projectWithOwner();
+        $user->solarProjects()->create($this->attributes(['name' => 'Local del centro']));
+
+        $response = $this->actingAs($user)
+            ->get(route('solar-projects.index', ['search' => 'local']))
+            ->assertOk()
+            ->assertSee('Local del centro')
+            ->assertDontSee('Casa en Riohacha')
+            ->assertDontSee('>Buscar</button>', false);
+
+        // app.js replaces [data-portfolio-results] with the same block of the searched page.
+        $this->assertMatchesRegularExpression('/<form[^>]*data-portfolio-search/', $response->getContent());
+        $this->assertMatchesRegularExpression('/<div[^>]*data-portfolio-results[^>]*>.*Local del centro/s', $response->getContent());
+        $this->assertMatchesRegularExpression('/<a[^>]*data-portfolio-clear(?![^>]*hidden)/', $response->getContent());
+    }
+
+    public function test_the_card_and_the_project_pages_share_a_transition_name(): void
+    {
+        [$user, $solarProject] = $this->projectWithOwner();
+        $name = 'view-transition-name: project-'.$solarProject->id;
+
+        // A full navigation (no wire:navigate) so the browser can morph the card into the page.
+        $card = $this->actingAs($user)->get(route('solar-projects.index'))->getContent();
+        $this->assertMatchesRegularExpression('/<a(?![^>]*wire:navigate)[^>]*class="solar-project-card"[^>]*'.preg_quote($name, '/').'"/', $card);
+
+        foreach (['solar-projects.show', 'solar-projects.system', 'solar-projects.consumption', 'solar-projects.notes', 'solar-projects.edit'] as $page) {
+            $this->actingAs($user)
+                ->get(route($page, $solarProject))
+                ->assertOk()
+                ->assertSee('class="solar-project-detail" style="'.$name.'"', false)
+                ->assertSee('view-transition-name: project-title-'.$solarProject->id, false);
+        }
+    }
+
     public function test_edit_page_belongs_to_the_project_and_cancel_returns_to_its_panel(): void
     {
         [$user, $solarProject] = $this->projectWithOwner();
