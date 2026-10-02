@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vite",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "vite"],
+      "port": 5173
+    },
+    {
+      "name": "app",
+      "runtimeExecutable": "C:/Users/kdiaz/.config/herd/bin/php84/php.exe",
+      "runtimeArgs": ["artisan", "serve", "--host=127.0.0.1", "--port=8000"],
+      "port": 8000
+    }
+  ]
+}

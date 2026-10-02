@@ -262,6 +262,20 @@ class ApplianceConsumptionTest extends TestCase
         $this->assertStringNotContainsString('id="espacio-kitchen"', $response->getContent());
     }
 
+    public function test_the_sheet_has_room_for_the_chosen_appliance_in_3d(): void
+    {
+        [$user, $solarProject] = $this->project();
+
+        // ADR-0019: empty until the diary script says which appliance and options; the scene fills it.
+        $html = $this->actingAs($user)
+            ->get(route('solar-projects.consumption', $solarProject))
+            ->assertOk()
+            ->assertSee('Preparando el equipo en 3D…')
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/<figure[^>]*data-appliance-scene[^>]*data-appliance=""[^>]*data-variant=""/', $html);
+    }
+
     public function test_the_diary_can_also_show_what_each_appliance_costs_per_month(): void
     {
         // Tariff of the project: $900 per kWh.

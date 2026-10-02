@@ -18,7 +18,7 @@
         pointer-events: none;
     }
 
-    .solar-can-3d :is([data-solar-scene], [data-station-scene]):not(.is-3d, .is-flat) .solar-3d-loading {
+    .solar-can-3d :is([data-solar-scene], [data-station-scene], [data-appliance-scene]):not(.is-3d, .is-flat) .solar-3d-loading {
         display: grid;
         /* Invisible for a moment: a fast load never shows it. */
         animation: solar-3d-appear 0.3s ease 0.35s both;
@@ -29,7 +29,7 @@
     }
 
     /* A soft sweep of light over the empty stage. */
-    .solar-can-3d :is([data-solar-scene], [data-station-scene]):not(.is-3d, .is-flat) :is(.solar-scene__stage, .solar-station__view)::after {
+    .solar-can-3d :is([data-solar-scene], [data-station-scene], [data-appliance-scene]):not(.is-3d, .is-flat) :is(.solar-scene__stage, .solar-station__view, .solar-appliance-model__view)::after {
         content: '';
         position: absolute;
         inset: 0;
@@ -41,6 +41,7 @@
 
     /* The scene arrives with a short fade instead of popping in. */
     .solar-scene__canvas,
+    .solar-appliance-model__canvas,
     .solar-station__canvas {
         animation: solar-3d-appear 0.45s ease-out both;
     }
@@ -62,13 +63,14 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .solar-can-3d :is([data-solar-scene], [data-station-scene]):not(.is-3d, .is-flat) .solar-3d-loading,
+        .solar-can-3d :is([data-solar-scene], [data-station-scene], [data-appliance-scene]):not(.is-3d, .is-flat) .solar-3d-loading,
         .solar-scene__canvas,
+        .solar-appliance-model__canvas,
         .solar-station__canvas {
             animation: none;
         }
 
-        .solar-can-3d :is([data-solar-scene], [data-station-scene]):not(.is-3d, .is-flat) :is(.solar-scene__stage, .solar-station__view)::after {
+        .solar-can-3d :is([data-solar-scene], [data-station-scene], [data-appliance-scene]):not(.is-3d, .is-flat) :is(.solar-scene__stage, .solar-station__view, .solar-appliance-model__view)::after {
             display: none;
         }
     }

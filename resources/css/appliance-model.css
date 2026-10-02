@@ -1,0 +1,108 @@
+/* Consumption diary: the chosen appliance in 3D, next to its options (ADR-0019, resources/js/appliance-scene).
+   Only appliances with a model show it (.has-model); without WebGL (.is-flat) the sheet stays as it was. */
+
+@layer components {
+    .solar-diary-config {
+        display: grid;
+        grid-template-areas: 'fields';
+        gap: 1rem 1.25rem;
+    }
+
+    .solar-diary-config__fields {
+        grid-area: fields;
+        display: grid;
+        gap: 0.85rem;
+        min-width: 0;
+    }
+
+    .solar-appliance-model {
+        grid-area: model;
+        display: none;
+        align-content: start;
+        gap: 0.5rem;
+        margin: 0;
+    }
+
+    .solar-appliance-model.has-model:not(.is-flat) {
+        display: grid;
+    }
+
+    /* With a model the sheet widens, and the model stands to the right of the options. */
+    .solar-diary-sheet:has(.solar-appliance-model.has-model:not(.is-flat)) {
+        width: min(56rem, calc(100vw - 2rem));
+    }
+
+    .solar-diary-config:has(.solar-appliance-model.has-model:not(.is-flat)) {
+        grid-template-columns: minmax(0, 1fr) 17rem;
+        grid-template-areas: 'fields model';
+    }
+
+    /* Small on purpose, and in view while the options scroll. */
+    .solar-appliance-model__view {
+        position: relative;
+        aspect-ratio: 1 / 0.9;
+        overflow: hidden;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: radial-gradient(120% 100% at 50% 15%, color-mix(in srgb, var(--solar-sun) 7%, var(--solar-surface-muted)) 0%, var(--solar-surface-muted) 70%);
+        isolation: isolate;
+    }
+
+    .solar-diary-config:has(.solar-appliance-model.has-model:not(.is-flat)) .solar-appliance-model {
+        position: sticky;
+        top: 0;
+    }
+
+    .solar-appliance-model__stage {
+        position: absolute;
+        inset: 0;
+    }
+
+    .solar-appliance-model__canvas {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+    }
+
+    .solar-appliance-model__canvas:active {
+        cursor: grabbing;
+    }
+
+    .solar-appliance-model figcaption {
+        display: grid;
+        gap: 0.15rem;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+        line-height: 1.4;
+    }
+
+    .solar-appliance-model figcaption strong {
+        color: var(--solar-text);
+        font-size: 0.86rem;
+    }
+
+    @media (max-width: 760px) {
+        /* The sheet keeps its phone shape: full width, from the bottom. */
+        .solar-diary-sheet:has(.solar-appliance-model.has-model:not(.is-flat)) {
+            width: 100vw;
+        }
+
+        .solar-diary-config:has(.solar-appliance-model.has-model:not(.is-flat)) {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-areas: 'model' 'fields';
+        }
+
+        .solar-diary-config:has(.solar-appliance-model.has-model:not(.is-flat)) .solar-appliance-model {
+            position: static;
+        }
+
+        /* On the phone it goes above the options, low and wide. */
+        .solar-appliance-model__view {
+            aspect-ratio: 16 / 9;
+            max-height: 11rem;
+        }
+    }
+}

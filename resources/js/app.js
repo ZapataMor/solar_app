@@ -1,6 +1,7 @@
 import Chart from 'chart.js/auto';
 import { initSolarScenes } from './solar-scene';
 import { initStationScenes } from './station-scene';
+import { initApplianceScenes } from './appliance-scene';
 
 const activeSolarCharts = new Map();
 let solarThemeObserver = null;
@@ -1947,3 +1948,7 @@ document.addEventListener('livewire:navigated', initSolarScenes);
 // 3D stations of the climate data page (ADR-0018, resources/js/station-scene).
 document.addEventListener('DOMContentLoaded', initStationScenes);
 document.addEventListener('livewire:navigated', initStationScenes);
+
+// The chosen appliance in 3D in the consumption diary (ADR-0019, resources/js/appliance-scene).
+document.addEventListener('DOMContentLoaded', initApplianceScenes);
+document.addEventListener('livewire:navigated', initApplianceScenes);

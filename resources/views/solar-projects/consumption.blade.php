@@ -92,55 +92,74 @@
                 </div>
 
                 <div class="solar-diary-sheet__step" data-diary-step="config" hidden>
-                    <div class="solar-diary-chosen">
-                        <svg viewBox="0 0 24 24" class="solar-diary-chosen__icon" aria-hidden="true"><use href="" data-diary-chosen-icon></use></svg>
-                        <div>
-                            <strong data-diary-chosen-label></strong>
-                            <p class="solar-appliance-hint" data-diary-chosen-hint hidden></p>
-                        </div>
-                        <button type="button" class="solar-diary-link" data-diary-change>Cambiar equipo</button>
-                    </div>
-
-                    <div data-diary-groups></div>
-
-                    <div class="solar-appliance-controls">
-                        <div class="solar-appliance-field">
-                            <span>Cantidad</span>
-                            <div class="solar-appliance-stepper">
-                                <button type="button" data-diary-step-quantity="-1" aria-label="Uno menos">−</button>
-                                <input type="number" name="quantity" min="1" max="100" step="1" value="1" required aria-label="Cantidad" data-diary-quantity>
-                                <button type="button" data-diary-step-quantity="1" aria-label="Uno más">+</button>
+                    <div class="solar-diary-config">
+                        {{--
+                            The chosen appliance in 3D, as its options make it (ADR-0019). Only appliances with a
+                            model show it (resources/js/appliance-scene); the diary script says which one and how.
+                        --}}
+                        <figure class="solar-appliance-model" data-appliance-scene data-appliance="" data-variant="" data-variant-label="">
+                            <div class="solar-appliance-model__view">
+                                <p class="solar-3d-loading" aria-hidden="true"><span class="solar-sync-spinner"></span>Preparando el equipo en 3D…</p>
+                                <div class="solar-appliance-model__stage" data-appliance-scene-stage></div>
                             </div>
+                            <figcaption>
+                                <strong data-appliance-model-title></strong>
+                                <span data-appliance-model-note></span>
+                            </figcaption>
+                        </figure>
+
+                        <div class="solar-diary-config__fields">
+                            <div class="solar-diary-chosen">
+                                <svg viewBox="0 0 24 24" class="solar-diary-chosen__icon" aria-hidden="true"><use href="" data-diary-chosen-icon></use></svg>
+                                <div>
+                                    <strong data-diary-chosen-label></strong>
+                                    <p class="solar-appliance-hint" data-diary-chosen-hint hidden></p>
+                                </div>
+                                <button type="button" class="solar-diary-link" data-diary-change>Cambiar equipo</button>
+                            </div>
+
+                            <div data-diary-groups></div>
+
+                            <div class="solar-appliance-controls">
+                                <div class="solar-appliance-field">
+                                    <span>Cantidad</span>
+                                    <div class="solar-appliance-stepper">
+                                        <button type="button" data-diary-step-quantity="-1" aria-label="Uno menos">−</button>
+                                        <input type="number" name="quantity" min="1" max="100" step="1" value="1" required aria-label="Cantidad" data-diary-quantity>
+                                        <button type="button" data-diary-step-quantity="1" aria-label="Uno más">+</button>
+                                    </div>
+                                </div>
+                                <label class="solar-appliance-field" data-diary-hours-field>
+                                    <span data-diary-hours-label>Horas al día</span>
+                                    <input type="number" class="solar-input" min="0" max="24" step="0.5" value="1" required data-diary-hours>
+                                </label>
+                                <p class="solar-appliance-always" data-diary-always hidden>Encendido las 24 horas</p>
+                            </div>
+
+                            <label class="solar-field mt-4">
+                                <span class="solar-field-label">Espacio</span>
+                                <select name="space" class="solar-input" required data-diary-space>
+                                    @foreach ($spaces as $spaceKey => $spaceLabel)
+                                        <option value="{{ $spaceKey }}">{{ $spaceLabel }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+
+                            <p class="solar-diary-preview" aria-live="polite">
+                                ≈ <strong data-diary-kwh>0</strong> <span data-diary-preview-unit>kWh al mes</span>
+                                <span class="solar-diary-preview__other" data-diary-preview-other></span>
+                            </p>
+
+                            {{-- Server-side errors: from the redirect (no JavaScript) or from the 422 of a save without reload. --}}
+                            <ul class="solar-diary-errors" role="alert" data-diary-errors @if ($reopen === null) hidden @endif>
+                                @if ($reopen !== null)
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                @endif
+                            </ul>
                         </div>
-                        <label class="solar-appliance-field" data-diary-hours-field>
-                            <span data-diary-hours-label>Horas al día</span>
-                            <input type="number" class="solar-input" min="0" max="24" step="0.5" value="1" required data-diary-hours>
-                        </label>
-                        <p class="solar-appliance-always" data-diary-always hidden>Encendido las 24 horas</p>
                     </div>
-
-                    <label class="solar-field mt-4">
-                        <span class="solar-field-label">Espacio</span>
-                        <select name="space" class="solar-input" required data-diary-space>
-                            @foreach ($spaces as $spaceKey => $spaceLabel)
-                                <option value="{{ $spaceKey }}">{{ $spaceLabel }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-
-                    <p class="solar-diary-preview" aria-live="polite">
-                        ≈ <strong data-diary-kwh>0</strong> <span data-diary-preview-unit>kWh al mes</span>
-                        <span class="solar-diary-preview__other" data-diary-preview-other></span>
-                    </p>
-
-                    {{-- Server-side errors: from the redirect (no JavaScript) or from the 422 of a save without reload. --}}
-                    <ul class="solar-diary-errors" role="alert" data-diary-errors @if ($reopen === null) hidden @endif>
-                        @if ($reopen !== null)
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        @endif
-                    </ul>
 
                     <footer class="solar-diary-sheet__footer">
                         <button type="button" class="solar-button-ghost" data-diary-close>Cancelar</button>
@@ -183,6 +202,7 @@
         const hoursInput = $('[data-diary-hours]');
         const errorsBox = $('[data-diary-errors]');
         const submitButton = $('[data-diary-submit]');
+        const model = $('[data-appliance-scene]');
         const kwhFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 });
         const moneyFormatter = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
         const money = (cop) => `$${moneyFormatter.format(Math.round(cop / 100) * 100)}`;
@@ -226,6 +246,18 @@
                 ? (inMoney ? `(${kwhFormatter.format(kwh)} kWh)` : `(unos ${money(kwh * rate)})`)
                 : '';
             $('[data-diary-chosen-icon]').setAttribute('href', `#appliance-${iconOf()}`);
+            showModel();
+        };
+
+        // The 3D model (ADR-0019, resources/js/appliance-scene) follows the chosen appliance and options.
+        const showModel = () => {
+            const groups = state?.key ? catalog[state.key].groups : [];
+            model.dataset.variantLabel = groups
+                .map((group, index) => group.choices.find((choice) => choice.key === state.choices[index])?.label)
+                .filter(Boolean)
+                .join(' · ');
+            model.dataset.variant = state?.key ? variantOf() : '';
+            model.dataset.appliance = state?.key ?? '';
         };
 
         // The kWh / pesos switch is wired by app.js; the preview follows it when it changes.
@@ -306,6 +338,7 @@
                 showErrors([]);
             }
             state = { id: item?.id ?? null, key: null, choices: [] };
+            showModel();
             showAll = false;
             search.value = '';
             filterCards();
@@ -399,6 +432,7 @@
         });
         cards.forEach((card) => card.addEventListener('click', () => choose(card.dataset.diaryPick)));
         $('[data-diary-change]').addEventListener('click', () => {
+            model.dataset.appliance = '';
             configStep.hidden = true;
             pickStep.hidden = false;
             search.focus();

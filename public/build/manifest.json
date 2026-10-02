@@ -1,7 +1,17 @@
 {
-  "_buildings-Co_l8bOs.js": {
-    "file": "assets/buildings-Co_l8bOs.js",
-    "name": "buildings"
+  "_OrbitControls-Dr2qb40D.js": {
+    "file": "assets/OrbitControls-Dr2qb40D.js",
+    "name": "OrbitControls",
+    "imports": [
+      "_three.module-sj8GgOkf.js"
+    ]
+  },
+  "_buildings-BlEDJM79.js": {
+    "file": "assets/buildings-BlEDJM79.js",
+    "name": "buildings",
+    "imports": [
+      "_three.module-sj8GgOkf.js"
+    ]
   },
   "_fonts-BXr6Abe-.css": {
     "file": "assets/fonts-BXr6Abe-.css",
@@ -279,8 +289,12 @@
     "file": "assets/ibm-plex-sans-700-normal-wyJ6jzdA.woff2",
     "src": "_ibm-plex-sans-700-normal-wyJ6jzdA.woff2"
   },
+  "_three.module-sj8GgOkf.js": {
+    "file": "assets/three.module-sj8GgOkf.js",
+    "name": "three.module"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-DMdxDSOc.css",
+    "file": "assets/app-s0xKvRzt.css",
     "name": "app",
     "names": [
       "app.css"
@@ -289,13 +303,34 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-DV5TUprv.js",
+    "file": "assets/app-B328Ab9l.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
       "resources/js/solar-scene/scene.js",
-      "resources/js/station-scene/scene.js"
+      "resources/js/station-scene/scene.js",
+      "resources/js/appliance-scene/air-conditioner.js",
+      "resources/js/appliance-scene/scene.js"
+    ]
+  },
+  "resources/js/appliance-scene/air-conditioner.js": {
+    "file": "assets/air-conditioner-8eNBbo-q.js",
+    "name": "air-conditioner",
+    "src": "resources/js/appliance-scene/air-conditioner.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_three.module-sj8GgOkf.js"
+    ]
+  },
+  "resources/js/appliance-scene/scene.js": {
+    "file": "assets/scene-Bn-eCQjv.js",
+    "name": "scene",
+    "src": "resources/js/appliance-scene/scene.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_three.module-sj8GgOkf.js",
+      "_OrbitControls-Dr2qb40D.js"
     ]
   },
   "resources/js/passkeys.js": {
@@ -305,21 +340,25 @@
     "isEntry": true
   },
   "resources/js/solar-scene/scene.js": {
-    "file": "assets/scene-B-0pz0_N.js",
+    "file": "assets/scene-hxCSvgVS.js",
     "name": "scene",
     "src": "resources/js/solar-scene/scene.js",
     "isDynamicEntry": true,
     "imports": [
-      "_buildings-Co_l8bOs.js"
+      "_three.module-sj8GgOkf.js",
+      "_OrbitControls-Dr2qb40D.js",
+      "_buildings-BlEDJM79.js"
     ]
   },
   "resources/js/station-scene/scene.js": {
-    "file": "assets/scene-DRWWScrN.js",
+    "file": "assets/scene-DPlH9oer.js",
     "name": "scene",
     "src": "resources/js/station-scene/scene.js",
     "isDynamicEntry": true,
     "imports": [
-      "_buildings-Co_l8bOs.js"
+      "_three.module-sj8GgOkf.js",
+      "_OrbitControls-Dr2qb40D.js",
+      "_buildings-BlEDJM79.js"
     ]
   }
 }
