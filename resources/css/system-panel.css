@@ -1,9 +1,16 @@
 /* Alternative panel "Mi sistema" (ADR-0014). Uses the app's --solar-* tokens (light and dark). */
 
 @layer components {
+    /* Same frame as the "Técnico" panel (.sdash in show.blade.php): the side padding keeps the
+       content clear of the fixed rail of questions (project-explainer.css). */
     .solar-system {
         display: grid;
         gap: 1rem;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 90rem;
+        margin-inline: auto;
+        padding: 1.5rem clamp(1rem, 3vw, 2rem) 3rem;
     }
 
     /* Hero: illustration + recommendation */
