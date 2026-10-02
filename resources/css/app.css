@@ -10,6 +10,7 @@
 @import './system-panel.css';
 @import './project-transitions.css';
 @import './reference-values.css';
+@import './portfolio.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

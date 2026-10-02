@@ -1791,6 +1791,23 @@ const initPortfolioSearch = () => {
 document.addEventListener('DOMContentLoaded', initPortfolioSearch);
 document.addEventListener('livewire:navigated', initPortfolioSearch);
 
+// Portfolio as a table (partials/portfolio-table.blade.php): a native <dialog>, so Esc and focus come
+// for free. It lives inside the search results, so it is looked up on each click.
+document.addEventListener('click', (event) => {
+    const table = document.querySelector('[data-portfolio-table]');
+
+    if (!table) {
+        return;
+    }
+
+    if (event.target.closest('[data-portfolio-table-open]')) {
+        table.showModal();
+    } else if (event.target.closest('[data-portfolio-table-close]') || event.target === table) {
+        // A click on the dialog itself (not its content) is a click on the backdrop.
+        table.close();
+    }
+});
+
 // 3D illustration of "Mi sistema" (ADR-0012, resources/js/solar-scene): Three.js loads only where it is used.
 document.addEventListener('DOMContentLoaded', initSolarScenes);
 document.addEventListener('livewire:navigated', initSolarScenes);

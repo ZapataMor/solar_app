@@ -1978,7 +1978,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
             <div class="sdash-kpi">
                 <span class="sdash-kpi__icon">📈</span>
                 <span class="sdash-kpi__value sdash-kpi__value--success">
-                    {{ $paybackYears !== null ? $fmt($paybackYears, 1) . ' anos' : 'N/A' }}
+                    {{ $paybackYears !== null ? $fmt($paybackYears, 1) . ' años' : 'N/A' }}
                 </span>
                 <span class="sdash-kpi__label">Recuperacion de inversion</span>
                 <span class="sdash-kpi__sub">
@@ -2082,7 +2082,7 @@ html:not(.dark) .sdash-hero-stage .solar-live-panel {
             </div>
             <div class="sdash-kpi">
                 <span class="sdash-kpi__label">Retorno de inversion</span>
-                <span class="sdash-kpi__value sdash-kpi__value--success">{{ $paybackYears !== null ? $fmt($paybackYears, 2) . ' anos' : 'N/A' }}</span>
+                <span class="sdash-kpi__value sdash-kpi__value--success">{{ $paybackYears !== null ? $fmt($paybackYears, 2) . ' años' : 'N/A' }}</span>
                 <span class="sdash-kpi__sub">{{ $paybackStatusText }}</span>
             </div>
         </div>

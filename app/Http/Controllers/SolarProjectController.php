@@ -7,6 +7,7 @@ use App\Actions\SolarProjects\CheckCalculationFreshness;
 use App\Actions\SolarProjects\ExplainSolarProject;
 use App\Actions\SolarProjects\RecalculateProjects;
 use App\Actions\SolarProjects\SaveSolarProject;
+use App\Actions\SolarProjects\SummarizePortfolioProject;
 use App\Domain\Climate\ClimateSeries;
 use App\Domain\Climate\ClimateSource;
 use App\Domain\Climate\NoClimateData;
@@ -72,6 +73,7 @@ class SolarProjectController extends Controller
                 'user:id,name',
                 'calculationResult',
                 'technicalParameter',
+                'municipality:id,name',
             ])
             ->latest();
 
@@ -99,6 +101,11 @@ class SolarProjectController extends Controller
         $projectFreshness = $solarProjects->getCollection()
             ->mapWithKeys(fn (SolarProject $solarProject) => [$solarProject->id => $checkFreshness($solarProject)])
             ->all();
+        // Cost, payback and the "rentable" ribbon of each card (and of the table view).
+        $summarize = app(SummarizePortfolioProject::class);
+        $projectSummaries = $solarProjects->getCollection()
+            ->mapWithKeys(fn (SolarProject $solarProject) => [$solarProject->id => $summarize($solarProject)])
+            ->all();
         $projectsToRecalculate = $this->visibleProjectsQuery($user)
             ->with(['calculationResult', 'technicalParameter'])
             ->get()
@@ -111,6 +118,7 @@ class SolarProjectController extends Controller
             'search' => $search,
             'portfolioQuery' => $portfolioQuery,
             'projectFreshness' => $projectFreshness,
+            'projectSummaries' => $projectSummaries,
             'projectsToRecalculate' => $projectsToRecalculate,
         ];
     }

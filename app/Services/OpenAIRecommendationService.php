@@ -1009,9 +1009,9 @@ class OpenAIRecommendationService
 
         $coverageText = is_numeric($coverage) ? number_format((float) $coverage, 1, ',', '.').'%' : 'sin cobertura calculada';
         $dailyText = is_numeric($dailyGeneration) ? number_format((float) $dailyGeneration, 1, ',', '.').' kWh/dia' : 'sin generacion diaria calculada';
-        $annualGenerationText = is_numeric($annualGeneration) ? number_format((float) $annualGeneration, 0, ',', '.').' kWh/ano' : 'sin generacion anual calculada';
-        $annualConsumptionText = is_numeric($annualConsumption) ? number_format((float) $annualConsumption, 0, ',', '.').' kWh/ano' : 'sin consumo anual calculado';
-        $balanceText = is_numeric($annualBalance) ? number_format((float) $annualBalance, 0, ',', '.').' kWh/ano' : 'sin balance anual calculado';
+        $annualGenerationText = is_numeric($annualGeneration) ? number_format((float) $annualGeneration, 0, ',', '.').' kWh/año' : 'sin generacion anual calculada';
+        $annualConsumptionText = is_numeric($annualConsumption) ? number_format((float) $annualConsumption, 0, ',', '.').' kWh/año' : 'sin consumo anual calculado';
+        $balanceText = is_numeric($annualBalance) ? number_format((float) $annualBalance, 0, ',', '.').' kWh/año' : 'sin balance anual calculado';
         $savingsText = is_numeric($savings) ? '$'.number_format((float) $savings, 0, ',', '.') : 'sin ahorro anual calculado';
         $windowText = $bestWindow !== '' ? "la ventana {$bestWindow}" : 'la franja solar con mejor radiacion disponible en las graficas';
         $qualityText = $readingCount > 0

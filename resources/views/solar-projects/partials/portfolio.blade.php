@@ -24,6 +24,12 @@
                 @endif
             </form>
 
+            {{-- Second view of the same projects: a comparison table in a modal (app.js opens it). --}}
+            <button type="button" class="solar-button-ghost solar-portfolio-table-button" data-portfolio-table-open title="Ver como tabla" aria-haspopup="dialog">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>
+                <span class="sr-only">Ver los proyectos como tabla</span>
+            </button>
+
             <a href="{{ route('solar-projects.create') }}" class="solar-button">
                 Nuevo proyecto
             </a>
@@ -81,5 +87,8 @@
     <div class="solar-pagination">
         {{ $solarProjects->links() }}
     </div>
+
+    {{-- Inside the results, so the live search updates it too. --}}
+    @include('solar-projects.partials.portfolio-table')
     </div>
 </div>

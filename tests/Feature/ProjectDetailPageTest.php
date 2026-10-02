@@ -55,6 +55,35 @@ class ProjectDetailPageTest extends TestCase
         $this->assertMatchesRegularExpression('/<a[^>]*data-portfolio-clear(?![^>]*hidden)/', $response->getContent());
     }
 
+    public function test_cards_show_cost_payback_and_a_profitability_ribbon_and_the_table_compares_them(): void
+    {
+        [$user, $fast] = $this->projectWithOwner();
+        $fast->update(['name' => 'Casa que se paga rápido']);
+        $fast->calculationResult()->create(['installation_cost_cop' => 14_440_000, 'payback_period_years' => 2.5, 'climate_source' => 'nasa_power']);
+        $slow = $user->solarProjects()->create($this->attributes(['name' => 'Local que tarda']));
+        $slow->calculationResult()->create(['installation_cost_cop' => 30_000_000, 'payback_period_years' => 12.2, 'climate_source' => 'nasa_power']);
+        $pending = $user->solarProjects()->create($this->attributes(['name' => 'Escuela sin calcular', 'estimated_installation_cost' => 20_000_000]));
+
+        $html = $this->actingAs($user)
+            ->get(route('solar-projects.index'))
+            ->assertOk()
+            ->assertSeeInOrder(['Escuela sin calcular', '$20,0 M', 'Calcúlalo para saberlo'])
+            ->assertSeeInOrder(['Local que tarda', '$30,0 M', '12 años y 2 meses'])
+            ->assertSeeInOrder(['Casa que se paga rápido', '$14,4 M', '2 años y 6 meses'])
+            ->assertSee('title="Ver como tabla"', false)
+            ->getContent();
+
+        // Ribbons only on calculated projects.
+        $this->assertSame(1, preg_match_all('/solar-project-ribbon--good[^>]*>\s*Rentable/', $html));
+        $this->assertSame(1, preg_match_all('/solar-project-ribbon--poor[^>]*>\s*Poco rentable/', $html));
+        $this->assertSame(2, substr_count($html, 'data-test="ribbon"'));
+
+        // The table: same projects, inside the results so the live search refreshes it.
+        $this->assertMatchesRegularExpression('/data-portfolio-results.*<dialog[^>]*data-portfolio-table/s', $html);
+        $this->assertMatchesRegularExpression('/<dialog.*Casa que se paga rápido.*\$14\.440\.000.*2 años y 6 meses.*Rentable.*<\/dialog>/s', $html);
+        $this->assertMatchesRegularExpression('/<dialog.*Escuela sin calcular.*\$20\.000\.000.*Sin calcular.*<\/dialog>/s', $html);
+    }
+
     public function test_a_project_opens_in_mi_sistema_and_its_back_link_keeps_the_search(): void
     {
         [$user, $solarProject] = $this->projectWithOwner();

@@ -1,0 +1,242 @@
+/* Portfolio: profitability ribbon and figures of the cards, and the table view in a modal. */
+
+@layer components {
+    /* Ribbon across the top-right corner (the card clips it: overflow hidden). */
+    .solar-project-ribbon {
+        position: absolute;
+        top: 1.35rem;
+        right: -2.9rem;
+        z-index: 1;
+        width: 11rem;
+        padding: 0.32rem 0;
+        transform: rotate(45deg);
+        color: #fff;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-align: center;
+        text-transform: uppercase;
+        box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.55);
+        pointer-events: auto;
+    }
+
+    .solar-project-ribbon--good {
+        background: linear-gradient(90deg, #3f7a4f, #4f8f5f);
+    }
+
+    .solar-project-ribbon--fair {
+        background: linear-gradient(90deg, #b8691f, #c87427);
+    }
+
+    .solar-project-ribbon--poor,
+    .solar-project-ribbon--none {
+        background: linear-gradient(90deg, #a3523f, #b96755);
+    }
+
+    /* Keep the title clear of the ribbon. */
+    .solar-project-card.has-ribbon .solar-project-card__title {
+        padding-right: 3.5rem;
+    }
+
+    .solar-project-card__figures {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.6rem;
+        margin: 0;
+    }
+
+    .solar-project-card__figures > div {
+        padding: 0.65rem 0.8rem;
+        border-radius: 0.85rem;
+        background: color-mix(in srgb, var(--solar-text) 5%, transparent);
+    }
+
+    .solar-project-card__figures dt {
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .solar-project-card__figures dd {
+        margin-top: 0.25rem;
+        color: var(--solar-text);
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+
+    .solar-project-card__pending {
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .solar-portfolio-table-button {
+        padding-inline: 0.7rem;
+    }
+
+    /* Table view */
+    .solar-portfolio-table {
+        width: min(64rem, calc(100vw - 2rem));
+        max-height: min(80vh, 46rem);
+        padding: 0;
+        border: 1px solid var(--solar-border);
+        border-radius: 1.25rem;
+        background: var(--solar-surface-strong);
+        color: var(--solar-text);
+        box-shadow: var(--solar-shadow);
+    }
+
+    .solar-portfolio-table[open] {
+        display: flex;
+        flex-direction: column;
+        animation: solar-portfolio-table-in 0.18s ease-out;
+    }
+
+    .solar-portfolio-table::backdrop {
+        background: rgba(7, 16, 25, 0.55);
+        backdrop-filter: blur(2px);
+    }
+
+    .solar-portfolio-table__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.4rem 0.9rem;
+        border-bottom: 1px solid var(--solar-border);
+    }
+
+    .solar-portfolio-table__head h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .solar-portfolio-table__head p {
+        margin: 0.3rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    .solar-portfolio-table__close {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--solar-text);
+        cursor: pointer;
+    }
+
+    .solar-portfolio-table__close:hover {
+        color: var(--solar-sun);
+    }
+
+    .solar-portfolio-table__scroll {
+        overflow: auto;
+    }
+
+    .solar-portfolio-table table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .solar-portfolio-table th,
+    .solar-portfolio-table td {
+        padding: 0.75rem 1.4rem;
+        border-bottom: 1px solid var(--solar-border);
+        text-align: left;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .solar-portfolio-table thead th {
+        position: sticky;
+        top: 0;
+        background: var(--solar-surface-strong);
+        color: var(--solar-text-muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .solar-portfolio-table tbody tr:hover {
+        background: color-mix(in srgb, var(--solar-sun) 6%, transparent);
+    }
+
+    .solar-portfolio-table tbody th a {
+        color: var(--solar-text);
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .solar-portfolio-table tbody th a:hover {
+        color: var(--solar-sun);
+    }
+
+    .solar-portfolio-table tbody th span {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+        font-weight: 400;
+    }
+
+    .solar-portfolio-table .is-number {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .solar-portfolio-table__empty {
+        margin: 0;
+        padding: 1.5rem 1.4rem;
+        color: var(--solar-text-muted);
+    }
+
+    .solar-profit-badge {
+        display: inline-block;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-text) 8%, transparent);
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .solar-profit-badge--good {
+        background: var(--solar-success-bg);
+        color: var(--solar-success);
+    }
+
+    .solar-profit-badge--fair {
+        background: var(--solar-warning-bg);
+        color: var(--solar-warning);
+    }
+
+    .solar-profit-badge--poor,
+    .solar-profit-badge--none {
+        background: var(--solar-danger-bg);
+        color: var(--solar-danger);
+    }
+
+    @keyframes solar-portfolio-table-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-portfolio-table[open] {
+            animation: none;
+        }
+    }
+}

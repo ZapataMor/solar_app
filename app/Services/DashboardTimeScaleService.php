@@ -533,7 +533,7 @@ class DashboardTimeScaleService
                 $this->highlight('Consumo anual base', number_format($solarProject->annualConsumption(), 2, ',', '.').' kWh'),
                 $this->highlight('Generacion anual estimada', number_format($generation, 2, ',', '.').' kWh'),
                 $this->highlight('Generacion disponible como contexto', number_format($observedGeneration, 2, ',', '.').' kWh'),
-                $this->highlight('Proyeccion al cierre del ano', number_format($projectedAnnualGeneration, 2, ',', '.').' kWh'),
+                $this->highlight('Proyeccion al cierre del año', number_format($projectedAnnualGeneration, 2, ',', '.').' kWh'),
                 $this->highlight('Ahorro anual estimado', '$ '.number_format($savings, 0, ',', '.').' COP'),
             ],
         ];

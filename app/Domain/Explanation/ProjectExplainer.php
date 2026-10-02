@@ -2,6 +2,8 @@
 
 namespace App\Domain\Explanation;
 
+use App\Domain\Solar\Profitability;
+
 /**
  * Turns a project's numbers into questions a non-technical client can understand (ADR-0011).
  *
@@ -87,9 +89,10 @@ final class ProjectExplainer
         $multiple = $f->installationCostCop > 0 ? $lifetimeSavings / $f->installationCostCop : 0;
         $freeYears = max(0, self::PANEL_LIFETIME_YEARS - $f->paybackYears);
 
-        [$headline, $tone, $verdict] = match (true) {
-            $f->paybackYears <= 6 => ['Sí, es una buena inversión', ExplainedQuestion::TONE_GOOD, 'Es un retorno rápido para este tipo de instalación.'],
-            $f->paybackYears <= 10 => ['Probablemente sí', ExplainedQuestion::TONE_NEUTRAL, 'Es un retorno moderado: vale la pena, pero compara cotizaciones.'],
+        // Same verdict as the ribbon of the portfolio cards.
+        [$headline, $tone, $verdict] = match (Profitability::fromPaybackYears($f->paybackYears)->level) {
+            Profitability::GOOD => ['Sí, es una buena inversión', ExplainedQuestion::TONE_GOOD, 'Es un retorno rápido para este tipo de instalación.'],
+            Profitability::FAIR => ['Probablemente sí', ExplainedQuestion::TONE_NEUTRAL, 'Es un retorno moderado: vale la pena, pero compara cotizaciones.'],
             default => ['Hoy no es la mejor inversión', ExplainedQuestion::TONE_WARNING, 'El retorno es largo: conviene reducir consumos grandes o revisar el tamaño del sistema.'],
         };
 
@@ -292,23 +295,7 @@ final class ProjectExplainer
 
     private function years(float $years): string
     {
-        if ($years < 1) {
-            $months = max(1, (int) round($years * 12));
-
-            return $months === 1 ? '1 mes' : "{$months} meses";
-        }
-
-        $whole = (int) floor($years);
-        $months = (int) round(($years - $whole) * 12);
-
-        if ($months === 12) {
-            $whole++;
-            $months = 0;
-        }
-
-        $text = $whole === 1 ? '1 año' : "{$whole} años";
-
-        return $months === 0 ? $text : $text.' y '.($months === 1 ? '1 mes' : "{$months} meses");
+        return Profitability::paybackText($years);
     }
 
     private function monthName(string $name): string
