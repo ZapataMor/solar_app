@@ -87,7 +87,7 @@ class ProjectDetailPageTest extends TestCase
             $this->actingAs($user)
                 ->get(route($page, $solarProject))
                 ->assertOk()
-                ->assertSeeInOrder(['>Panel<', '>Consumo<', '>Notas<', '>Editar datos<'], false);
+                ->assertSeeInOrder(['>Técnico<', '>Mi sistema<', '>Consumo<', '>Notas<', '>Editar datos<'], false);
         }
     }
 

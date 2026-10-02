@@ -22,7 +22,7 @@ class SystemPanelTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSeeInOrder(['>Panel<', '>Panel alternativo<', '>Consumo<'], false);
+            ->assertSeeInOrder(['>Técnico<', '>Mi sistema<', '>Consumo<'], false);
 
         $this->actingAs(User::factory()->create())
             ->get(route('solar-projects.system', $solarProject))

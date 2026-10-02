@@ -7,9 +7,9 @@
     $backLabel = auth()->user()?->isAdmin() ? 'Todos los proyectos' : 'Mis proyectos';
     $backUrl = $backUrl ?? route('solar-projects.index');
     $tabs = [
-        'panel' => ['label' => 'Panel', 'url' => route('solar-projects.show', $solarProject)],
-        // ADR-0014: compared with "Panel" before choosing which one stays.
-        'system' => ['label' => 'Panel alternativo', 'url' => route('solar-projects.system', $solarProject)],
+        'panel' => ['label' => 'Técnico', 'url' => route('solar-projects.show', $solarProject)],
+        // ADR-0014: "Mi sistema" (client view) is compared with "Técnico" (the original panel) before choosing.
+        'system' => ['label' => 'Mi sistema', 'url' => route('solar-projects.system', $solarProject)],
         'consumption' => ['label' => 'Consumo', 'url' => route('solar-projects.consumption', $solarProject)],
         'notes' => ['label' => 'Notas', 'url' => route('solar-projects.notes', $solarProject)],
         'edit' => ['label' => 'Editar datos', 'url' => route('solar-projects.edit', $solarProject)],
