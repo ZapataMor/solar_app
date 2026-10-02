@@ -1,7 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0013 — Crear el proyecto con preguntas guiadas y registrar los equipos después, por espacio, como un diario (inspirado en Fitia)
-actualizado: 2026-10-01
+actualizado: 2026-10-02
 ---
 
 # ADR-0013 · Creación guiada y diario de consumo por espacios
@@ -42,6 +42,10 @@ Una pregunta por pantalla, con el mismo asistente del ADR-0007 (borrador al reca
 - **La descripción sale del formulario** y pasa a la pestaña **Notas** del proyecto: opcional para el cliente y útil para el asesor.
 - **La ubicación muestra solo el precio por kW instalado.** Sin consumo todavía no hay potencia, así que el costo total no se puede mostrar. El factor logístico deja de mostrarse al cliente en este paso ([[adr-0004-cotizacion-por-items-y-transporte-interno]]).
 - **Al crear,** el proyecto abre directamente su pestaña **Consumo**.
+- **Periodo de análisis** (corregido el 2026-10-02):
+  - por defecto son los últimos tres meses hasta hoy;
+  - debe cubrir al menos un mes y no puede terminar después de hoy (`AnalysisPeriod`).
+  - Antes se creaba con un solo día, el de creación. Un día con solo la mañana medida pedía cientos de miles de paneles.
 
 ### 2. El tipo de inmueble es un campo real
 - `solar_projects.property_type`, con los valores `house`, `business` e `institution`.

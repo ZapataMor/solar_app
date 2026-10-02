@@ -24,6 +24,8 @@ class UserSolarProjectSeeder extends Seeder
     public function run(SyncProjectConsumption $syncProjectConsumption, CalculateSolarProject $calculateSolarProject): void
     {
         $user = User::where('username', 'cliente')->firstOrFail();
+        // From January up to today: never after today (AnalysisPeriod), where there is no climate data yet.
+        $today = now(config('app.display_timezone', config('app.timezone')))->toDateString();
 
         $projects = [
             [
@@ -36,7 +38,7 @@ class UserSolarProjectSeeder extends Seeder
                     'location_type' => 'urbana',
                     'description' => 'Casa estrato 3 de una familia de cuatro. Aire en la habitación principal y en la de los niños; motobomba para el tanque.',
                     'start_date' => '2026-01-01',
-                    'end_date' => '2026-12-31',
+                    'end_date' => $today,
                     // No tariff of its own: it follows the reference one (ADR-0015), $890/kWh in a house.
                     'energy_rate_cop_kwh' => null,
                 ],
@@ -85,7 +87,7 @@ class UserSolarProjectSeeder extends Seeder
                     'location_type' => 'urbana',
                     'description' => 'Minimercado en el centro de Maicao, abierto de 7 a. m. a 9 p. m. Local angosto: el techo no alcanza para todo el consumo.',
                     'start_date' => '2026-01-01',
-                    'end_date' => '2026-12-31',
+                    'end_date' => $today,
                     // Reference tariff plus the commercial contribution: $890 × 1,2 = $1.068/kWh.
                     'energy_rate_cop_kwh' => null,
                 ],
@@ -130,7 +132,7 @@ class UserSolarProjectSeeder extends Seeder
                     'location_type' => 'rural',
                     'description' => 'Colegio rural de jornada de mañana, con sala de sistemas y comedor escolar (PAE). Clases de lunes a viernes.',
                     'start_date' => '2026-01-01',
-                    'end_date' => '2026-12-31',
+                    'end_date' => $today,
                     // Official user: the reference tariff without subsidy or contribution ($890/kWh).
                     'energy_rate_cop_kwh' => null,
                 ],

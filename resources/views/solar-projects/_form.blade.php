@@ -33,14 +33,20 @@
     $solarPriceUrlTemplate = route('municipalities.solar-price', ['municipality' => '__MUNICIPALITY__']);
 
     // Defaults for clients who do not know their technical parameters (ADR-0007).
+    // The analysis period: the last three months up to today, at least a month, never after today.
     $systemSpec = \App\Domain\Solar\SystemSpecification::class;
+    $today = \App\Http\Requests\SolarProjectRequest::today();
     $defaults = $isCreating ? [
         'usable_area_percentage' => $systemSpec::DEFAULT_USABLE_AREA_PERCENTAGE,
         'panel_power_w' => $systemSpec::DEFAULT_PANEL_POWER_W,
         'panel_area_m2' => $systemSpec::DEFAULT_PANEL_AREA_M2,
         'system_losses_percentage' => $systemSpec::DEFAULT_SYSTEM_LOSSES_PERCENTAGE,
-        'start_date' => now(config('app.display_timezone', config('app.timezone')))->toDateString(),
+        'start_date' => \App\Domain\Solar\AnalysisPeriod::defaultStart($today)->format('Y-m-d'),
+        'end_date' => $today->toDateString(),
     ] : [];
+    $endDateValue = old('end_date', $solarProject?->end_date?->format('Y-m-d') ?? ($defaults['end_date'] ?? null));
+    $endDateForLimit = date_create_immutable((string) $endDateValue) ?: $today;
+    $latestStartDate = \App\Domain\Solar\AnalysisPeriod::latestStart(min($endDateForLimit, $today))->format('Y-m-d');
 
     // Roof size shortcuts (m²) for clients who do not know the exact area.
     $roofPresets = [
@@ -355,24 +361,29 @@
                             type="date"
                             name="start_date"
                             value="{{ old('start_date', $solarProject?->start_date?->format('Y-m-d') ?? ($defaults['start_date'] ?? null)) }}"
+                            max="{{ $latestStartDate }}"
                             required
                             class="solar-input"
+                            data-analysis-start
                         >
                     </label>
 
-                    @unless ($isCreating)
-                        <label class="solar-field">
-                            <span class="solar-field-label">Fecha final del análisis</span>
-                            <input
-                                type="date"
-                                name="end_date"
-                                value="{{ old('end_date', $solarProject?->end_date?->format('Y-m-d')) }}"
-                                required
-                                class="solar-input"
-                            >
-                        </label>
-                    @endunless
+                    <label class="solar-field">
+                        <span class="solar-field-label">Fecha final del análisis</span>
+                        <input
+                            type="date"
+                            name="end_date"
+                            value="{{ $endDateValue }}"
+                            max="{{ $today->toDateString() }}"
+                            required
+                            class="solar-input"
+                            data-analysis-end
+                        >
+                    </label>
                 </div>
+                <p class="solar-field-hint mt-2">
+                    El clima de estos días define cuánto produce cada panel. Por defecto, los últimos tres meses; mínimo un mes y hasta hoy.
+                </p>
             </div>
         </details>
     </section>
@@ -536,8 +547,9 @@
     const snapshot = () => {
         const fields = {};
 
+        // The analysis dates follow today: a draft from another day must not bring back its period.
         Array.from(form.elements).forEach((field) => {
-            if (!field.name || ['_token', '_method'].includes(field.name) || field.disabled) {
+            if (!field.name || ['_token', '_method', 'start_date', 'end_date'].includes(field.name) || field.disabled) {
                 return;
             }
 
@@ -870,6 +882,44 @@
     }));
     form.addEventListener('input', refresh);
     refresh();
+})();
+</script>
+
+<script>
+(() => {
+    // Analysis period (AnalysisPeriod): at least a whole month and never after today.
+    const start = document.querySelector('[data-analysis-start]');
+    const end = document.querySelector('[data-analysis-end]');
+
+    if (!start || !end) {
+        return;
+    }
+
+    const today = end.max;
+    const display = (iso) => iso.split('-').reverse().join('/');
+    // The latest start that still covers a month up to the end, both days included (31 Mar → 1 Mar).
+    const latestStart = (iso) => {
+        const [year, month, day] = iso.split('-').map(Number);
+        const next = new Date(Date.UTC(year, month - 1, day + 1));
+        const target = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() - 1, 1));
+        const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+        target.setUTCDate(Math.min(next.getUTCDate(), lastDay));
+
+        return target.toISOString().slice(0, 10);
+    };
+
+    const check = () => {
+        const until = end.value && end.value <= today ? end.value : today;
+        start.max = latestStart(until);
+        end.setCustomValidity(end.value > today ? 'La fecha final del análisis no puede ser posterior a hoy: esos días aún no tienen datos del clima.' : '');
+        start.setCustomValidity(start.value > start.max
+            ? `El periodo de análisis debe cubrir al menos un mes: hasta el ${display(until)}, empieza el ${display(start.max)} o antes.`
+            : '');
+    };
+
+    start.addEventListener('input', check);
+    end.addEventListener('input', check);
+    check();
 })();
 </script>
 

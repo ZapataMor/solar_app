@@ -48,6 +48,10 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   `SaveProjectAppliance`/`RemoveProjectAppliance` → `SyncProjectConsumption` (consumo, potencia
   sugerida y cotización). Sin consumo, calcular lanza `MissingConsumption` y la vigencia queda
   *NOT_READY*. La descripción vive en la pestaña Notas.
+- **Periodo de análisis:** son los días de clima con los que se calcula. Por defecto, los últimos tres
+  meses hasta hoy; mínimo un mes y nunca después de hoy (`App\Domain\Solar\AnalysisPeriod`, validado en
+  `SolarProjectRequest`, con "hoy" en la hora de Bogotá). Un solo día, sobre todo hoy a medio medir,
+  dimensiona miles de paneles.
 - **Dimensionamiento (ADR-0014):** se instalan los paneles que pide el consumo, con el techo como
   límite (`SystemSizing`); nunca se llena el techo. El mes de un panel es 1/12 del año, como la
   generación mensual de la estimación. El ahorro cuenta solo `min(generación, consumo)`: los

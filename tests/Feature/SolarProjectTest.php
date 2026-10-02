@@ -56,18 +56,40 @@ class SolarProjectTest extends TestCase
         ]);
     }
 
-    public function test_user_can_create_a_solar_project_without_end_date(): void
+    public function test_without_dates_a_project_takes_the_last_three_months_up_to_today(): void
     {
+        // 02:00 UTC is still the 1st in Bogotá: "today" is the client's day.
+        $this->travelTo(Carbon::parse('2026-10-02 02:00:00', 'UTC'));
         $user = User::factory()->create();
         $payload = $this->validPayload();
-        unset($payload['end_date']);
+        unset($payload['start_date'], $payload['end_date']);
 
         $response = $this->actingAs($user)->post(route('solar-projects.store'), $payload);
 
         $solarProject = SolarProject::query()->first();
 
         $response->assertRedirect(route('solar-projects.consumption', $solarProject));
-        $this->assertSame('2017-01-01', $solarProject->end_date->format('Y-m-d'));
+        $this->assertSame('2026-07-01', $solarProject->start_date->format('Y-m-d'));
+        $this->assertSame('2026-10-01', $solarProject->end_date->format('Y-m-d'));
+    }
+
+    public function test_the_analysis_period_covers_a_month_and_ends_today_at_the_latest(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-02 15:00:00', 'UTC'));
+        $user = User::factory()->create();
+
+        // A single day: with only its morning measured, it sized thousands of panels.
+        $this->actingAs($user)
+            ->post(route('solar-projects.store'), [...$this->validPayload(), 'start_date' => '2026-10-02', 'end_date' => '2026-10-02'])
+            ->assertSessionHasErrors(['start_date' => 'El periodo de análisis debe cubrir al menos un mes: hasta el 02/10/2026, empieza el 03/09/2026 o antes.']);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.store'), [...$this->validPayload(), 'start_date' => '2026-08-01', 'end_date' => '2026-10-03'])
+            ->assertSessionHasErrors(['end_date' => 'La fecha final del análisis no puede ser posterior a hoy: esos días aún no tienen datos del clima.']);
+
+        $this->actingAs($user)
+            ->post(route('solar-projects.store'), [...$this->validPayload(), 'start_date' => '2026-09-03', 'end_date' => '2026-10-02'])
+            ->assertSessionHasNoErrors();
     }
 
     public function test_power_and_total_cost_wait_for_the_appliances_and_then_follow_them(): void
@@ -448,6 +470,7 @@ class SolarProjectTest extends TestCase
 
         return [
             ...$project,
+            'end_date' => '2017-01-31', // The form asks for at least a whole month (AnalysisPeriod).
             ...$technicalParameters,
             'property_type' => 'institution',
             'municipality_id' => $this->seedMunicipalityPrice('Maicao', 'Media Guajira', 'Base urbana', 'urbana', 4000000, 1.00)->id,

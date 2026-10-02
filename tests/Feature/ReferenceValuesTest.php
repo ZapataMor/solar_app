@@ -122,7 +122,7 @@ class ReferenceValuesTest extends TestCase
             'property_type' => 'business',
             'name' => 'Mi negocio en Maicao',
             'start_date' => '2026-01-01',
-            'end_date' => '2026-12-31',
+            'end_date' => '2026-06-30',
             'available_area_m2' => 50,
             'usable_area_percentage' => 75,
             'panel_power_w' => 550,
