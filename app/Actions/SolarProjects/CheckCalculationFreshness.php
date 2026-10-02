@@ -66,7 +66,23 @@ final class CheckCalculationFreshness
             // Results stored before ADR-0014 filled the roof and did not keep the panels needed.
             sizedByConsumption: $solarProject->calculationResult === null || $solarProject->calculationResult->panels_needed !== null,
             referenceTariffChangedAt: $this->referenceTariffChangedAt($solarProject),
+            costMatchesQuote: $this->costMatchesQuote($solarProject),
         );
+    }
+
+    /**
+     * The calculation's cost must be the quote the "Técnico" sheet shows (within a peso).
+     */
+    private function costMatchesQuote(SolarProject $solarProject): bool
+    {
+        $result = $solarProject->calculationResult;
+        $quote = $solarProject->estimated_installation_cost;
+
+        if ($result === null || $quote === null || $result->installation_cost_cop === null) {
+            return true;
+        }
+
+        return abs((float) $result->installation_cost_cop - (float) $quote) < 1;
     }
 
     /**

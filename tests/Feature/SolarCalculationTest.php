@@ -76,6 +76,28 @@ class SolarCalculationTest extends TestCase
         $this->assertEqualsWithDelta(24500 / 12, (float) $monthlyResult->estimated_consumption_kwh, 0.01);
     }
 
+    public function test_the_cost_is_the_quote_of_the_technical_sheet(): void
+    {
+        $user = User::factory()->create();
+        // The quote by municipality ("Técnico"): required power × price per kW × logistic factor.
+        $solarProject = $user->solarProjects()->create([...$this->projectAttributes(), 'estimated_installation_cost' => 14_440_000]);
+        $solarProject->technicalParameter()->create($this->technicalParameterAttributes());
+        $this->createWeatherData($solarProject);
+
+        $this->actingAs($user)->post(route('solar-projects.calculate', $solarProject))->assertSessionHasNoErrors();
+
+        $calculationResult = CalculationResult::query()->whereBelongsTo($solarProject)->firstOrFail();
+        $this->assertEqualsWithDelta(14_440_000, (float) $calculationResult->installation_cost_cop, 0.01);
+        $this->assertEqualsWithDelta(14_440_000 / (float) $calculationResult->estimated_annual_savings_cop, (float) $calculationResult->payback_period_years, 0.001);
+
+        // "¿Cuánto me cuesta instalarlo?" and "Mi sistema" say the same as the sheet.
+        $this->actingAs($user)
+            ->get(route('solar-projects.system', $solarProject))
+            ->assertSee('$14,4 millones')
+            ->assertSee('$14,4 M')
+            ->assertDontSee('$22,0 millones');
+    }
+
     public function test_running_calculations_twice_updates_general_result_and_does_not_duplicate_monthly_results(): void
     {
         $user = User::factory()->create();

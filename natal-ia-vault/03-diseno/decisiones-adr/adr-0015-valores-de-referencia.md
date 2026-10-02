@@ -66,6 +66,8 @@ actualizado: 2026-10-02
 - **Copiar la tarifa de referencia en cada proyecto al crearlo:** cuando Air-e la cambia, los proyectos quedan con la vieja.
 
 ## Por definir: otros valores candidatos
+La lista completa, para decidir con el equipo, está en [[valores-de-referencia-candidatos]].
+
 1. **Costo de instalación por kWp** (hoy $5.000.000 fijo en `SolarCalculator`). Define "Cuesta" y el retorno; mientras llega la cotización por ítems ([[adr-0004-cotizacion-por-items-y-transporte-interno]]), debería ser administrable.
 2. **Sol de referencia de La Guajira** (5,8 HSP en `RequiredPower`). Se usa antes de tener datos climáticos.
 3. **Panel y techo por defecto:** 550 W, 2,6 m², 14 % de pérdidas y % útil del techo (`SystemSpecification::DEFAULT_*`).

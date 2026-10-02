@@ -71,6 +71,15 @@ class CalculationFreshnessPolicyTest extends TestCase
         $this->assertSame(['Se actualizó la tarifa de referencia del kWh.'], $after->reasons);
     }
 
+    public function test_stale_when_the_cost_is_not_the_current_quote_unless_the_inputs_explain_it(): void
+    {
+        $oldCost = $this->evaluate(changes: ['nasa_power' => '2026-09-30 08:00'], costMatchesQuote: false);
+        $newAppliances = $this->evaluate(inputsChangedAt: '2026-10-01 09:00', changes: ['nasa_power' => '2026-09-30 08:00'], costMatchesQuote: false);
+
+        $this->assertSame(['El costo de la instalación cambió: ahora sale de la cotización por municipio.'], $oldCost->reasons);
+        $this->assertSame(['Cambiaste datos del proyecto después del último cálculo.'], $newAppliances->reasons);
+    }
+
     public function test_pending_or_not_ready_when_never_calculated(): void
     {
         $withData = $this->evaluate(calculatedAt: null, changes: ['nasa_power' => '2026-09-30 08:00']);
@@ -95,6 +104,7 @@ class CalculationFreshnessPolicyTest extends TestCase
         array $changes = [],
         bool $sizedByConsumption = true,
         ?string $referenceTariffChangedAt = null,
+        bool $costMatchesQuote = true,
     ): CalculationFreshness {
         return (new CalculationFreshnessPolicy)->evaluate(
             calculatedAt: $calculatedAt ? new DateTimeImmutable($calculatedAt) : null,
@@ -106,6 +116,7 @@ class CalculationFreshnessPolicyTest extends TestCase
             sourceChanges: array_map(fn (string $date) => new DateTimeImmutable($date), $changes),
             sizedByConsumption: $sizedByConsumption,
             referenceTariffChangedAt: $referenceTariffChangedAt ? new DateTimeImmutable($referenceTariffChangedAt) : null,
+            costMatchesQuote: $costMatchesQuote,
         );
     }
 }

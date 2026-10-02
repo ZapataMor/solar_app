@@ -12,6 +12,7 @@ use DateTimeInterface;
  * Only changes that can alter the result count:
  *  - the project's own inputs changed after the calculation;
  *  - the reference tariff it follows changed after the calculation (ADR-0015);
+ *  - its cost is not the current quote by municipality (e.g. calculated with the old flat price per kWp);
  *  - the calculation predates sizing by consumption (ADR-0014: it filled the roof);
  *  - a climate source of better quality than the one used now has data for the period;
  *  - the source used got new data at least one grace period after the calculation.
@@ -29,6 +30,7 @@ final class CalculationFreshnessPolicy
      * @param  array<string, DateTimeInterface|null>  $sourceChanges  Key => last change of its data in the project period.
      * @param  bool  $sizedByConsumption  False for a result stored before ADR-0014 (it has no panels needed).
      * @param  DateTimeInterface|null  $referenceTariffChangedAt  When the reference tariff the project follows last changed (ADR-0015).
+     * @param  bool  $costMatchesQuote  False when the stored cost is not the project's current quote by municipality.
      */
     public function evaluate(
         ?DateTimeInterface $calculatedAt,
@@ -40,6 +42,7 @@ final class CalculationFreshnessPolicy
         array $sourceChanges,
         bool $sizedByConsumption = true,
         ?DateTimeInterface $referenceTariffChangedAt = null,
+        bool $costMatchesQuote = true,
     ): CalculationFreshness {
         if (! $hasTechnicalParameters) {
             return new CalculationFreshness(CalculationFreshness::NOT_READY, ['Faltan los parámetros técnicos del proyecto.']);
@@ -56,12 +59,18 @@ final class CalculationFreshnessPolicy
         $calculatedAt = DateTimeImmutable::createFromInterface($calculatedAt);
         $reasons = [];
 
-        if ($inputsChangedAt !== null && $inputsChangedAt > $calculatedAt) {
+        $inputsChanged = $inputsChangedAt !== null && $inputsChangedAt > $calculatedAt;
+        if ($inputsChanged) {
             $reasons[] = 'Cambiaste datos del proyecto después del último cálculo.';
         }
 
         if ($referenceTariffChangedAt !== null && $referenceTariffChangedAt > $calculatedAt) {
             $reasons[] = 'Se actualizó la tarifa de referencia del kWh.';
+        }
+
+        // Changing the appliances also changes the quote: that case is already the reason above.
+        if (! $costMatchesQuote && ! $inputsChanged) {
+            $reasons[] = 'El costo de la instalación cambió: ahora sale de la cotización por municipio.';
         }
 
         if (! $sizedByConsumption) {

@@ -91,7 +91,10 @@ Además:
 - ➕ El diario muestra el efecto de cada equipo sobre el sistema mientras se llena.
 - ➕ "Mi sistema" se entiende sin saber qué es un kWp, lo que ayuda en el pitch ([[pitch-primera-etapa]]).
 - ➖ Hay dos paneles con información parecida que mantener hasta decidir.
-- ➖ El costo sale de una tarifa fija por kWp (`INSTALLATION_COST_PER_KWP_COP`), no de la cotización por municipio ([[adr-0004-cotizacion-por-items-y-transporte-interno]]). Por eso puede no coincidir con el precio de la ubicación.
+- ~~➖ El costo sale de una tarifa fija por kWp (`INSTALLATION_COST_PER_KWP_COP`), no de la cotización por municipio.~~ **Corregido el 2026-10-02:**
+  - el cálculo usa la cotización por municipio de la ficha técnica (potencia requerida × precio por kW × factor logístico, [[adr-0004-cotizacion-por-items-y-transporte-interno]]), que según el profesor es la más real;
+  - el precio fijo queda solo para proyectos sin cotización;
+  - los cálculos con el costo anterior se marcan para recalcular.
 - ⚠️ **El año de consumo cuenta 360 días** (12 meses de 30) y el de sol, 365. La cobertura favorece al sol en un 1,4 %. Corregirlo cambia el consumo anual que se guarda y se muestra en el panel Técnico, así que queda para después.
 - ⚠️ "Ahora mismo" usa una sola estación (Ambient Weather) para todos los municipios.
 - ⚠️ Los excedentes no valen nada en este modelo. Si el cliente vende energía a la red (autogeneración a pequeña escala), habrá que valorarlos aparte.

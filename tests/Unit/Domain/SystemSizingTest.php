@@ -70,6 +70,19 @@ class SystemSizingTest extends TestCase
         $this->assertEqualsWithDelta(22000000, $estimate->installationCostCop, 0.01);
     }
 
+    public function test_a_quote_by_municipality_is_the_cost_instead_of_the_flat_price(): void
+    {
+        $estimate = (new SolarCalculator)->estimate(
+            new SystemSpecification(availableAreaM2: 120, usableAreaPercentage: 85, panelAreaM2: 2.5, panelPowerW: 550, performanceRatio: 0.86),
+            new EnergyProfile(monthlyConsumptionKwh: 500, energyRateCopKwh: 900),
+            [new DailyIrradiance('2026-01-10', 200), new DailyIrradiance('2026-01-11', 200)],
+            quotedInstallationCostCop: 14_440_000,
+        );
+
+        $this->assertSame(14_440_000.0, $estimate->installationCostCop);
+        $this->assertEqualsWithDelta(14_440_000 / $estimate->annualSavingsCop, $estimate->paybackPeriodYears, 0.0001);
+    }
+
     public function test_the_panels_needed_agree_with_the_coverage_of_the_estimate(): void
     {
         // 11 panels fit and give 2.27 kWh a day each: 749 kWh in 30 days, 760 in an average month

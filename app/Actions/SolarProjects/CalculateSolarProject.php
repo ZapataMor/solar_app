@@ -73,6 +73,8 @@ final class CalculateSolarProject
                 annualProjectionDays: $solarProject->start_date->daysInYear,
             ),
             $series->days,
+            // The same cost the "Técnico" sheet shows (QuoteInstallation keeps it in step with the appliances).
+            $solarProject->estimated_installation_cost !== null ? (float) $solarProject->estimated_installation_cost : null,
         );
 
         $this->store($solarProject, $estimate, $series->source);

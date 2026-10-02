@@ -13,6 +13,7 @@ use InvalidArgumentException;
  */
 final class SolarCalculator
 {
+    /** Only for projects without a quote by municipality (see estimate()). */
     public const INSTALLATION_COST_PER_KWP_COP = 5000000;
 
     private const MONTH_NAMES = [
@@ -23,8 +24,10 @@ final class SolarCalculator
 
     /**
      * @param  iterable<DailyIrradiance>  $irradiance
+     * @param  float|null  $quotedInstallationCostCop  The project's quote by municipality (the "Técnico" sheet). It is
+     *                                                 the cost when there is one; the flat price per kWp is the fallback.
      */
-    public function estimate(SystemSpecification $system, EnergyProfile $energy, iterable $irradiance): SolarEstimate
+    public function estimate(SystemSpecification $system, EnergyProfile $energy, iterable $irradiance, ?float $quotedInstallationCostCop = null): SolarEstimate
     {
         $peakSunHoursByMonth = $this->peakSunHoursByMonth($irradiance);
 
@@ -67,7 +70,10 @@ final class SolarCalculator
         $annualGeneration = $dailyGeneration * $energy->annualProjectionDays;
         $annualConsumption = $energy->annualConsumptionKwh();
         $annualSavings = $this->savings(min($annualGeneration, $annualConsumption), $energy->energyRateCopKwh);
-        $installationCost = $this->installationCost($installedCapacityKwp);
+        // One cost everywhere: the quote by municipality (price per kW × logistic factor), as the sheet shows.
+        $installationCost = $quotedInstallationCostCop !== null && $quotedInstallationCostCop > 0
+            ? $quotedInstallationCostCop
+            : $this->installationCost($installedCapacityKwp);
 
         return new SolarEstimate(
             usableAreaM2: $usableArea,
