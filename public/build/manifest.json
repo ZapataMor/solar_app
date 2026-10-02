@@ -1,4 +1,8 @@
 {
+  "_buildings-Co_l8bOs.js": {
+    "file": "assets/buildings-Co_l8bOs.js",
+    "name": "buildings"
+  },
   "_fonts-BXr6Abe-.css": {
     "file": "assets/fonts-BXr6Abe-.css",
     "src": "_fonts-BXr6Abe-.css"
@@ -276,7 +280,7 @@
     "src": "_ibm-plex-sans-700-normal-wyJ6jzdA.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BrfwWPsf.css",
+    "file": "assets/app-ClczM0PV.css",
     "name": "app",
     "names": [
       "app.css"
@@ -285,12 +289,13 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-BfCcKQXz.js",
+    "file": "assets/app-eD0NMAEN.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "resources/js/solar-scene/scene.js"
+      "resources/js/solar-scene/scene.js",
+      "resources/js/station-scene/scene.js"
     ]
   },
   "resources/js/passkeys.js": {
@@ -300,9 +305,21 @@
     "isEntry": true
   },
   "resources/js/solar-scene/scene.js": {
-    "file": "assets/scene-Akc7fkCE.js",
+    "file": "assets/scene-B-0pz0_N.js",
     "name": "scene",
     "src": "resources/js/solar-scene/scene.js",
-    "isDynamicEntry": true
+    "isDynamicEntry": true,
+    "imports": [
+      "_buildings-Co_l8bOs.js"
+    ]
+  },
+  "resources/js/station-scene/scene.js": {
+    "file": "assets/scene-DRWWScrN.js",
+    "name": "scene",
+    "src": "resources/js/station-scene/scene.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_buildings-Co_l8bOs.js"
+    ]
   }
 }

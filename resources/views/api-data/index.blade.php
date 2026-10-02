@@ -163,8 +163,7 @@
 
             .solar-api-page .solar-api-actions .solar-pill,
             .solar-api-page .solar-api-actions form,
-            .solar-api-page .solar-api-actions button,
-            .solar-api-page .solar-page-header > .solar-pill {
+            .solar-api-page .solar-api-actions button {
                 width: 100%;
             }
 
@@ -195,38 +194,16 @@
     </style>
 
     <div class="solar-page solar-api-page" data-api-auto-sync data-api-sync-interval="300000">
-        <section class="solar-hero">
-            <div class="solar-page-header">
-                <div>
-                    <p class="solar-kicker">Data observatory</p>
-                    <h1 class="solar-title">Datos climaticos y meteorologicos</h1>
-                    <p class="solar-subtitle">Consolida la radiacion, temperatura y lecturas locales en una vista mas profesional, con mejor jerarquia para demo y analisis.</p>
-                </div>
+        {{-- The counts live in the tabs and in each section: this space shows the station behind the selected tab (ADR-0018). --}}
+        <section class="solar-hero solar-api-hero">
+            <div class="solar-api-hero__copy">
+                <p class="solar-kicker">Data observatory</p>
+                <h1 class="solar-title">Datos climaticos y meteorologicos</h1>
+                <p class="solar-subtitle">Consolida la radiacion, temperatura y lecturas locales en una vista mas profesional, con mejor jerarquia para demo y analisis.</p>
                 <span class="solar-pill"><span data-api-data-total-count>{{ number_format($totalRows, 0, ',', '.') }}</span> registros visibles</span>
             </div>
 
-            <div class="mt-6 grid gap-4 md:grid-cols-4">
-                <div class="solar-metric-card">
-                    <p class="solar-metric-label">Total registros</p>
-                    <p class="solar-metric-value" data-api-data-total-count>{{ number_format($totalRows, 0, ',', '.') }}</p>
-                    <p class="solar-metric-copy">Base consolidada para decisiones de energia, radiacion y riesgo operativo.</p>
-                </div>
-                <div class="solar-metric-card" style="border-left: 3px solid var(--solar-sun, #fbbf24);">
-                    <p class="solar-metric-label">Ambient Weather</p>
-                    <p class="solar-metric-value" data-ambient-count data-count="{{ $ambientCount }}">{{ number_format($ambientCount, 0, ',', '.') }}</p>
-                    <p class="solar-metric-copy">Estacion IoT con datos de temperatura, radiacion y viento en tiempo real.</p>
-                </div>
-                <div class="solar-metric-card">
-                    <p class="solar-metric-label">Estacion local</p>
-                    <p class="solar-metric-value" data-weather-station-count data-count="{{ $weatherStationCount }}">{{ number_format($weatherStationCount, 0, ',', '.') }}</p>
-                    <p class="solar-metric-copy">Lecturas de contexto real para Riohacha y seguimiento ambiental.</p>
-                </div>
-                <div class="solar-metric-card">
-                    <p class="solar-metric-label">NASA POWER</p>
-                    <p class="solar-metric-value" data-api-data-nasa-count data-count="{{ $nasaCount }}">{{ number_format($nasaCount, 0, ',', '.') }}</p>
-                    <p class="solar-metric-copy">Fuente satelital para comparacion y cobertura historica.</p>
-                </div>
-            </div>
+            @include('api-data.partials.station-figure')
         </section>
 
         @if ($errors->has('ambient_data'))
@@ -249,10 +226,11 @@
 
         {{-- Una pestaña por fuente (ADR-0008). Son enlaces reales: sin JS recargan; con JS cambian al instante. --}}
         @php
+            // countAttribute: the sync updates that number (apiSourceConfig in app.js) and the total adds them up.
             $sourceTabs = [
-                'ambient' => ['label' => 'Ambient Weather', 'meta' => 'Estación IoT · cada 5 min', 'count' => $ambientCount],
-                'weather-station' => ['label' => 'Estación local', 'meta' => 'Centro meteorológico · UV', 'count' => $weatherStationCount],
-                'nasa' => ['label' => 'NASA POWER', 'meta' => 'Satelital · diaria', 'count' => $nasaCount],
+                'ambient' => ['label' => 'Ambient Weather', 'meta' => 'Estación IoT · cada 5 min', 'count' => $ambientCount, 'countAttribute' => 'data-ambient-count'],
+                'weather-station' => ['label' => 'Estación local', 'meta' => 'Centro meteorológico · UV', 'count' => $weatherStationCount, 'countAttribute' => 'data-weather-station-count'],
+                'nasa' => ['label' => 'NASA POWER', 'meta' => 'Satelital · diaria', 'count' => $nasaCount, 'countAttribute' => 'data-api-data-nasa-count'],
             ];
         @endphp
         <nav class="solar-source-tabs" role="tablist" aria-label="Fuentes de datos climáticos" data-api-tabs>
@@ -268,7 +246,7 @@
                     data-api-tab="{{ $tabKey }}"
                 >
                     <span class="solar-source-tab__label">{{ $tab['label'] }}</span>
-                    <span class="solar-source-tab__meta">{{ $tab['meta'] }} · {{ number_format($tab['count'], 0, ',', '.') }} registros</span>
+                    <span class="solar-source-tab__meta">{{ $tab['meta'] }} · <span {{ $tab['countAttribute'] }} data-count="{{ $tab['count'] }}">{{ number_format($tab['count'], 0, ',', '.') }}</span> registros</span>
                 </a>
             @endforeach
         </nav>

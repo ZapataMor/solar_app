@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Climate\DescribeDataStations;
 use App\Models\AmbientWeatherReading;
 use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
@@ -21,7 +22,7 @@ use Throwable;
 
 class ApiDataController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request, DescribeDataStations $describeDataStations): View
     {
         $ambientRows = $this->ambientRowsQuery()
             ->orderByDesc('recorded_at')
@@ -50,6 +51,7 @@ class ApiDataController extends Controller
 
         return view('api-data.index', [
             'activeTab'               => $this->activeTab($request),
+            'stations'                => $describeDataStations(),
             'ambientRows'             => $ambientRows,
             'ambientCount'            => $ambientCount,
             'ambientChartRows'        => $this->latestAmbientChartRows(),
@@ -193,6 +195,7 @@ class ApiDataController extends Controller
     public function fetchAmbientData(
         Request $request,
         AmbientWeatherImportService $ambientWeatherImportService,
+        DescribeDataStations $describeDataStations,
     ): RedirectResponse|JsonResponse {
         // A long gap takes a few paced requests (one per second).
         set_time_limit(120);
@@ -240,6 +243,8 @@ class ApiDataController extends Controller
                 'ambientCount' => $total,
                 'rows' => $this->latestAmbientRows(),
                 'chartRows' => $this->latestAmbientChartRows(),
+                // The vane of the 3D station follows the new reading (ADR-0018).
+                'wind' => $describeDataStations->wind(),
             ]);
         }
 

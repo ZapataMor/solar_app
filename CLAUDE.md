@@ -64,6 +64,12 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   carga donde hay `[data-solar-scene]`). Dibuja lo que entregan los `data-*` de la figura en
   `system.blade.php` (los arma `DescribeProjectSystem`) y no calcula nada del negocio; sin WebGL queda
   el boceto plano del servidor. No tiene pruebas automáticas: revísala en el navegador.
+- **Estaciones en 3D (ADR-0018):** el encabezado de *Datos climáticos* muestra la estación de la
+  pestaña elegida (`resources/js/station-scene/`, un solo lienzo para las tres; el globo y su mapa
+  dibujado están en `earth.js`). La figura (`api-data/partials/station-figure.blade.php`) sigue la
+  pestaña por `data-station` (`showApiDataTab` en `app.js`). La veleta usa el viento de la última
+  lectura (`DescribeDataStations`); la sincronización de Ambient lo reenvía en `wind`. Los conteos
+  viven en las pestañas (`data-ambient-count`…): no vuelvas a ponerlos en el encabezado.
 - **Cambios en el cálculo:** van en `SolarCalculator` / `InstallationCostCalculator`, con test
   en `tests/Unit/Domain` (extienden `PHPUnit\Framework\TestCase`, sin base de datos).
 - Decisiones de arquitectura: registra un ADR en `natal-ia-vault/03-diseno/decisiones-adr/`.

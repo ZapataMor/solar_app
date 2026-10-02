@@ -1,5 +1,6 @@
 import Chart from 'chart.js/auto';
 import { initSolarScenes } from './solar-scene';
+import { initStationScenes } from './station-scene';
 
 const activeSolarCharts = new Map();
 let solarThemeObserver = null;
@@ -1328,6 +1329,34 @@ const updateApiSourceDom = (section, source, payload) => {
     if (payload.chartRows) {
         config.updateChart(payload.chartRows);
     }
+
+    if (payload.wind) {
+        updateStationWind(payload.wind);
+    }
+};
+
+// The vane of the Ambient Weather station follows the latest reading (ADR-0018).
+const updateStationWind = ({ speedKmh, directionDegrees, text }) => {
+    const figure = document.querySelector('[data-station-scene]');
+
+    if (!figure) {
+        return;
+    }
+
+    const hasDirection = directionDegrees !== null && directionDegrees !== undefined;
+    figure.dataset.windSpeed = speedKmh ?? '';
+    figure.dataset.windDirection = hasDirection ? directionDegrees : '';
+
+    const label = figure.querySelector('[data-station-wind-text]');
+    if (label && text) {
+        label.textContent = text;
+    }
+
+    const compass = figure.querySelector('[data-station-compass]');
+    compass?.toggleAttribute('data-no-direction', !hasDirection);
+    if (compass && hasDirection) {
+        compass.style.setProperty('--wind-direction', `${directionDegrees}deg`);
+    }
 };
 
 const syncApiDataSource = async (source, { manual = false } = {}) => {
@@ -1597,6 +1626,9 @@ function showApiDataTab(key, { updateUrl = true, focus = false } = {}) {
     document.querySelectorAll('[data-api-tab-panel]').forEach((panel) => {
         panel.hidden = panel.dataset.apiTabPanel !== key;
     });
+
+    // The hero shows the station of this source (ADR-0018): its caption by CSS, its 3D model by the scene.
+    document.querySelector('[data-station-scene]')?.setAttribute('data-station', key);
 
     // Charts drawn while their panel was hidden have no size yet.
     activeSolarCharts.forEach((chart) => chart.resize());
@@ -1911,3 +1943,7 @@ document.addEventListener('livewire:navigated', initCatalogForm);
 // 3D illustration of "Mi sistema" (ADR-0012, resources/js/solar-scene): Three.js loads only where it is used.
 document.addEventListener('DOMContentLoaded', initSolarScenes);
 document.addEventListener('livewire:navigated', initSolarScenes);
+
+// 3D stations of the climate data page (ADR-0018, resources/js/station-scene).
+document.addEventListener('DOMContentLoaded', initStationScenes);
+document.addEventListener('livewire:navigated', initStationScenes);
