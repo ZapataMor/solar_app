@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0019 — Al agregar un equipo al diario de consumo, se ve en 3D como lo dejan sus opciones; los 15 equipos del catálogo, hechos por grupos
+estado: ✅ Implementada
 actualizado: 2026-10-02
 ---
 

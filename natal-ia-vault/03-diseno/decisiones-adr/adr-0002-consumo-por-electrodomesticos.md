@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0002 — Calcular el consumo a partir de electrodomésticos y horas de uso
+estado: ✅ Implementada
 actualizado: 2026-09-30
 ---
 

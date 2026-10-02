@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0013 — Crear el proyecto con preguntas guiadas y registrar los equipos después, por espacio, como un diario (inspirado en Fitia)
+estado: ✅ Implementada
 actualizado: 2026-10-02
 ---
 

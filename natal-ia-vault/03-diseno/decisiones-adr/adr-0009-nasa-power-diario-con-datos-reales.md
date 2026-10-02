@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0009 — Sincronizar NASA POWER por día para usar radiación real y reemplazar estimaciones al publicarse
+estado: ✅ Implementada
 actualizado: 2026-10-01
 ---
 

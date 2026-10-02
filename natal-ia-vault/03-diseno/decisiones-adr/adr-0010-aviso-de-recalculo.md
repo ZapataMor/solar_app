@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0010 — Avisar con "!" cuando un proyecto necesita recalcularse, sin recalcular solo
+estado: ✅ Implementada
 actualizado: 2026-10-01
 ---
 

@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0008 — Mostrar cada fuente de datos climáticos en su propia pestaña
+estado: ✅ Implementada
 actualizado: 2026-10-01
 ---
 

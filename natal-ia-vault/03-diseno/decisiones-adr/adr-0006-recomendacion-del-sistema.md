@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0006 — Recomendar la configuración del sistema; la IA explica, el cálculo decide
+estado: 🟡 Propuesta
 actualizado: 2026-09-30
 ---
 

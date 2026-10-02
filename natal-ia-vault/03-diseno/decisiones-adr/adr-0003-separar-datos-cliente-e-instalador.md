@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0003 — Separar lo que ve y llena el cliente de lo que decide el instalador
+estado: 🟡 Propuesta
 actualizado: 2026-09-30
 ---
 

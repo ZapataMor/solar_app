@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0012 — Ilustración 3D animada (Three.js) de la casa o el negocio con sus paneles, usando los números del proyecto
+estado: ✅ Implementada (falta el paso 4)
 actualizado: 2026-10-02
 ---
 

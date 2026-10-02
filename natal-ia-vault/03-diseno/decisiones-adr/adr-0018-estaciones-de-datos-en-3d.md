@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0018 — En Datos climáticos, la estación de la pestaña elegida se ve en 3D (mástil Ambient Weather, centro meteorológico, satélite de NASA POWER) en lugar de tarjetas que repetían los conteos
+estado: ✅ Implementada
 actualizado: 2026-10-02
 ---
 

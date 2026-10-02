@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0007 — Formulario de creación y edición de proyectos por etapas (wizard)
+estado: ✅ Implementada
 actualizado: 2026-10-01
 ---
 

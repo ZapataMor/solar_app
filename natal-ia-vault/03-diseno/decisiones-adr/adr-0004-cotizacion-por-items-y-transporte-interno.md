@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0004 — Cotización por ítems con el transporte incluido en la mano de obra
+estado: 🟡 Propuesta
 actualizado: 2026-09-30
 ---
 

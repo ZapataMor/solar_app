@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0016 — Saber si el cron y las sincronizaciones de clima están corriendo, y avisar cuando no (propuesta)
+estado: 🟡 Propuesta
 actualizado: 2026-10-02
 ---
 

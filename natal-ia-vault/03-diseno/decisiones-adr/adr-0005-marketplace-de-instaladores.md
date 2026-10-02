@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0005 — Recomendar instaladores aliados y registrar los negocios cerrados
+estado: 🟡 Propuesta
 actualizado: 2026-09-30
 ---
 

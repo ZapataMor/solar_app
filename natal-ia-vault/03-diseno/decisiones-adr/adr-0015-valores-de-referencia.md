@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0015 — Valores de referencia del sistema (tarifa del kWh, contribución comercial…) con vigencia e historial, administrados por el admin; el cliente ya no tiene que escribir su tarifa
+estado: ✅ Implementada
 actualizado: 2026-10-02
 ---
 

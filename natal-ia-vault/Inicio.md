@@ -23,7 +23,7 @@ Cerebro del aplicativo solar y de la idea de negocio: qué es, hacia dónde crec
 
 ## Decisiones (ADRs)
 ```dataview
-TABLE descripcion AS "Decisión", actualizado AS "Fecha"
+TABLE estado AS "Estado", descripcion AS "Decisión", actualizado AS "Fecha"
 FROM "03-diseno/decisiones-adr"
 SORT file.name DESC
 ```

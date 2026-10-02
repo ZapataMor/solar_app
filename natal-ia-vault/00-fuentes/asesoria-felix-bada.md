@@ -25,7 +25,7 @@ Contexto: preparación del pitch de la primera etapa del reto (el proyecto naci�
 - [[recomendacion-del-sistema]]
 
 **Decisiones de software (ADRs propuestos)**
-- [[adr-0002-consumo-por-electrodomesticos]]
+- [[adr-0002-consumo-por-electrodomesticos]] (🟢 implementado)
 - [[adr-0003-separar-datos-cliente-e-instalador]]
 - [[adr-0004-cotizacion-por-items-y-transporte-interno]]
 - [[adr-0005-marketplace-de-instaladores]]
@@ -36,6 +36,6 @@ Contexto: preparación del pitch de la primera etapa del reto (el proyecto naci�
 - [[ideas-aplazadas-asesoria]]
 
 ## Tareas que salen de la asesoría
-- [ ] Rediseñar el formulario: consumo por electrodomésticos en vez de solo kWh del recibo
+- [x] Rediseñar el formulario: consumo por electrodomésticos en vez de solo kWh del recibo ✅ 2026-10-01 ([[adr-0013-creacion-guiada-y-diario-de-consumo]])
 - [ ] Separar campos del cliente y del instalador
 - [ ] Preparar el pitch de la primera etapa → 15 de octubre de 2026 ([[pitch-primera-etapa]])

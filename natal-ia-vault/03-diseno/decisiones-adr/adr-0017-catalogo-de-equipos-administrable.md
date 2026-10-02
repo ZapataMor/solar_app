@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0017 — Catálogo de equipos como referencia de consumo para el administrador, que puede agregar equipos (tostadora…) sin tocar el código
+estado: ✅ Implementada
 actualizado: 2026-10-02
 ---
 

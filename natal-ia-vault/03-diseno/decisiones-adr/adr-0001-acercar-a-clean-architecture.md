@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0001 — Acercar la app a Clean Architecture de forma incremental
+estado: 🟢 Guía en curso
 actualizado: 2026-09-30
 ---
 

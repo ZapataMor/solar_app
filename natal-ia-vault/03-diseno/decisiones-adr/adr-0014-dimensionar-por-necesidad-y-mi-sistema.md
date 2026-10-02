@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0014 — Instalar los paneles que el consumo necesita (con el techo como límite) y mostrarlo en la pestaña "Mi sistema", en lenguaje de cliente, junto al panel Técnico
+estado: ✅ Implementada
 actualizado: 2026-10-01
 ---
 

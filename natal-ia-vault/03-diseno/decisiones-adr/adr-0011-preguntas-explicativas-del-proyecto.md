@@ -1,6 +1,7 @@
 ---
 tipo: adr
 descripcion: ADR-0011 — Explicar los resultados del proyecto con preguntas en lenguaje simple (puntos laterales + panel de 1/3)
+estado: ✅ Implementada
 actualizado: 2026-10-01
 ---
 
