@@ -32,7 +32,7 @@
             <section class="landing-hero" style="--landing-hero-image: url('{{ asset('images/login/fondo3.jpg') }}')">
                 <div class="landing-hero__inner">
                     <p class="landing-eyebrow">Energía solar · La Guajira</p>
-                    <h1>Sabe cuánto cuesta tu sistema solar <em>antes</em> de pedir una cotización.</h1>
+                    <h1>Conoce cuánto cuesta tu sistema solar <em>antes</em> de pedir una cotización.</h1>
                     <p class="landing-lead">
                         A unos les dicen que vale 100 y a otros que vale 500. Natal-IA estima el sistema que
                         necesita tu casa o tu negocio, cuánto cuesta y en cuántos años recuperas la inversión,
