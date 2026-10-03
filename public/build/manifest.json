@@ -301,7 +301,7 @@
     "name": "three.module"
   },
   "resources/css/app.css": {
-    "file": "assets/app-C8vMhcfW.css",
+    "file": "assets/app-M56Sk-NF.css",
     "name": "app",
     "names": [
       "app.css"
@@ -310,7 +310,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-B3JiROgt.js",
+    "file": "assets/app-Et-R5-H9.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -502,7 +502,7 @@
     "isEntry": true
   },
   "resources/js/solar-scene/scene.js": {
-    "file": "assets/scene-dtU9Qnpr.js",
+    "file": "assets/scene-B0afajMy.js",
     "name": "scene",
     "src": "resources/js/solar-scene/scene.js",
     "isDynamicEntry": true,

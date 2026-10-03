@@ -67,7 +67,11 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 - **Ilustración 3D (ADR-0012):** `resources/js/solar-scene/` (Three.js con `import()` dinámico: solo
   carga donde hay `[data-solar-scene]`). Dibuja lo que entregan los `data-*` de la figura en
   `system.blade.php` (los arma `DescribeProjectSystem`) y no calcula nada del negocio; sin WebGL queda
-  el boceto plano del servidor. No tiene pruebas automáticas: revísala en el navegador.
+  el boceto plano del servidor. No tiene pruebas automáticas: revísala en el navegador. También está en
+  la landing (modo `showcase`, un ejemplo con selector de casa, negocio e institución) y en el último paso
+  del formulario (modo `preview`, el techo con los paneles que caben): ambos usan `<x-solar-scene>`, que
+  escribe los `data-*`; para cambiarlos con la escena montada, actualiza `figure.dataset` y llama
+  `figure.solarScene.refresh()`.
 - **Carga de las escenas 3D:** `resources/js/scene-loader.js` las monta. Con WebGL, la figura espera
   su escena con un indicador, sin mostrar el boceto (clase `solar-can-3d` en `<html>`, puesta en
   `partials/head` y repuesta en cada `wire:navigate`). `.is-flat` devuelve el boceto si la escena

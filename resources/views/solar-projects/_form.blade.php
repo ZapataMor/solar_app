@@ -46,6 +46,16 @@
     ] : [];
     $endDateValue = old('end_date', $solarProject?->end_date?->format('Y-m-d') ?? ($defaults['end_date'] ?? null));
     $endDateForLimit = date_create_immutable((string) $endDateValue) ?: $today;
+    // The roof preview of the last stage (ADR-0012): the kind of place and the roof as they are now; the script keeps it in step.
+    $previewRoofArea = (float) old('available_area_m2', $technicalParameter?->available_area_m2 ?? 0);
+    $previewPanelArea = (float) old('panel_area_m2', $technicalParameter?->panel_area_m2 ?? ($defaults['panel_area_m2'] ?? 2.6));
+    $previewUsable = (float) old('usable_area_percentage', $technicalParameter?->usable_area_percentage ?? ($defaults['usable_area_percentage'] ?? 80));
+    $previewScene = [
+        'propertyType' => in_array($selectedPropertyType, PropertyType::ALL, true) ? $selectedPropertyType : PropertyType::HOUSE,
+        'roofArea' => $previewRoofArea,
+        'panelArea' => $previewPanelArea,
+        'panels' => $previewPanelArea > 0 ? (int) floor(($previewRoofArea * $previewUsable / 100) / $previewPanelArea) : 0,
+    ];
     $latestStartDate = \App\Domain\Solar\AnalysisPeriod::latestStart(min($endDateForLimit, $today))->format('Y-m-d');
 
     // Roof size shortcuts (m²) for clients who do not know the exact area.
@@ -450,6 +460,7 @@
             </label>
         </div>
 
+        <div class="solar-wizard-review">
         <dl class="solar-wizard-summary mt-6">
             <div class="solar-wizard-summary-row">
                 <dt>Lugar</dt>
@@ -469,6 +480,19 @@
                 <dd><span data-summary="area">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="{{ $stepIndex('roof') }}">Editar</button></dd>
             </div>
         </dl>
+
+        {{-- Your roof with the panels that fit (ADR-0012): it follows the area and the panel of the roof stage. --}}
+        <x-solar-scene
+            mode="preview"
+            :property-type="$previewScene['propertyType']"
+            :panels="$previewScene['panels']"
+            :roof-area="$previewScene['roofArea']"
+            :panel-area="$previewScene['panelArea']"
+            label="Ilustración de tu techo con los paneles que caben"
+            note="Ilustración: no es el plano de instalación"
+            data-roof-preview
+        />
+        </div>
     </section>
 
     <div
@@ -920,6 +944,52 @@
     start.addEventListener('input', check);
     end.addEventListener('input', check);
     check();
+})();
+</script>
+
+<script>
+(() => {
+    // Roof preview of the last stage (ADR-0012): the 3D scene follows the kind of place, the roof area and the
+    // panel, with the same count of panels that fit as the roof stage's hint. The scene draws the figure's data-*.
+    const figure = document.querySelector('[data-roof-preview]');
+    const form = figure?.closest('form');
+
+    if (!figure || !form) {
+        return;
+    }
+
+    const number = (name) => Number(String(form.elements[name]?.value ?? '').replace(',', '.')) || 0;
+
+    const sync = () => {
+        const area = number('available_area_m2');
+        const panelArea = number('panel_area_m2');
+        const panels = panelArea > 0 ? Math.floor((area * number('usable_area_percentage') / 100) / panelArea) : 0;
+
+        Object.assign(figure.dataset, {
+            // When editing there is no choice: the figure already carries the project's kind of place.
+            propertyType: form.querySelector('[name="property_type"]:checked')?.value ?? figure.dataset.propertyType,
+            panelsInstalled: panels,
+            panelsFit: panels,
+            roofAreaM2: area,
+            panelAreaM2: panelArea || 2.6,
+        });
+        figure.solarScene?.refresh();
+    };
+
+    let timer = 0;
+    const later = () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(sync, 350);
+    };
+
+    form.addEventListener('input', later);
+    form.addEventListener('change', later);
+    // The draft of a previous visit fills the fields after the page loads: draw what they say when the stage opens.
+    form.addEventListener('wizard:step-shown', (event) => {
+        if (event.detail.key === 'details') {
+            sync();
+        }
+    });
 })();
 </script>
 

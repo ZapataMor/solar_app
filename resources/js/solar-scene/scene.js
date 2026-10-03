@@ -57,6 +57,9 @@ const positive = (value) => {
     return Number.isFinite(number) && number > 0 ? number : 0;
 };
 
+/** Where the scene is shown: the project's real numbers, the form's roof preview, or the landing's example. */
+const MODES = ['system', 'preview', 'showcase'];
+
 const readSceneData = (figure) => ({
     propertyType: figure.dataset.propertyType || 'house',
     panelsInstalled: Math.round(positive(figure.dataset.panelsInstalled)),
@@ -67,8 +70,17 @@ const readSceneData = (figure) => ({
     dailyKwh: positive(figure.dataset.dailyKwh),
 });
 
+const panelsText = (count) => `${count} ${count === 1 ? 'panel' : 'paneles'}`;
+
 /** Short, so it fits next to the energy of the day: the page already says it in full. */
-const summaryText = ({ panelsInstalled: installed, panelsFit: fit, panelsMissing: missing }) => {
+const summaryText = ({ panelsInstalled: installed, panelsFit: fit, panelsMissing: missing }, mode) => {
+    if (mode === 'preview') {
+        return fit > 0 ? `En tu techo caben unos ${panelsText(fit)}` : 'Tu techo es muy pequeño para un panel';
+    }
+    if (mode === 'showcase') {
+        return `Ejemplo: ${panelsText(installed)} en el techo`;
+    }
+
     const done = `${installed} ${installed === 1 ? 'instalado' : 'instalados'}`;
 
     if (installed > 0 && missing > 0) {
@@ -162,55 +174,15 @@ const paletteFor = (dark) => {
 };
 
 /**
- * @param {HTMLElement} figure The [data-solar-scene] figure (see solar-projects/system.blade.php).
- * @return {{replay: () => void, dispose: () => void}}
+ * Everything that depends on the numbers: the building, its panels, the ground and the decorations,
+ * in one group. When the numbers change (the roof preview of the form), the world is dropped and built again.
  */
-export const mountSolarScene = (figure) => {
-    const stage = figure.querySelector('[data-solar-scene-stage]');
-    const placeholder = figure.querySelector('.solar-scene__placeholder');
-
-    if (!stage) {
-        throw new Error('The solar scene needs its [data-solar-scene-stage].');
-    }
-
-    // First, so a browser without WebGL throws here and keeps the sketch untouched.
-    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarsePointer ? 1.5 : 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-
-    const data = readSceneData(figure);
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const unitRoot = figure.closest('[data-unit-root]');
-    const ui = {
-        status: figure.querySelector('[data-solar-scene-status]'),
-        replay: stage.querySelector('[data-solar-scene-replay]'),
-        day: figure.querySelector('[data-solar-scene-day]'),
-        sun: figure.querySelector('[data-solar-scene-sun]'),
-        energy: figure.querySelector('[data-solar-scene-energy]'),
-        clock: figure.querySelector('[data-solar-scene-clock]'),
-    };
-
-    const scene = new THREE.Scene();
-    const sky = new THREE.Color();
-    scene.background = sky;
-    const materials = createMaterials();
-    let palette = paletteFor(document.documentElement.classList.contains('dark'));
-
-    const applyPalette = () => {
-        palette = paletteFor(document.documentElement.classList.contains('dark'));
-        Object.entries(materials).forEach(([key, material]) => {
-            if (typeof palette[key] === 'string') {
-                material.color.set(palette[key]);
-            }
-        });
-    };
-    applyPalette();
+const createWorld = (data, materials) => {
+    const group = new THREE.Group();
 
     // The building, with every spot that fits outlined on its roof.
     const property = buildProperty(data.propertyType, data.roofAreaM2, materials);
-    scene.add(property.group);
+    group.add(property.group);
 
     const slotCount = Math.min(MAX_SLOTS, Math.max(data.panelsFit, data.panelsInstalled));
     const installedCount = Math.min(slotCount, data.panelsInstalled);
@@ -263,7 +235,7 @@ export const mountSolarScene = (figure) => {
         return unit;
     });
 
-    scene.updateMatrixWorld(true);
+    group.updateMatrixWorld(true);
     const buildingBounds = new THREE.Box3().setFromObject(property.group);
 
     // The panels that would be needed but do not fit, as outlines on the ground beside the building.
@@ -291,8 +263,8 @@ export const mountSolarScene = (figure) => {
             ghosts.add(ghost);
         }
         ghosts.visible = false;
-        scene.add(ghosts);
-        scene.updateMatrixWorld(true);
+        group.add(ghosts);
+        group.updateMatrixWorld(true);
     }
 
     const content = buildingBounds.clone();
@@ -307,7 +279,7 @@ export const mountSolarScene = (figure) => {
     const ground = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 1.03, 0.6, 48), [materials.groundSide, materials.ground, materials.groundSide]);
     ground.position.set(center.x, -0.3, center.z);
     ground.receiveShadow = true;
-    scene.add(ground);
+    group.add(ground);
 
     const keepOut = content.clone().expandByScalar(0.9);
     const decorations = [
@@ -327,49 +299,10 @@ export const mountSolarScene = (figure) => {
             place();
         }
         holder.add(object);
-        scene.add(holder);
+        group.add(holder);
 
         return holder;
     });
-
-    // Light: the sun (it moves through the day) and the sky.
-    const hemisphere = new THREE.HemisphereLight('#fff6e6', '#a08a68', 1.4);
-    const sun = new THREE.DirectionalLight('#fff4e2', 2.4);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
-    Object.assign(sun.shadow.camera, { left: -radius, right: radius, top: radius, bottom: -radius, near: 0.5, far: radius * 5 });
-    sun.shadow.camera.updateProjectionMatrix();
-    sun.shadow.bias = -0.0004;
-    sun.shadow.normalBias = 0.03;
-    sun.target.position.copy(center);
-    scene.add(hemisphere, sun, sun.target);
-
-    // Camera from the south-east, so the roof that faces south is in view.
-    const camera = new THREE.PerspectiveCamera(32, 4 / 3, 0.1, radius * 20);
-    const target = new THREE.Vector3(center.x, Math.min(size.y, 7) * 0.35, center.z);
-    const distance = (Math.max(content.getBoundingSphere(new THREE.Sphere()).radius, radius * 0.72) / Math.sin(16 * DEG)) * 0.92;
-    const direction = new THREE.Vector3(Math.sin(38 * DEG) * Math.cos(27 * DEG), Math.sin(27 * DEG), Math.cos(38 * DEG) * Math.cos(27 * DEG));
-    camera.position.copy(target).addScaledVector(direction, distance);
-
-    const canvas = renderer.domElement;
-    canvas.className = 'solar-scene__canvas';
-    canvas.setAttribute('aria-hidden', 'true');
-
-    const controls = new OrbitControls(camera, canvas);
-    controls.target.copy(target);
-    controls.enablePan = false;
-    // Zoom only after the scene is touched, so scrolling the page over it keeps scrolling the page.
-    controls.enableZoom = false;
-    controls.enableDamping = !reduceMotion;
-    controls.dampingFactor = 0.08;
-    controls.rotateSpeed = 0.6;
-    controls.minDistance = distance * 0.55;
-    controls.maxDistance = distance * 1.35;
-    controls.minPolarAngle = 0.25;
-    controls.maxPolarAngle = 1.36;
-    controls.update();
-    // One finger scrolls the page vertically and turns the scene horizontally.
-    canvas.style.touchAction = 'pan-y';
 
     // Timeline: building → panels one by one → panels that do not fit → a day of sun, again and again.
     const step = installedCount > 0 ? Math.min(0.22, Math.max(0.05, 2.6 / installedCount)) : 0;
@@ -377,13 +310,156 @@ export const mountSolarScene = (figure) => {
     const panelsEnd = installedCount > 0 ? panelsStart + (installedCount - 1) * step + DROP_SECONDS : panelsStart;
     const ghostsStart = panelsEnd + 0.15;
     const dayStart = ghostsStart + (ghostCount > 0 ? GHOSTS_SECONDS : 0) + 0.4;
-    const finalTime = dayStart;
 
-    // The energy of the day only makes sense with panels; its room is kept while it waits.
-    const hasDay = data.dailyKwh > 0 && installedCount > 0;
-    if (ui.day) {
-        ui.day.hidden = !hasDay;
+    return {
+        data, group, property, units, ghosts, ghostCount, installedCount, decorations, content, center, size, radius,
+        step, panelsStart, panelsEnd, ghostsStart, dayStart, finalTime: dayStart,
+        // The energy of the day only makes sense with panels.
+        hasDay: data.dailyKwh > 0 && installedCount > 0,
+    };
+};
+
+/** Drops a world's own geometry; the materials are shared by every world and live as long as the scene. */
+const releaseWorld = (world) => {
+    world.group.parent?.remove(world.group);
+    const released = new Set();
+    world.group.traverse((object) => {
+        if (object.geometry && !released.has(object.geometry)) {
+            released.add(object.geometry);
+            object.geometry.dispose();
+        }
+    });
+};
+
+/**
+ * @param {HTMLElement} figure The [data-solar-scene] figure (see solar-projects/system.blade.php). Its data-*
+ *   can change while it is mounted: refresh() draws them again (the roof preview of the form, the
+ *   landing's property chooser). data-scene-mode picks where it is shown (system, preview or showcase).
+ * @return {{replay: () => void, refresh: () => void, dispose: () => void}}
+ */
+export const mountSolarScene = (figure) => {
+    const stage = figure.querySelector('[data-solar-scene-stage]');
+    const placeholder = figure.querySelector('.solar-scene__placeholder');
+
+    if (!stage) {
+        throw new Error('The solar scene needs its [data-solar-scene-stage].');
     }
+
+    // First, so a browser without WebGL throws here and keeps the sketch untouched.
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarsePointer ? 1.5 : 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+
+    const mode = MODES.includes(figure.dataset.sceneMode) ? figure.dataset.sceneMode : 'system';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const unitRoot = figure.closest('[data-unit-root]');
+    const ui = {
+        status: figure.querySelector('[data-solar-scene-status]'),
+        replay: stage.querySelector('[data-solar-scene-replay]'),
+        day: figure.querySelector('[data-solar-scene-day]'),
+        sun: figure.querySelector('[data-solar-scene-sun]'),
+        energy: figure.querySelector('[data-solar-scene-energy]'),
+        clock: figure.querySelector('[data-solar-scene-clock]'),
+    };
+
+    const scene = new THREE.Scene();
+    const sky = new THREE.Color();
+    scene.background = sky;
+    const materials = createMaterials();
+    let palette = paletteFor(document.documentElement.classList.contains('dark'));
+
+    const applyPalette = () => {
+        palette = paletteFor(document.documentElement.classList.contains('dark'));
+        Object.entries(materials).forEach(([key, material]) => {
+            if (typeof palette[key] === 'string') {
+                material.color.set(palette[key]);
+            }
+        });
+    };
+    applyPalette();
+
+    // Light: the sun (it moves through the day) and the sky.
+    const hemisphere = new THREE.HemisphereLight('#fff6e6', '#a08a68', 1.4);
+    const sun = new THREE.DirectionalLight('#fff4e2', 2.4);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.03;
+    scene.add(hemisphere, sun, sun.target);
+
+    // Camera from the south-east, so the roof that faces south is in view.
+    const camera = new THREE.PerspectiveCamera(32, 4 / 3, 0.1, 1000);
+    const initialDirection = new THREE.Vector3(Math.sin(38 * DEG) * Math.cos(27 * DEG), Math.sin(27 * DEG), Math.cos(38 * DEG) * Math.cos(27 * DEG));
+
+    const canvas = renderer.domElement;
+    canvas.className = 'solar-scene__canvas';
+    canvas.setAttribute('aria-hidden', 'true');
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enablePan = false;
+    // Zoom only after the scene is touched, so scrolling the page over it keeps scrolling the page.
+    controls.enableZoom = false;
+    controls.enableDamping = !reduceMotion;
+    controls.dampingFactor = 0.08;
+    controls.rotateSpeed = 0.6;
+    controls.minPolarAngle = 0.25;
+    controls.maxPolarAngle = 1.36;
+    // The landing's example turns slowly by itself until someone takes hold of it.
+    const autoTurn = mode === 'showcase' && !reduceMotion;
+    controls.autoRotate = autoTurn;
+    controls.autoRotateSpeed = 0.9;
+    let resumeTurn = 0;
+    controls.addEventListener('start', () => {
+        controls.autoRotate = false;
+        window.clearTimeout(resumeTurn);
+    });
+    controls.addEventListener('end', () => {
+        if (autoTurn) {
+            resumeTurn = window.setTimeout(() => {
+                controls.autoRotate = true;
+            }, 4000);
+        }
+    });
+    // One finger scrolls the page vertically and turns the scene horizontally.
+    canvas.style.touchAction = 'pan-y';
+
+    let world = null;
+    let signature = '';
+
+    /** Builds the world for the figure's current numbers and frames it, keeping the angle the user chose. */
+    const build = (data) => {
+        const keepAngle = world !== null;
+        const direction = keepAngle ? camera.position.clone().sub(controls.target).normalize() : initialDirection;
+
+        if (world) {
+            releaseWorld(world);
+        }
+        world = createWorld(data, materials);
+        scene.add(world.group);
+        signature = JSON.stringify(data);
+
+        const { center, radius, size, content } = world;
+        Object.assign(sun.shadow.camera, { left: -radius, right: radius, top: radius, bottom: -radius, near: 0.5, far: radius * 5 });
+        sun.shadow.camera.updateProjectionMatrix();
+        sun.target.position.copy(center);
+
+        const target = new THREE.Vector3(center.x, Math.min(size.y, 7) * 0.35, center.z);
+        const distance = (Math.max(content.getBoundingSphere(new THREE.Sphere()).radius, radius * 0.72) / Math.sin(16 * DEG)) * 0.92;
+        camera.far = radius * 20;
+        camera.updateProjectionMatrix();
+        controls.target.copy(target);
+        controls.minDistance = distance * 0.55;
+        controls.maxDistance = distance * 1.35;
+        camera.position.copy(target).addScaledVector(direction, distance);
+        controls.update();
+
+        // Its room is kept while it waits, so the strip does not jump.
+        if (ui.day) {
+            ui.day.hidden = !world.hasDay;
+        }
+    };
 
     const sunDirection = new THREE.Vector3();
     const warmLight = new THREE.Color('#ffb46e');
@@ -436,7 +512,7 @@ export const mountSolarScene = (figure) => {
             materials.cells.emissiveIntensity = 0;
         }
         materials.cellsLandscape.emissiveIntensity = materials.cells.emissiveIntensity;
-        sun.position.copy(center).addScaledVector(sunDirection, radius * 2.5);
+        sun.position.copy(world.center).addScaledVector(sunDirection, world.radius * 2.5);
     };
 
     const dayAt = (seconds) => {
@@ -449,6 +525,7 @@ export const mountSolarScene = (figure) => {
     };
 
     const pose = (time) => {
+        const { data, property, decorations, units, ghosts, step, panelsStart, panelsEnd, ghostsStart, dayStart, finalTime, installedCount, hasDay } = world;
         const t = reduceMotion ? finalTime : time;
 
         property.group.scale.set(1, Math.max(0.001, easeOutBack(clamp01(t / BUILD_SECONDS))), 1);
@@ -476,7 +553,7 @@ export const mountSolarScene = (figure) => {
         lightTheDay(state);
 
         // Overlay texts: install progress, then the summary and the energy of the day.
-        setText(ui.status, t < panelsStart ? '' : t < panelsEnd ? `Panel ${Math.max(1, started)} de ${installedCount}` : summaryText(data));
+        setText(ui.status, t < panelsStart ? '' : t < panelsEnd ? `Panel ${Math.max(1, started)} de ${installedCount}` : summaryText(data, mode));
 
         const showDay = hasDay && (reduceMotion || t >= dayStart);
         ui.day?.classList.toggle('is-waiting', !showDay);
@@ -494,6 +571,8 @@ export const mountSolarScene = (figure) => {
     };
 
     const render = () => renderer.render(scene, camera);
+
+    build(readSceneData(figure));
 
     // Show the stage instead of the sketch, then size it.
     stage.querySelectorAll('canvas').forEach((stale) => stale.remove());
@@ -600,13 +679,28 @@ export const mountSolarScene = (figure) => {
         ui.replay.addEventListener('click', replay);
     }
 
+    /** Draws the figure's data-* again. A new kind of building rises from nothing; other changes only reinstall the panels. */
+    const refresh = () => {
+        const data = readSceneData(figure);
+        if (JSON.stringify(data) === signature) {
+            return;
+        }
+        const newBuilding = data.propertyType !== world.data.propertyType;
+        build(data);
+        elapsed = newBuilding ? 0 : BUILD_SECONDS;
+        redraw();
+        start();
+    };
+
     resize();
     redraw();
 
-    return {
+    const api = {
         replay,
+        refresh,
         dispose() {
             stop();
+            window.clearTimeout(resumeTurn);
             resizeObserver.disconnect();
             visibility.disconnect();
             themeObserver.disconnect();
@@ -630,6 +724,7 @@ export const mountSolarScene = (figure) => {
             renderer.dispose();
             renderer.forceContextLoss();
             canvas.remove();
+            delete figure.solarScene;
 
             figure.classList.remove('is-3d');
             stage.hidden = true;
@@ -638,4 +733,8 @@ export const mountSolarScene = (figure) => {
             }
         },
     };
+    // The page's own scripts (the form, the landing) reach the scene through the figure.
+    figure.solarScene = api;
+
+    return api;
 };

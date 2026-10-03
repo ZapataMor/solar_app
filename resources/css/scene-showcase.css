@@ -1,0 +1,78 @@
+/* The 3D illustration outside "Mi sistema" (ADR-0012): the landing's example and the roof preview of the
+   project form (components/solar-scene.blade.php). The scene itself is styled in system-panel.css. */
+
+@layer components {
+    /* The flat sketch of the figure's kind of place; the other two wait their turn. */
+    .solar-scene--preview .solar-scene__house,
+    .solar-scene--showcase .solar-scene__house {
+        display: none;
+    }
+
+    .solar-scene[data-property-type='house'] .solar-scene__house[data-sketch='house'],
+    .solar-scene[data-property-type='business'] .solar-scene__house[data-sketch='business'],
+    .solar-scene[data-property-type='institution'] .solar-scene__house[data-sketch='institution'] {
+        display: block;
+    }
+
+    /* Chooser of the landing's example: only worth showing when there is a scene to change. */
+    .solar-scene__choices {
+        display: flex;
+        justify-content: center;
+        gap: 0.4rem;
+    }
+
+    html:not(.solar-can-3d) .solar-scene__choices,
+    .solar-scene.is-flat .solar-scene__choices {
+        display: none;
+    }
+
+    .solar-scene__choice {
+        padding: 0.3rem 0.85rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+    }
+
+    .solar-scene__choice:hover {
+        color: var(--solar-text);
+    }
+
+    .solar-scene__choice[aria-pressed='true'] {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 16%, transparent);
+        color: var(--solar-sun);
+    }
+
+    .solar-scene__choice:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    /* Roof preview, in the last step of the project form: the summary and the roof side by side. */
+    .solar-wizard-review {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+        align-items: start;
+        gap: 1rem 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .solar-wizard-review .solar-wizard-summary {
+        margin-top: 0;
+    }
+
+    .solar-scene--preview .solar-scene__stage {
+        min-height: 12rem;
+    }
+
+    @media (max-width: 760px) {
+        .solar-wizard-review {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+}

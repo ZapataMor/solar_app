@@ -211,8 +211,24 @@
     }
 
     .landing-hero__inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 27rem);
+        align-items: center;
+        gap: 2.5rem clamp(1.5rem, 4vw, 3.5rem);
         width: min(100%, var(--landing-max));
         margin: 0 auto;
+    }
+
+    .landing-hero__copy {
+        min-width: 0;
+    }
+
+    /* The 3D example (ADR-0012) sits on the photo like a card: dark glass, the scene inside lights itself. */
+    .landing-hero .landing-hero__scene {
+        border: 1px solid var(--landing-border);
+        background: rgba(18, 13, 10, 0.62);
+        box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
     }
 
     .landing-hero h1 {
@@ -537,7 +553,8 @@
         }
 
         .landing-grid--3,
-        .landing-split {
+        .landing-split,
+        .landing-hero__inner {
             grid-template-columns: minmax(0, 1fr);
         }
     }

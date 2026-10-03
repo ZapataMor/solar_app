@@ -1,17 +1,17 @@
 ---
 tipo: adr
 descripcion: ADR-0012 — Ilustración 3D animada (Three.js) de la casa o el negocio con sus paneles, usando los números del proyecto
-estado: ✅ Implementada (falta el paso 4)
-actualizado: 2026-10-02
+estado: ✅ Implementada
+actualizado: 2026-10-03
 ---
 
 # ADR-0012 · Ilustración 3D de la instalación
 
-- **Estado:** 🟢 Aceptada · versión mínima implementada el 2026-10-01 en la pestaña "Mi sistema" ([[adr-0014-dimensionar-por-necesidad-y-mi-sistema]]). Ver *Cómo quedó*.
+- **Estado:** 🟢 Aceptada · implementada: "Mi sistema" el 2026-10-01 ([[adr-0014-dimensionar-por-necesidad-y-mi-sistema]]), y el formulario y la landing el 2026-10-03. Ver *Cómo quedó*.
 - **Fecha:** 2026-10-01
 - **Contexto del repo:**
-  - **implementado:** `resources/js/solar-scene/` (`index.js`, `scene.js`, `buildings.js`), `solar-projects/system.blade.php`, `DescribeProjectSystem`, `resources/css/system-panel.css`;
-  - **pendiente:** paso *Resumen* de `_form.blade.php` ([[adr-0007-formulario-de-proyecto-por-etapas]]) y `landing`.
+  - `resources/js/solar-scene/` (`index.js`, `scene.js`, `buildings.js`), `solar-projects/system.blade.php`, `DescribeProjectSystem`, `resources/css/system-panel.css`;
+  - para el formulario y la landing: `components/solar-scene.blade.php`, `resources/css/scene-showcase.css`, el último paso de `_form.blade.php` ([[adr-0007-formulario-de-proyecto-por-etapas]]) y `landing.blade.php`.
 
 ## Contexto
 El resultado de un proyecto se expresa en cifras: "11 paneles, 6 kWp, 28 m²". Aun con las preguntas explicativas ([[adr-0011-preguntas-explicativas-del-proyecto]]), el cliente **no se imagina** cómo quedaría su casa o su negocio. Para el pitch ([[pitch-primera-etapa]]), ver la estructura con los paneles instalándose comunica la propuesta en segundos.
@@ -58,7 +58,7 @@ Una **ilustración 3D animada** construida con **Three.js**:
 1. ~~**Prototipo suelto**~~: no hizo falta; se construyó directamente en el espacio reservado de "Mi sistema".
 2. ✅ **Versión mínima en el panel del proyecto:** casa, local e institución, paneles animados y rotación.
 3. ✅ **Sol y brillo según la generación.**
-4. **Paso *Resumen* del formulario y landing:** pendiente.
+4. ✅ **Paso *Resumen* del formulario y landing** (2026-10-03).
 
 ## Cómo quedó (2026-10-01)
 **Dónde y con qué datos.**
@@ -122,6 +122,29 @@ Una **ilustración 3D animada** construida con **Three.js**:
   - las demás páginas, al terminar de cargar, la bajan en segundo plano y con baja prioridad (`Vite::prefetch`). Así, el primer proyecto que se abre desde el portafolio ya la tiene.
 - **Con `wire:navigate`,** Livewire copia los atributos del `<html>` de la página nueva y borraría la marca. Se repone en el mismo cambio (`onSwap`), antes de pintar.
 
+## Cómo quedó en el formulario y la landing (2026-10-03)
+Un mismo componente, `<x-solar-scene>`, dibuja la figura en los dos lugares; la escena es la misma de "Mi sistema" y cambia solo por el modo (`data-scene-mode`).
+
+**Landing (modo `showcase`).**
+- **Dónde:** a la derecha del encabezado, como una tarjeta de vidrio oscuro sobre la foto. En pantallas angostas baja debajo del texto.
+- **Qué muestra:** una casa de ejemplo con 8 paneles. Tres botones (*Casa*, *Negocio*, *Institución*) la cambian por un local con 14 o un edificio de 20; cada cambio levanta la estructura de nuevo.
+- **Gira sola,** despacio. Si alguien la toma, se detiene, y vuelve a girar 4 s después de soltarla. Con *reducir movimiento* queda quieta.
+- **Sin cifras inventadas:** no tiene la franja de energía del día. El texto dice "Ejemplo: 8 paneles en el techo", y el rótulo "Ilustración de ejemplo".
+- **Carga:** la pide desde el `<head>`, con el resto de la página, y deja el indicador común mientras llega. Sin WebGL queda el boceto plano de cada tipo de lugar y los botones se ocultan.
+- **De paso,** el paso 2 de "Cómo funciona" ya no dice "ingresa tu consumo": ahora se agregan los equipos ([[adr-0013-creacion-guiada-y-diario-de-consumo]]).
+
+**Formulario (modo `preview`).**
+- **Dónde:** en el último paso, junto al resumen del lugar, la ubicación y el techo.
+- **Qué muestra:** el techo con **los paneles que caben**, con la misma cuenta que la pista del paso del techo: `área × % útil ÷ área del panel`. Si no cabe ninguno, lo dice.
+- **Lo que nunca muestra:** cuántos paneles se necesitan. Todavía no hay equipos; eso lo dice "Mi sistema".
+- **Sigue al formulario:** el tipo de lugar, el área, el % útil y el panel. Cada cambio espera 350 ms y la escena reinstala los paneles sin rehacer el edificio; solo un tipo de lugar distinto lo levanta de nuevo.
+- **Al editar,** el tipo de lugar es el del proyecto, que no se cambia.
+
+**En la escena.**
+- `scene.js` separa lo que depende de los números (`createWorld`: edificio, paneles, suelo y decoración) del resto (cámara, luz, controles). `refresh()` lo rehace conservando el ángulo que el usuario eligió.
+- La figura expone la escena en `figure.solarScene`; las páginas escriben los `data-*` y la llaman. Montada o no, la escena lee los datos más recientes.
+- Pesa lo mismo que antes: Three.js sigue siendo un solo archivo compartido.
+
 ## Consecuencias
 - ➕ El cliente "ve" su sistema: es más persuasivo que las cifras y muy útil en el pitch.
 - ➕ Sin dependencias externas en tiempo de ejecución ni modelos con licencia.
@@ -139,7 +162,8 @@ Una **ilustración 3D animada** construida con **Three.js**:
 ## Por decidir
 - ~~¿Un campo explícito de tipo de inmueble?~~ Resuelto: `property_type` ([[adr-0013-creacion-guiada-y-diario-de-consumo]]).
 - ~~¿Qué hacer cuando los paneles no caben?~~ Resuelto en la ilustración: contornos rojos en el suelo. Falta decidir qué se le propone al cliente ([[adr-0014-dimensionar-por-necesidad-y-mi-sistema]]).
-- ¿Llevar la escena también al paso *Resumen* del formulario y a la landing?
+- ~~¿Llevar la escena también al paso *Resumen* del formulario y a la landing?~~ Resuelto el 2026-10-03.
+- ¿Mostrar en la landing un proyecto real de demostración, con sus números, en lugar del ejemplo genérico?
 
 ## Relacionado
 [[adr-0011-preguntas-explicativas-del-proyecto]] · [[adr-0014-dimensionar-por-necesidad-y-mi-sistema]] · [[pitch-primera-etapa]] · [[asesoria-felix-bada]]

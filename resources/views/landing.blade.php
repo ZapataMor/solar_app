@@ -1,3 +1,7 @@
+{{-- The 3D example of the hero downloads with the page, so it arrives sooner (ADR-0012). --}}
+@push('head')
+    @vite('resources/js/solar-scene/scene.js')
+@endpush
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
     <head>
@@ -31,6 +35,7 @@
             {{-- Hero --}}
             <section class="landing-hero" style="--landing-hero-image: url('{{ asset('images/login/fondo3.jpg') }}')">
                 <div class="landing-hero__inner">
+                    <div class="landing-hero__copy">
                     <p class="landing-eyebrow">Energía solar · La Guajira</p>
                     <h1>Sabe cuánto cuesta tu sistema solar <em>antes</em> de pedir una cotización.</h1>
                     <p class="landing-lead">
@@ -51,6 +56,22 @@
                         <li><strong>{{ $municipalities->count() ?: 15 }}</strong> municipios con precio local</li>
                         <li><strong>Gratis</strong> estimar tu proyecto</li>
                     </ul>
+                    </div>
+
+                    <x-solar-scene
+                        mode="showcase"
+                        class="landing-hero__scene"
+                        property-type="house"
+                        :panels="8"
+                        :roof-area="36"
+                        label="Ilustración de ejemplo: una casa con paneles solares en el techo"
+                        note="Ilustración de ejemplo"
+                        :choices="[
+                            'house' => ['label' => 'Casa', 'panels' => 8, 'area' => 36],
+                            'business' => ['label' => 'Negocio', 'panels' => 14, 'area' => 60],
+                            'institution' => ['label' => 'Institución', 'panels' => 20, 'area' => 90],
+                        ]"
+                    />
                 </div>
             </section>
 
@@ -95,7 +116,7 @@
                         <li>
                             <span class="landing-steps__n">2</span>
                             <h3>Cuéntanos de tu lugar</h3>
-                            <p>Elige tu municipio en el mapa e ingresa tu consumo y tu tarifa. Te mostramos dónde encontrarlos en el recibo.</p>
+                            <p>Elige tu municipio en el mapa, cuéntanos de tu techo y tu tarifa (te mostramos dónde está en el recibo) y agrega tus equipos: nosotros calculamos tu consumo.</p>
                         </li>
                         <li>
                             <span class="landing-steps__n">3</span>
