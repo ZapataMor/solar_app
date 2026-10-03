@@ -70,6 +70,15 @@ return [
         'user_agent' => env('METEO_API_USER_AGENT', 'SolarApp/1.0 (+https://solar.local)'),
         'referer' => env('METEO_API_REFERER'),
         'schedule_timezone' => env('WEATHER_STATION_SCHEDULE_TIMEZONE', 'America/Bogota'),
+        // The hours the station reports; outside them it is not late (ADR-0016).
+        'schedule_from' => '06:00',
+        'schedule_until' => '18:30',
+    ],
+
+    // A heartbeat monitor (Healthchecks.io, Better Stack…) the scheduler pings every minute; it alerts by
+    // email or Telegram when the pings stop (ADR-0016). Empty: no ping.
+    'heartbeat' => [
+        'ping_url' => env('HEARTBEAT_PING_URL'),
     ],
 
     'openai_recommendations' => [

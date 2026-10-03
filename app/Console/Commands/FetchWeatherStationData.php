@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Climate\ClimateSource;
+use App\Models\SyncRun;
 use App\Services\WeatherStationImportService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -18,11 +20,13 @@ class FetchWeatherStationData extends Command
         Log::info('Automatic weather station fetch started.', [
             'scope' => 'global',
         ]);
+        $run = SyncRun::begin(ClimateSource::LOCAL);
 
         try {
             $summary = $weatherStationImportService->importAll();
         } catch (Throwable $exception) {
             report($exception);
+            $run->fail($exception->getMessage());
 
             Log::error('Automatic weather station fetch failed.', [
                 'error' => $exception->getMessage(),
@@ -33,6 +37,7 @@ class FetchWeatherStationData extends Command
             return self::FAILURE;
         }
 
+        $run->complete($summary['created'] + $summary['updated'], $summary['received']);
         Log::info('Automatic weather station fetch finished.', [
             'scope' => 'global',
             'failed' => 0,

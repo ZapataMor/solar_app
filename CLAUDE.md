@@ -85,6 +85,12 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   pestaña por `data-station` (`showApiDataTab` en `app.js`). La veleta usa el viento de la última
   lectura (`DescribeDataStations`); la sincronización de Ambient lo reenvía en `wind`. Los conteos
   viven en las pestañas (`data-ambient-count`…): no vuelvas a ponerlos en el encabezado.
+- **Salud de la sincronización (ADR-0016):** cada comando de clima (`ambient:sync`, `weather-station:fetch`,
+  `nasa-power:fetch`) abre un `SyncRun` y lo cierra con `complete()` o `fail()`: **un comando de sincronización
+  nuevo debe hacer lo mismo**. `DescribeSyncHealth` arma la franja de *Datos climáticos* y la insignia roja
+  del menú; los umbrales y los estados están en `App\Domain\Sync`. El latido del programador
+  (`scheduler-heartbeat`, cada minuto) prueba que el cron corre; `HEARTBEAT_PING_URL` lo avisa a un monitor
+  externo. Las horas de la estación local están en `config/services.php`, no en `routes/console.php`.
 - **Cambios en el cálculo:** van en `SolarCalculator` / `InstallationCostCalculator`, con test
   en `tests/Unit/Domain` (extienden `PHPUnit\Framework\TestCase`, sin base de datos).
 - Decisiones de arquitectura: registra un ADR en `natal-ia-vault/03-diseno/decisiones-adr/`.

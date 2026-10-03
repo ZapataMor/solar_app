@@ -1,0 +1,125 @@
+/* Climate data page: are the sources being brought up to date? (ADR-0016.) Uses the app's --solar-* tokens. */
+
+@layer components {
+    .solar-sync-health {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .solar-sync-health__header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.35rem 1.5rem;
+    }
+
+    .solar-sync-health__title {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+
+    .solar-sync-health__scheduler {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+    }
+
+    .solar-sync-health__scheduler strong {
+        color: var(--solar-text);
+    }
+
+    .solar-sync-health__cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .solar-sync-card {
+        display: grid;
+        align-content: start;
+        gap: 0.5rem;
+        min-width: 0;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: var(--solar-surface);
+    }
+
+    .solar-sync-card[data-status='late'],
+    .solar-sync-card[data-status='failing'] {
+        border-color: var(--solar-danger);
+        background: var(--solar-danger-bg);
+    }
+
+    .solar-sync-card__name {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    .solar-sync-card__status {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .solar-sync-card__facts {
+        display: grid;
+        gap: 0.35rem;
+        margin: 0;
+        font-size: 0.8rem;
+    }
+
+    .solar-sync-card__facts dt {
+        color: var(--solar-text-muted);
+    }
+
+    .solar-sync-card__facts dd {
+        margin: 0;
+        color: var(--solar-text);
+    }
+
+    .solar-sync-card__error {
+        margin: 0;
+        color: var(--solar-danger);
+        font-size: 0.8rem;
+        overflow-wrap: anywhere;
+    }
+
+    /* The state dot: green up to date, red late or failing, grey for the rest. */
+    .solar-sync-dot {
+        flex: none;
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 50%;
+        background: var(--solar-text-muted);
+    }
+
+    [data-status='ok'] .solar-sync-dot,
+    [data-status='beating'] .solar-sync-dot {
+        background: var(--solar-success);
+    }
+
+    [data-status='late'] .solar-sync-dot,
+    [data-status='failing'] .solar-sync-dot,
+    [data-status='stopped'] .solar-sync-dot {
+        background: var(--solar-danger);
+    }
+
+    @media (max-width: 860px) {
+        .solar-sync-health__cards {
+            grid-template-columns: 1fr;
+        }
+    }
+}

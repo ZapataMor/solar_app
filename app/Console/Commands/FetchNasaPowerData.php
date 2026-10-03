@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Climate\ClimateSource;
 use App\Models\SolarProject;
+use App\Models\SyncRun;
 use App\Services\NasaPowerService;
 use App\Services\NasaWeatherDataService;
 use Carbon\CarbonImmutable;
@@ -62,11 +64,14 @@ class FetchNasaPowerData extends Command
             'window_days' => $days,
         ]);
 
+        $run = SyncRun::begin(ClimateSource::NASA_POWER);
+
         try {
             $payload = $nasaPowerService->fetchDailyData($startDate, $endDate);
             ['created' => $created, 'updated' => $updated, 'promoted' => $promoted] = $nasaWeatherDataService->storeDailyData($payload);
         } catch (Throwable $exception) {
             report($exception);
+            $run->fail($exception->getMessage());
 
             Log::error('Automatic NASA POWER fetch failed.', [
                 'start' => $startDate->toDateString(),
@@ -79,6 +84,7 @@ class FetchNasaPowerData extends Command
             return self::FAILURE;
         }
 
+        $run->complete($created + $updated);
         Log::info('Automatic NASA POWER fetch finished.', [
             'scope' => 'global',
             'start' => $startDate->toDateString(),
@@ -93,4 +99,3 @@ class FetchNasaPowerData extends Command
         return self::SUCCESS;
     }
 }
-

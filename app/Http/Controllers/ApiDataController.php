@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Climate\DescribeDataStations;
+use App\Actions\Climate\DescribeSyncHealth;
 use App\Models\AmbientWeatherReading;
 use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
@@ -22,7 +23,7 @@ use Throwable;
 
 class ApiDataController extends Controller
 {
-    public function __invoke(Request $request, DescribeDataStations $describeDataStations): View
+    public function __invoke(Request $request, DescribeDataStations $describeDataStations, DescribeSyncHealth $describeSyncHealth): View
     {
         $ambientRows = $this->ambientRowsQuery()
             ->orderByDesc('recorded_at')
@@ -52,6 +53,7 @@ class ApiDataController extends Controller
         return view('api-data.index', [
             'activeTab'               => $this->activeTab($request),
             'stations'                => $describeDataStations(),
+            'syncHealth'              => $describeSyncHealth(),
             'ambientRows'             => $ambientRows,
             'ambientCount'            => $ambientCount,
             'ambientChartRows'        => $this->latestAmbientChartRows(),

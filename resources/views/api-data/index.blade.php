@@ -211,6 +211,8 @@
             @include('api-data.partials.station-figure')
         </section>
 
+        @include('api-data.partials.sync-health')
+
         @if ($errors->has('ambient_data'))
             <div class="solar-alert solar-alert-danger">
                 {{ $errors->first('ambient_data') }}

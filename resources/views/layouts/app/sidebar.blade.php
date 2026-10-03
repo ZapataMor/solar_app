@@ -30,7 +30,9 @@
 
                 @can('administer-platform')
                     <div class="solar-nav-label solar-nav-label--group">{{ __('Administración') }}</div>
-                    <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" :tooltip="__('Datos climáticos')" wire:navigate>
+                    {{-- The red badge says how many climate sources, or the scheduler, are not up to date (ADR-0016). --}}
+                    @php($syncProblems = app(\App\Actions\Climate\DescribeSyncHealth::class)()['problems'])
+                    <flux:sidebar.item class="solar-nav-item" icon="table-cells" :href="route('api-data.index')" :current="request()->routeIs('api-data.*')" :tooltip="__('Datos climáticos')" :badge="$syncProblems > 0 ? (string) $syncProblems : null" badge:color="red" wire:navigate>
                         {{ __('Datos climáticos') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item class="solar-nav-item" icon="adjustments-horizontal" :href="route('reference-values.index')" :current="request()->routeIs('reference-values.*')" :tooltip="__('Valores de referencia')" wire:navigate>
