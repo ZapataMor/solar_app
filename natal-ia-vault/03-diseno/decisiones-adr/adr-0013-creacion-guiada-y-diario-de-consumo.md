@@ -2,7 +2,7 @@
 tipo: adr
 descripcion: ADR-0013 — Crear el proyecto con preguntas guiadas y registrar los equipos después, por espacio, como un diario (inspirado en Fitia)
 estado: ✅ Implementada
-actualizado: 2026-10-02
+actualizado: 2026-10-03
 ---
 
 # ADR-0013 · Creación guiada y diario de consumo por espacios
@@ -11,7 +11,8 @@ actualizado: 2026-10-02
 - **Fecha:** 2026-10-01
 - **Reemplaza en parte:**
   - [[adr-0007-formulario-de-proyecto-por-etapas]]: cambian las etapas y su orden.
-  - [[adr-0002-consumo-por-electrodomesticos]]: los equipos ya no se piden al crear el proyecto y el modo "recibo" desaparece.
+  - [[adr-0002-consumo-por-electrodomesticos]]: los equipos ya no se piden al crear el proyecto.
+- **Ajustado por** [[adr-0020-consumo-por-equipos-o-por-recibo]] (2026-10-03): el recibo vuelve como una opción que el cliente elige, en una etapa nueva *Tu consumo*. Los equipos son la base solo cuando se elige esa opción.
 - **Contexto del repo:**
   - `App\Domain\Property\PropertyType`, `App\Domain\Solar\RequiredPower`, `App\Domain\Solar\MissingConsumption`;
   - `SaveSolarProject`, `SaveProjectAppliance`, `RemoveProjectAppliance`, `SyncProjectConsumption`, `QuoteInstallation`;

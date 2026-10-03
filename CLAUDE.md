@@ -41,10 +41,13 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   (ADR-0017, tabla `catalog_appliances`): usa siempre el catálogo del contenedor
   (`app(ApplianceCatalog::class)`), nunca `new ApplianceCatalog`, o no verás los agregados. No lo
   inyectes en el constructor de un controlador: el router reutiliza esa instancia entre peticiones.
-- **Creación y consumo (ADR-0013):** el formulario (`_form.blade.php`) pregunta tipo de inmueble,
-  ubicación, techo, tarifa y nombre; **no** pide consumo. Los equipos se agregan después, por espacio,
-  en la pestaña Consumo (`SolarProjectConsumptionController`). Tipos y espacios:
-  `App\Domain\Property\PropertyType`. **Los equipos son la base del cálculo:** cada cambio pasa por
+- **Creación y consumo (ADR-0013, ADR-0020):** el formulario (`_form.blade.php`) pregunta tipo de inmueble,
+  ubicación, techo, **cómo se da el consumo**, tarifa y nombre. El consumo tiene dos orígenes
+  (`solar_projects.consumption_mode`, `App\Domain\Consumption\ConsumptionMode`): `appliances` (por defecto), con
+  los equipos que se agregan después, por espacio, en la pestaña Consumo (`SolarProjectConsumptionController`), o
+  `bill`, con los kWh al mes del recibo que escribe el cliente (`monthly_consumption_kwh`; la pestaña Consumo
+  muestra `consumption-bill`, y agregar equipos responde 409). Usa `usesBillConsumption()` para ramificar. Tipos y espacios:
+  `App\Domain\Property\PropertyType`. **Con equipos, son la base del cálculo:** cada cambio pasa por
   `SaveProjectAppliance`/`RemoveProjectAppliance` → `SyncProjectConsumption` (consumo, potencia
   sugerida y cotización). Sin consumo, calcular lanza `MissingConsumption` y la vigencia queda
   *NOT_READY*. La descripción vive en la pestaña Notas.

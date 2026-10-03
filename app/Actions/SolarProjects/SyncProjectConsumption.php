@@ -13,6 +13,9 @@ use App\Models\SolarProjectAppliance;
  * Use case: the appliances are the base of the calculation (ADR-0013). After any change in the
  * consumption diary, the project's consumption, suggested power and installation quote follow
  * them, and the project is stamped as changed so its calculation shows the "!" (ADR-0010).
+ *
+ * A project that gives its consumption from the bill (ADR-0020) keeps the kWh of the bill: its
+ * appliances, if it still has any from before, do not count.
  */
 final class SyncProjectConsumption
 {
@@ -24,6 +27,10 @@ final class SyncProjectConsumption
 
     public function __invoke(SolarProject $solarProject): void
     {
+        if ($solarProject->usesBillConsumption()) {
+            return;
+        }
+
         $monthlyKwh = round($this->consumptionEstimator->totalMonthlyKwh(
             $solarProject->appliances()->get()
                 ->filter(fn (SolarProjectAppliance $appliance) => $this->catalog->hasVariant($appliance->appliance_key, $appliance->variant_key))

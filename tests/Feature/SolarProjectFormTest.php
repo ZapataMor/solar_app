@@ -13,17 +13,18 @@ class SolarProjectFormTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_create_form_asks_four_guided_questions_starting_with_the_kind_of_place(): void
+    public function test_create_form_asks_five_guided_questions_starting_with_the_kind_of_place(): void
     {
         $response = $this->actingAs(User::factory()->create())
             ->get(route('solar-projects.create'))
             ->assertOk()
             ->assertSee('data-project-wizard', false)
-            ->assertSeeInOrder(['Tu lugar', 'Ubicación', 'Techo', 'Tu proyecto'])
+            ->assertSeeInOrder(['Tu lugar', 'Ubicación', 'Techo', 'Tu consumo', 'Tu proyecto'])
             ->assertSeeInOrder([
                 'data-wizard-step="property"',
                 'data-wizard-step="location"',
                 'data-wizard-step="roof"',
+                'data-wizard-step="consumption"',
                 'data-wizard-step="details"',
             ], false)
             ->assertSee('¿Para qué lugar quieres energía solar?')
@@ -38,9 +39,10 @@ class SolarProjectFormTest extends TestCase
             $this->assertMatchesRegularExpression('/type="radio"\s+name="property_type"\s+value="'.$type.'"/', $response->getContent());
         }
 
-        // The appliances are added later in the diary, and the notes have their own tab (ADR-0013).
-        $this->assertDoesNotMatchRegularExpression('/name="(description|monthly_consumption_kwh|consumption_mode|appliances[^"]*)"/', $response->getContent());
-        $this->assertDoesNotMatchRegularExpression('/data-wizard-step="(consumption|summary)"/', $response->getContent());
+        // The appliances are added later in the diary, and the notes have their own tab (ADR-0013). The stage that
+        // asks how to give the consumption (ADR-0020) only takes the kWh of the bill, never the appliances.
+        $this->assertDoesNotMatchRegularExpression('/name="(description|appliances[^"]*)"/', $response->getContent());
+        $this->assertDoesNotMatchRegularExpression('/data-wizard-step="summary"/', $response->getContent());
         // The name comes last: its field is inside the last stage.
         $this->assertMatchesRegularExpression('/data-wizard-step="details".*name="name"/s', $response->getContent());
     }
@@ -111,8 +113,8 @@ class SolarProjectFormTest extends TestCase
         $response = $this->actingAs($user)
             ->get(route('solar-projects.edit', $solarProject))
             ->assertOk()
-            ->assertSee('data-wizard-furthest="2"', false)
-            ->assertSee('Paso 1 de 3 · Ubicación')
+            ->assertSee('data-wizard-furthest="3"', false)
+            ->assertSee('Paso 1 de 4 · Ubicación')
             ->assertSee('value="610.00"', false)
             ->assertSee('value="2025-03-31"', false)
             ->assertSee('value="Escuela en Uribia"', false)
@@ -180,7 +182,7 @@ class SolarProjectFormTest extends TestCase
         $response->assertOk()
             ->assertSee('Revisa las etapas marcadas en rojo')
             ->assertSee('data-wizard-initial="1"', false)
-            ->assertSee('data-wizard-furthest="3"', false);
+            ->assertSee('data-wizard-furthest="4"', false);
         $this->assertMatchesRegularExpression('/name="property_type"\s+value="business"[^>]*checked/', $response->getContent());
 
         // Old input is fresher than any saved draft or stage in the URL.

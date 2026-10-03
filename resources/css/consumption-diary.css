@@ -666,4 +666,56 @@
             grid-template-columns: 1fr;
         }
     }
+
+    /* ── Consumption from the bill (ADR-0020) ───────────────── */
+    .solar-diary-switch {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+    }
+
+    .solar-bill-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 1.25rem 1.75rem;
+    }
+
+    .solar-bill-summary__body {
+        display: grid;
+        gap: 0.35rem;
+        min-width: 0;
+    }
+
+    .solar-bill-summary__note {
+        margin: 0.4rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.88rem;
+    }
+
+    .solar-bill-summary__links {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.6rem 1.1rem;
+        margin-top: 0.6rem;
+    }
+
+    /* Creation · consumption stage: how it is given, and the kWh of the bill when it is the bill. */
+    .solar-consumption-bill {
+        display: grid;
+        gap: 0.5rem;
+        max-width: 24rem;
+        margin-top: 1.25rem;
+    }
+
+    .solar-consumption-bill[hidden] {
+        display: none;
+    }
+
+    @media (max-width: 720px) {
+        .solar-bill-summary {
+            grid-template-columns: 1fr;
+        }
+    }
 }

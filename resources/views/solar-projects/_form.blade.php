@@ -1,4 +1,5 @@
 @php
+    use App\Domain\Consumption\ConsumptionMode;
     use App\Domain\Property\PropertyType;
 
     $technicalParameter = $solarProject?->technicalParameter;
@@ -27,6 +28,10 @@
         'Villanueva' => '44874',
     ];
     $selectedPropertyType = old('property_type', $solarProject?->property_type);
+    // How the consumption is given (ADR-0020). A new project starts with neither chosen: the client must pick.
+    $selectedConsumptionMode = old('consumption_mode', $solarProject ? ConsumptionMode::normalize($solarProject->consumption_mode) : null);
+    // Changing from the appliances to the bill starts from what they add up to.
+    $billKwhValue = old('monthly_consumption_kwh', $solarProject !== null && $solarProject->monthlyConsumption() > 0 ? round($solarProject->monthlyConsumption(), 2) : null);
     $selectedMunicipalityId = old('municipality_id', $solarProject?->municipality_id);
     $selectedLocationType = old('location_type', $solarProject?->location_type ?? 'urbana');
     $isCreating = strtoupper($method) === 'POST';
@@ -71,6 +76,7 @@
         $isCreating ? ['key' => 'property', 'label' => 'Tu lugar', 'fields' => ['property_type']] : null,
         ['key' => 'location', 'label' => 'Ubicación', 'fields' => ['municipality_id', 'location_type', 'latitude', 'longitude']],
         ['key' => 'roof', 'label' => 'Techo', 'fields' => ['available_area_m2', 'usable_area_percentage', 'panel_power_w', 'panel_area_m2', 'system_losses_percentage', 'start_date', 'end_date']],
+        ['key' => 'consumption', 'label' => 'Tu consumo', 'fields' => ['consumption_mode', 'monthly_consumption_kwh']],
         ['key' => 'details', 'label' => 'Tu proyecto', 'fields' => ['energy_rate_cop_kwh', 'name']],
     ]));
     // "Paso 2 de 4" and the summary's "Editar" buttons follow the stages that are shown.
@@ -398,7 +404,79 @@
         </details>
     </section>
 
-    {{-- 4 · Tu proyecto: tarifa, nombre y resumen --}}
+    {{-- 4 · Tu consumo: con los equipos o con el recibo (ADR-0020) --}}
+    <section class="solar-card" data-wizard-step="consumption" data-wizard-label="Tu consumo">
+        <div class="solar-page-header">
+            <div>
+                <p class="solar-kicker">Paso {{ $stepIndex('consumption') + 1 }} de {{ $lastStepNumber }} · Tu consumo</p>
+                <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">¿Cómo calculamos tu consumo de energía?</h2>
+                <p class="solar-subtitle mt-2">Elige lo que te quede más fácil. Puedes cambiarlo después en Editar datos.</p>
+            </div>
+        </div>
+
+        <fieldset class="solar-property-options mt-6">
+            <legend class="sr-only">Cómo calculamos tu consumo</legend>
+            @foreach (ConsumptionMode::ALL as $consumptionMode)
+                <label class="solar-property-option">
+                    <input
+                        type="radio"
+                        name="consumption_mode"
+                        value="{{ $consumptionMode }}"
+                        required
+                        data-consumption-option="{{ ConsumptionMode::label($consumptionMode) }}"
+                        @checked($selectedConsumptionMode === $consumptionMode)
+                    >
+                    <span class="solar-property-option__icon" aria-hidden="true">
+                        @if ($consumptionMode === ConsumptionMode::BILL)
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+                        @else
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v4M15 3v4"/><path d="M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></svg>
+                        @endif
+                    </span>
+                    <span class="solar-property-option__text">
+                        <strong>{{ ConsumptionMode::label($consumptionMode) }}</strong>
+                        <span>{{ ConsumptionMode::hint($consumptionMode) }}</span>
+                    </span>
+                </label>
+            @endforeach
+        </fieldset>
+
+        {{-- Only the bill asks for a number here; with the appliances they are added after creating the project. --}}
+        <div class="solar-consumption-bill" data-consumption-bill-field @if ($selectedConsumptionMode !== ConsumptionMode::BILL) hidden @endif>
+            <div class="solar-field">
+                <div class="solar-field-label-row">
+                    <label for="monthly_consumption_kwh" class="solar-field-label">¿Cuántos kWh consumes al mes?</label>
+                    <button
+                        type="button"
+                        class="solar-help-button"
+                        data-energy-guide-open
+                        data-tooltip="¿Dónde lo encuentro en mi recibo?"
+                        aria-label="¿Dónde lo encuentro en mi recibo?"
+                        aria-haspopup="dialog"
+                    >?</button>
+                </div>
+                <input
+                    id="monthly_consumption_kwh"
+                    type="number"
+                    name="monthly_consumption_kwh"
+                    step="0.01"
+                    min="{{ ConsumptionMode::MIN_BILL_KWH }}"
+                    max="{{ ConsumptionMode::MAX_BILL_KWH }}"
+                    value="{{ $billKwhValue }}"
+                    placeholder="Por ejemplo, 380"
+                    class="solar-input"
+                    inputmode="decimal"
+                    data-consumption-kwh
+                    @if ($selectedConsumptionMode !== ConsumptionMode::BILL) disabled @endif
+                >
+                <span class="text-xs text-[color:var(--solar-text-muted)]">
+                    Lo encuentras en tu recibo de luz como "consumo" en kWh. Si lo tienes de varios meses, escribe el promedio.
+                </span>
+            </div>
+        </div>
+    </section>
+
+    {{-- 5 · Tu proyecto: tarifa, nombre y resumen --}}
     <section class="solar-card" data-wizard-step="details" data-wizard-label="Tu proyecto">
         <div class="solar-page-header">
             <div>
@@ -406,9 +484,9 @@
                 <h2 class="solar-wizard-heading text-2xl text-[color:var(--solar-text)]" tabindex="-1">Últimos datos</h2>
                 <p class="solar-subtitle mt-2">
                     @if ($isCreating)
-                        Después de crearlo agregarás tus equipos, espacio por espacio, para calcular tu sistema.
+                        Con tu tarifa calculamos cuánto pagas hoy y cuánto ahorrarías con el sol.
                     @else
-                        Tus equipos se cambian en la pestaña Consumo.
+                        Tus equipos se cambian en la pestaña Consumo, y los kWh de tu recibo, en el paso Tu consumo.
                     @endif
                 </p>
             </div>
@@ -474,6 +552,10 @@
             <div class="solar-wizard-summary-row">
                 <dt>Ubicación</dt>
                 <dd><span data-summary="location">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="{{ $stepIndex('location') }}">Editar</button></dd>
+            </div>
+            <div class="solar-wizard-summary-row">
+                <dt>Consumo</dt>
+                <dd><span data-summary="consumption">—</span> <button type="button" class="solar-wizard-edit" data-wizard-edit="{{ $stepIndex('consumption') }}">Editar</button></dd>
             </div>
             <div class="solar-wizard-summary-row">
                 <dt>Techo</dt>
@@ -726,7 +808,11 @@
         const municipality = fieldValue('municipality_id') ? selectedText('municipality_id') : '';
         const area = fieldValue('available_area_m2');
 
+        const consumptionMode = form.querySelector('[name="consumption_mode"]:checked');
+        const billKwh = fieldValue('monthly_consumption_kwh');
+
         set('property', propertyOption());
+        set('consumption', consumptionMode?.value === 'bill' && billKwh ? `${formatNumber(billKwh)} kWh al mes` : (consumptionMode?.dataset.consumptionOption ?? ''));
         set('location', municipality ? `${municipality} · ${selectedText('location_type')}` : '');
         set('area', area ? `${formatNumber(area)} m²` : '');
     };
@@ -911,6 +997,37 @@
 
 <script>
 (() => {
+    // Consumption stage (ADR-0020): only the bill asks for its kWh. The field is hidden and disabled otherwise,
+    // so it is neither validated nor sent with the appliances.
+    const field = document.querySelector('[data-consumption-bill-field]');
+    const input = field?.querySelector('[data-consumption-kwh]');
+
+    if (!field || !input) {
+        return;
+    }
+
+    const form = field.closest('form');
+    const sync = () => {
+        const bill = form.querySelector('[name="consumption_mode"]:checked')?.value === 'bill';
+        field.hidden = !bill;
+        input.disabled = !bill;
+        input.required = bill;
+    };
+
+    form.addEventListener('change', (event) => {
+        if (event.target.name === 'consumption_mode') {
+            sync();
+            if (!field.hidden) {
+                input.focus({ preventScroll: true });
+            }
+        }
+    });
+    sync();
+})();
+</script>
+
+<script>
+(() => {
     // Analysis period (AnalysisPeriod): at least a whole month and never after today.
     const start = document.querySelector('[data-analysis-start]');
     const end = document.querySelector('[data-analysis-end]');
@@ -996,11 +1113,11 @@
 <script>
 (() => {
     const modal = document.querySelector('[data-energy-guide-modal]');
-    const openButton = document.querySelector('[data-energy-guide-open]');
+    const openButtons = Array.from(document.querySelectorAll('[data-energy-guide-open]'));
     const closeButtons = Array.from(document.querySelectorAll('[data-energy-guide-close]'));
     let previousFocus = null;
 
-    if (!modal || !openButton) {
+    if (!modal || openButtons.length === 0) {
         return;
     }
 
@@ -1027,7 +1144,7 @@
         }
     }
 
-    openButton.addEventListener('click', openModal);
+    openButtons.forEach((button) => button.addEventListener('click', openModal));
     closeButtons.forEach((button) => button.addEventListener('click', closeModal));
 })();
 </script>

@@ -38,6 +38,15 @@ class SolarProjectConsumptionController extends Controller
     {
         abort_unless($request->user()->can('manage', $solarProject), 403);
 
+        // The consumption is the kWh of the bill: no diary, just that number and what it means (ADR-0020).
+        if ($solarProject->usesBillConsumption()) {
+            return view('solar-projects.consumption-bill', [
+                'solarProject' => $solarProject,
+                'calculationFreshness' => app(CheckCalculationFreshness::class)($solarProject),
+                'sizing' => app(SizeProjectSystem::class)($solarProject),
+            ]);
+        }
+
         return view('solar-projects.consumption', [
             ...$this->diaryData($solarProject),
             // What can be added, plus any hidden appliance this diary already uses (its rows stay editable).
@@ -55,6 +64,7 @@ class SolarProjectConsumptionController extends Controller
         SaveProjectAppliance $saveProjectAppliance,
     ): JsonResponse|RedirectResponse {
         abort_unless($request->user()->can('manage', $solarProject), 403);
+        $this->ensureAppliancesMode($solarProject);
 
         $appliance = $saveProjectAppliance($solarProject, $request->validated());
 
@@ -74,6 +84,7 @@ class SolarProjectConsumptionController extends Controller
         SaveProjectAppliance $saveProjectAppliance,
     ): JsonResponse|RedirectResponse {
         abort_unless($request->user()->can('manage', $solarProject), 403);
+        $this->ensureAppliancesMode($solarProject);
 
         $appliance = $saveProjectAppliance($solarProject, $request->validated(), $appliance);
 
@@ -93,12 +104,19 @@ class SolarProjectConsumptionController extends Controller
         RemoveProjectAppliance $removeProjectAppliance,
     ): JsonResponse|RedirectResponse {
         abort_unless($request->user()->can('manage', $solarProject), 403);
+        $this->ensureAppliancesMode($solarProject);
 
         $space = $appliance->space;
         $label = $this->catalog()->label($appliance->appliance_key);
         $removeProjectAppliance($solarProject, $appliance);
 
         return $this->respond($request, $solarProject, "Se quitó {$label} del proyecto.", $space);
+    }
+
+    /** A project that gives its consumption from the bill has no diary to change (ADR-0020). */
+    private function ensureAppliancesMode(SolarProject $solarProject): void
+    {
+        abort_if($solarProject->usesBillConsumption(), 409, 'Este proyecto usa el consumo de tu recibo. Cámbialo en "Editar datos" para agregar equipos.');
     }
 
     /**
@@ -112,7 +130,6 @@ class SolarProjectConsumptionController extends Controller
             'solarProject' => $solarProject,
             'diary' => app(BuildConsumptionDiary::class)($solarProject),
             'calculationFreshness' => app(CheckCalculationFreshness::class)($solarProject),
-            'usesBillConsumption' => ! $solarProject->appliances()->exists() && $solarProject->monthlyConsumption() > 0,
             // ADR-0014: how much of these appliances the roof covers; it changes with every appliance.
             'sizing' => app(SizeProjectSystem::class)($solarProject),
         ];

@@ -1,7 +1,7 @@
 {{--
-    Content of the consumption diary (ADR-0013): summary, bill notice and spaces. Rendered with the page
+    Content of the consumption diary (ADR-0013): summary and spaces. Rendered with the page
     and again by the server after each save, so the page updates without reloading.
-    Params: $solarProject, $diary (BuildConsumptionDiary), $calculationFreshness, $usesBillConsumption.
+    Params: $solarProject, $diary (BuildConsumptionDiary), $calculationFreshness, $sizing.
 --}}
 @php
     use App\Domain\Property\PropertyType;
@@ -152,13 +152,6 @@
             <p class="solar-coverage-strip__note">Estimado con el sol promedio de La Guajira; al calcular se afina con los datos de tu zona.</p>
         @endunless
     </section>
-@endif
-
-@if ($usesBillConsumption)
-    <div class="solar-alert solar-alert-warning" role="note">
-        Este proyecto usa un consumo de <strong>{{ $kwh($solarProject->monthlyConsumption()) }} kWh al mes</strong> tomado del recibo.
-        Cuando agregues tu primer equipo, el cálculo pasará a basarse en tus equipos, que reflejan mejor tu uso real.
-    </div>
 @endif
 
 {{-- Spaces --}}

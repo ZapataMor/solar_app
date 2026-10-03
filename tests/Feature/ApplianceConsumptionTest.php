@@ -324,7 +324,7 @@ class ApplianceConsumptionTest extends TestCase
             ->assertDontSee('Con tu tarifa de');
     }
 
-    public function test_an_empty_diary_invites_to_add_appliances_and_a_bill_based_project_is_explained(): void
+    public function test_an_empty_diary_invites_to_add_appliances(): void
     {
         [$user, $solarProject] = $this->project();
 
@@ -334,14 +334,6 @@ class ApplianceConsumptionTest extends TestCase
             ->assertSee('Recorre tu casa y agrega tus equipos')
             ->assertSeeInOrder(['Cocina', 'Sala y comedor', 'Habitaciones', 'Lavandería y patio', 'Otros'])
             ->assertDontSee('data-test="diary-calculate"', false);
-
-        $solarProject->update(['monthly_consumption_kwh' => 850]);
-
-        // Older projects based on the bill keep that consumption until their first appliance.
-        $this->actingAs($user)
-            ->get(route('solar-projects.consumption', $solarProject))
-            ->assertSee('tomado del recibo')
-            ->assertSee('850 kWh al mes');
     }
 
     public function test_editing_the_project_data_keeps_its_appliances(): void

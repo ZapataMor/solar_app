@@ -7,6 +7,8 @@
     use App\Domain\Solar\CalculationFreshness;
 
     $sizing = $system['sizing'];
+    // The consumption comes from the bill, not from appliances (ADR-0020): the texts talk about the consumption.
+    $bill = $solarProject->usesBillConsumption();
     $rate = $system['rate'];
     $status = $calculationFreshness->status;
     $parameters = $solarProject->technicalParameter;
@@ -172,7 +174,7 @@
                         <p class="solar-system-reco__sub">
                             @if ($sizing->roofIsEnough())
                                 El sol cubriría el {{ number_format($coverage, 0) }} % de tu consumo.
-                                @if ($sizing->sparePanels() > 0) Te queda espacio para {{ $panels($sizing->sparePanels()) }} más si algún día sumas equipos. @endif
+                                @if ($sizing->sparePanels() > 0) Te queda espacio para {{ $panels($sizing->sparePanels()) }} más si {{ $bill ? 'tu consumo crece' : 'algún día sumas equipos' }}. @endif
                             @else
                                 Con esos {{ $sizing->panelsThatFit }}, el sol pagaría {{ $sunShareOfTen }} de cada 10 pesos de tu luz.
                             @endif
@@ -223,15 +225,15 @@
             @if ($system['calculated'] && $system['months'] !== [])
                 <section class="solar-card solar-system-chart" aria-labelledby="system-chart-title">
                     <div class="solar-system-chart__head">
-                        <h2 id="system-chart-title">Lo que da el sol frente a lo que gastan tus equipos</h2>
+                        <h2 id="system-chart-title">Lo que da el sol frente a {{ $bill ? 'tu consumo' : 'lo que gastan tus equipos' }}</h2>
                         <p class="solar-system-chart__legend">
                             <span><i class="is-sun"></i>Sol</span>
-                            <span><i class="is-use"></i>Tus equipos</span>
+                            <span><i class="is-use"></i>{{ $bill ? 'Tu consumo' : 'Tus equipos' }}</span>
                         </p>
                     </div>
                     <div class="solar-system-bars" aria-hidden="true">
                         @foreach ($system['months'] as $month)
-                            <div class="solar-system-bars__month" title="{{ $month['name'] }}: sol {{ $kwh($month['sunKwh']) }} kWh ({{ $money($month['sunCop']) }}), equipos {{ $kwh($month['useKwh']) }} kWh ({{ $money($month['useCop']) }})">
+                            <div class="solar-system-bars__month" title="{{ $month['name'] }}: sol {{ $kwh($month['sunKwh']) }} kWh ({{ $money($month['sunCop']) }}), {{ $bill ? 'consumo' : 'equipos' }} {{ $kwh($month['useKwh']) }} kWh ({{ $money($month['useCop']) }})">
                                 <div class="solar-system-bars__pair">
                                     <span class="is-sun" style="height: {{ round($month['sunKwh'] / $chartMax * 100, 1) }}%"></span>
                                     <span class="is-use" style="height: {{ round($month['useKwh'] / $chartMax * 100, 1) }}%"></span>
@@ -242,7 +244,7 @@
                     </div>
                     <table class="sr-only">
                         <caption>Sol frente a consumo por mes</caption>
-                        <thead><tr><th>Mes</th><th>Sol</th><th>Tus equipos</th></tr></thead>
+                        <thead><tr><th>Mes</th><th>Sol</th><th>{{ $bill ? 'Tu consumo' : 'Tus equipos' }}</th></tr></thead>
                         <tbody>
                             @foreach ($system['months'] as $month)
                                 <tr>
@@ -253,7 +255,7 @@
                             @endforeach
                         </tbody>
                     </table>
-                    <p class="solar-system-chart__note">Cada mes llevado a 30 días. Cuando la barra del sol pasa la de tus equipos, ese mes sobra energía.</p>
+                    <p class="solar-system-chart__note">Cada mes llevado a 30 días. Cuando la barra del sol pasa la de {{ $bill ? 'tu consumo' : 'tus equipos' }}, ese mes sobra energía.</p>
                 </section>
             @endif
 
@@ -291,7 +293,7 @@
                         <h2 id="system-how-title">¿Cómo lo calculamos?</h2>
                         <ol>
                             <li>Un panel de {{ number_format((float) $parameters->panel_power_w, 0, ',', '.') }} W produce aquí unos <strong>{{ $kwh($sizing->panelMonthlyKwh) }} kWh al mes</strong>.</li>
-                            <li>Tus equipos usan {{ $kwh($sizing->monthlyConsumptionKwh) }} kWh al mes: hacen falta <strong>{{ $panels($sizing->panelsNeeded) }}</strong>.</li>
+                            <li>{{ $bill ? 'Tu consumo es de' : 'Tus equipos usan' }} {{ $kwh($sizing->monthlyConsumptionKwh) }} kWh al mes: hacen falta <strong>{{ $panels($sizing->panelsNeeded) }}</strong>.</li>
                             <li>En {{ $kwh((float) $parameters->available_area_m2) }} m² de techo ({{ number_format((float) $parameters->usable_area_percentage, 0) }} % aprovechable) caben <strong>{{ $panels($sizing->panelsThatFit) }}</strong>.</li>
                             <li>Instalamos {{ $panels($sizing->panelsInstalled) }}: {{ $sizing->roofIsEnough() ? 'los que necesitas, ni uno más' : 'todos los que caben' }}.</li>
                         </ol>

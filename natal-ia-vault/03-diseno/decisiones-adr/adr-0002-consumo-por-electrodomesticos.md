@@ -2,13 +2,14 @@
 tipo: adr
 descripcion: ADR-0002 — Calcular el consumo a partir de electrodomésticos y horas de uso
 estado: ✅ Implementada
-actualizado: 2026-09-30
+actualizado: 2026-10-03
 ---
 
 # ADR-0002 · Consumo por electrodomésticos
 
 - **Estado:** 🟢 Aceptada · implementada el 2026-10-01
 - **Fecha:** 2026-09-30
+- **Ajustado por** [[adr-0020-consumo-por-equipos-o-por-recibo]] (2026-10-03): además de los equipos, el cliente puede dar los kWh al mes de su recibo; elige al crear el proyecto.
 - **Contexto del repo:** `SolarProjectRequest`, `solar-projects/_form.blade.php`, `App\Domain\Solar\EnergyProfile`
 
 ## Contexto
@@ -48,4 +49,4 @@ El formulario pide `monthly_consumption_kwh` tomado del recibo. El asesor señal
 - **Mantener solo el kWh del recibo:** es más simple, pero es el problema que señaló el asesor.
 
 ## Relacionado
-[[asesoria-felix-bada]] · [[adr-0001-acercar-a-clean-architecture]] · [[adr-0003-separar-datos-cliente-e-instalador]]
+[[asesoria-felix-bada]] · [[adr-0001-acercar-a-clean-architecture]] · [[adr-0003-separar-datos-cliente-e-instalador]] · [[adr-0020-consumo-por-equipos-o-por-recibo]]

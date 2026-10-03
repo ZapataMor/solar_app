@@ -116,7 +116,7 @@
                         <li>
                             <span class="landing-steps__n">2</span>
                             <h3>Cuéntanos de tu lugar</h3>
-                            <p>Elige tu municipio en el mapa, cuéntanos de tu techo y tu tarifa (te mostramos dónde está en el recibo) y agrega tus equipos: nosotros calculamos tu consumo.</p>
+                            <p>Elige tu municipio en el mapa, cuéntanos de tu techo y tu tarifa (te mostramos dónde está en el recibo) y dinos tu consumo: escribe los kWh de tu recibo o agrega tus equipos y lo calculamos por ti.</p>
                         </li>
                         <li>
                             <span class="landing-steps__n">3</span>

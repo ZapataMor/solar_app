@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Consumption\ConsumptionMode;
 use App\Domain\Property\PropertyType;
 use App\Domain\Solar\AnalysisPeriod;
 use App\Models\MunicipalitySolarPrice;
+use App\Models\SolarProject;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use Illuminate\Foundation\Http\FormRequest;
@@ -32,6 +34,17 @@ class SolarProjectRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // The form always asks how the consumption is given (ADR-0020). A request without it keeps what the
+        // project already has, or the diary of appliances for a new one.
+        if (! $this->filled('consumption_mode')) {
+            $project = $this->route('solarProject');
+            $this->merge(['consumption_mode' => $project instanceof SolarProject ? ConsumptionMode::normalize($project->consumption_mode) : ConsumptionMode::APPLIANCES]);
+
+            if ($project instanceof SolarProject && $project->usesBillConsumption() && ! $this->filled('monthly_consumption_kwh')) {
+                $this->merge(['monthly_consumption_kwh' => $project->monthlyConsumption()]);
+            }
+        }
+
         // Missing dates take the default period: the last three months up to today (AnalysisPeriod).
         if (! $this->filled('end_date')) {
             $this->merge(['end_date' => self::today()->toDateString()]);
@@ -53,6 +66,9 @@ class SolarProjectRequest extends FormRequest
             // Chosen when creating; afterwards it is fixed (it defines the diary spaces), so an edit ignores it.
             'property_type' => $this->isMethod('POST') ? ['required', 'string', Rule::in(PropertyType::ALL)] : ['exclude'],
             'name' => ['required', 'string', 'max:255'],
+            // From the appliances (the diary) or from the bill: only the bill asks for the kWh here (ADR-0020).
+            'consumption_mode' => ['required', 'string', Rule::in(ConsumptionMode::ALL)],
+            'monthly_consumption_kwh' => ['exclude_unless:consumption_mode,'.ConsumptionMode::BILL, 'required', 'numeric', 'between:'.ConsumptionMode::MIN_BILL_KWH.','.ConsumptionMode::MAX_BILL_KWH],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'start_date' => ['required', 'date'],
             // There is no climate data after today; the minimum month is checked in after().
@@ -103,6 +119,10 @@ class SolarProjectRequest extends FormRequest
         return [
             'property_type.required' => 'Cuéntanos si es una casa, un negocio o una institución.',
             'property_type.in' => 'Elige una casa, un negocio o una institución.',
+            'consumption_mode.in' => 'Elige si calculamos tu consumo con tus equipos o con tu recibo.',
+            'monthly_consumption_kwh.required' => 'Escribe los kWh al mes que aparecen en tu recibo.',
+            'monthly_consumption_kwh.numeric' => 'Escribe solo el número de kWh al mes de tu recibo.',
+            'monthly_consumption_kwh.between' => 'Los kWh al mes deben estar entre :min y :max. Míralos en tu recibo.',
             'energy_rate_cop_kwh.gt' => 'La tarifa del kWh debe ser mayor que 0: aparece en tu recibo.',
             'start_date.date' => 'La fecha inicial del análisis no es una fecha válida.',
             'end_date.date' => 'La fecha final del análisis no es una fecha válida.',

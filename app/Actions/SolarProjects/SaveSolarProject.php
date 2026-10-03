@@ -2,6 +2,7 @@
 
 namespace App\Actions\SolarProjects;
 
+use App\Domain\Consumption\ConsumptionMode;
 use App\Domain\Pricing\PriceNotAvailable;
 use App\Models\Municipality;
 use App\Models\SolarProject;
@@ -12,13 +13,15 @@ use Illuminate\Support\Facades\DB;
  * Use case: create or update a project from the guided form (ADR-0013): kind of property,
  * location, roof, tariff and name, with the installation quoted for its municipality.
  *
- * The consumption is not part of this form: it comes from the appliances of the consumption
- * diary (SaveProjectAppliance), so a new project starts at 0 kWh and an edit keeps it.
+ * The consumption comes in one of two ways (ADR-0020), chosen in the form: from the appliances of the
+ * consumption diary (SaveProjectAppliance), so a new project starts at 0 kWh and an edit keeps it, or
+ * the kWh per month of the bill, which this form saves.
  */
 final class SaveSolarProject
 {
     public function __construct(
         private readonly QuoteInstallation $quoteInstallation,
+        private readonly SyncProjectConsumption $syncProjectConsumption,
     ) {}
 
     /**
@@ -29,16 +32,23 @@ final class SaveSolarProject
     public function __invoke(User $owner, array $data, ?SolarProject $solarProject = null): SolarProject
     {
         $municipality = Municipality::query()->findOrFail($data['municipality_id']);
+        $mode = ConsumptionMode::normalize($data['consumption_mode'] ?? $solarProject?->consumption_mode);
+        $billKwh = $mode === ConsumptionMode::BILL ? round((float) $data['monthly_consumption_kwh'], 2) : null;
         $quote = ($this->quoteInstallation)(
             $municipality,
             (string) $data['location_type'],
-            $solarProject?->monthlyConsumption() ?? 0.0,
+            $billKwh ?? $solarProject?->monthlyConsumption() ?? 0.0,
             (float) $data['system_losses_percentage'],
         );
 
-        return DB::transaction(function () use ($owner, $data, $solarProject, $municipality, $quote): SolarProject {
+        $changedFromBill = $solarProject?->usesBillConsumption() && $mode === ConsumptionMode::APPLIANCES;
+
+        return DB::transaction(function () use ($owner, $data, $solarProject, $municipality, $quote, $mode, $billKwh, $changedFromBill): SolarProject {
             $attributes = [
                 ...$this->projectAttributes($data),
+                'consumption_mode' => $mode,
+                // The bill is the consumption itself; with the appliances it comes from the diary.
+                ...($billKwh !== null ? ['monthly_consumption_kwh' => $billKwh] : []),
                 ...$this->locationAttributes($data, $municipality),
                 ...$quote,
             ];
@@ -48,7 +58,7 @@ final class SaveSolarProject
                     ...$attributes,
                     // Only when creating: it defines the diary spaces, so it never changes afterwards.
                     'property_type' => $data['property_type'],
-                    'monthly_consumption_kwh' => 0,
+                    'monthly_consumption_kwh' => $billKwh ?? 0,
                 ]);
             } else {
                 $solarProject->update($attributes);
@@ -58,6 +68,11 @@ final class SaveSolarProject
                 ['solar_project_id' => $solarProject->id],
                 $this->technicalParameterAttributes($data),
             );
+
+            // Back to the appliances: the consumption is what the diary adds up to, not the old bill.
+            if ($changedFromBill) {
+                ($this->syncProjectConsumption)($solarProject);
+            }
 
             return $solarProject;
         });

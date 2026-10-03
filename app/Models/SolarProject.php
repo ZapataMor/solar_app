@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Consumption\ConsumptionMode;
 use App\Domain\Reference\EnergyTariff;
 use App\Domain\Reference\ReferenceValueCatalog;
 use App\Domain\Reference\ReferenceValues;
@@ -27,6 +28,7 @@ class SolarProject extends Model
         'name',
         'description',
         'property_type',
+        'consumption_mode',
         'location_name',
         'start_date',
         'end_date',
@@ -196,6 +198,12 @@ class SolarProject extends Model
             $referenceValues->current(ReferenceValueCatalog::ENERGY_RATE)->value,
             $referenceValues->current(ReferenceValueCatalog::COMMERCIAL_CONTRIBUTION)->value,
         );
+    }
+
+    /** The consumption is the kWh of the bill, not the sum of the appliances (ADR-0020). */
+    public function usesBillConsumption(): bool
+    {
+        return ConsumptionMode::normalize($this->consumption_mode) === ConsumptionMode::BILL;
     }
 
     public function monthlyConsumption(): float

@@ -180,7 +180,14 @@ class SolarProjectController extends Controller
             return back()->withInput()->withErrors(['municipality_id' => $exception->getMessage()]);
         }
 
-        // ADR-0013: the appliances are added next, space by space, in the consumption diary.
+        // ADR-0020: with the consumption of the bill the project is ready to calculate; with the appliances
+        // (ADR-0013) they are added next, space by space, in the consumption diary.
+        if ($solarProject->usesBillConsumption()) {
+            return redirect()
+                ->route('solar-projects.system', $solarProject)
+                ->with('status', 'Proyecto creado con el consumo de tu recibo. Calcula tu sistema para ver cuántos paneles necesitas.');
+        }
+
         return redirect()
             ->route('solar-projects.consumption', $solarProject)
             ->with('status', 'Proyecto creado. Ahora agrega los equipos de cada espacio para calcular tu sistema.');

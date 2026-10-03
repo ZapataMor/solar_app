@@ -38,6 +38,12 @@
                 <div class="solar-alert solar-alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
 
+            {{-- The consumption can also come from the bill (ADR-0020); the stage of the edit form changes it. --}}
+            <p class="solar-diary-switch">
+                ¿Prefieres usar los kWh de tu recibo en lugar de tus equipos?
+                <a href="{{ route('solar-projects.edit', $solarProject) }}#paso-3" class="solar-diary-link">Cambiar cómo calculo mi consumo</a>
+            </p>
+
             <div class="solar-diary-content" data-diary-content>
                 @include('solar-projects.partials.consumption-diary-content')
             </div>

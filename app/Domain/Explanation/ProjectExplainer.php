@@ -226,7 +226,7 @@ final class ProjectExplainer
 
             $spare = $f->panelsThatFit - $f->numberOfPanels;
             $paragraphs[] = 'Son los que necesitas para tu consumo, ni uno más: así no pagas paneles de sobra.'
-                .($spare > 0 ? " Te queda espacio para {$spare} más si algún día sumas equipos." : '');
+                .($spare > 0 ? " Te queda espacio para {$spare} más si algún día tu consumo crece." : '');
         }
 
         return new ExplainedQuestion('panels', $question, "{$f->numberOfPanels} paneles", 'para cubrir tu consumo con el espacio disponible', $paragraphs);
