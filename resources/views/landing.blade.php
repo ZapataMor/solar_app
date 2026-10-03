@@ -167,22 +167,27 @@
                         Si una fuente no tiene datos recientes, usamos la siguiente. Siempre ves qué fuente se usó en tu cálculo.
                     </p>
 
-                    <div class="landing-grid landing-grid--3">
-                        <article class="landing-card">
-                            <p class="landing-tag">Riohacha</p>
-                            <h3>Estación meteorológica universitaria</h3>
-                            <p>Mide irradiancia solar por metro cuadrado, temperatura, humedad y viento en tiempo real.</p>
-                        </article>
-                        <article class="landing-card">
-                            <p class="landing-tag">Maicao</p>
-                            <h3>Estación propia</h3>
-                            <p>Desarrollada por el equipo. Registra radiación UV, UVA y UVB, temperatura y partículas en el aire.</p>
-                        </article>
-                        <article class="landing-card">
-                            <p class="landing-tag">Satelital</p>
-                            <h3>NASA POWER</h3>
-                            <p>Históricos satelitales de radiación y clima para toda la región. Es el respaldo cuando no hay datos locales.</p>
-                        </article>
+                    {{-- Each source is a 3D station (ADR-0018): choosing a card changes the one on the left. --}}
+                    <div class="landing-stations" data-station-picker>
+                        @include('api-data.partials.station-figure', ['activeTab' => 'ambient', 'compact' => true])
+
+                        <div class="landing-stations__choices" role="group" aria-label="Fuentes de datos">
+                            <button type="button" class="landing-card landing-card--choice" data-station-choice="ambient" aria-pressed="true">
+                                <span class="landing-tag">Riohacha</span>
+                                <span class="landing-card__title">Estación meteorológica universitaria</span>
+                                <span class="landing-card__text">Mide irradiancia solar por metro cuadrado, temperatura, humedad y viento en tiempo real.</span>
+                            </button>
+                            <button type="button" class="landing-card landing-card--choice" data-station-choice="weather-station" aria-pressed="false">
+                                <span class="landing-tag">Maicao</span>
+                                <span class="landing-card__title">Estación propia</span>
+                                <span class="landing-card__text">Desarrollada por el equipo. Registra radiación UV, UVA y UVB, temperatura y partículas en el aire.</span>
+                            </button>
+                            <button type="button" class="landing-card landing-card--choice" data-station-choice="nasa" aria-pressed="false">
+                                <span class="landing-tag">Satelital</span>
+                                <span class="landing-card__title">NASA POWER</span>
+                                <span class="landing-card__text">Históricos satelitales de radiación y clima para toda la región. Es el respaldo cuando no hay datos locales.</span>
+                            </button>
+                        </div>
                     </div>
 
                     @if ($municipalities->isNotEmpty())

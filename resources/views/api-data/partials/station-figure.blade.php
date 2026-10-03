@@ -5,6 +5,8 @@
 --}}
 @php
     $wind = $stations['wind'];
+    // The landing (ADR-0012) describes each station in its own cards: here only the live wind stays.
+    $compact = $compact ?? false;
 @endphp
 <figure
     class="solar-station"
@@ -47,8 +49,10 @@
 
     <figcaption>
         <div data-station-caption="ambient">
-            <strong>Estación Ambient Weather</strong>
-            <span>Sensores de viento, lluvia, temperatura, humedad, radiación y UV en un mástil. Sus lecturas llegan por internet cada 5 minutos.</span>
+            @unless ($compact)
+                <strong>Estación Ambient Weather</strong>
+                <span>Sensores de viento, lluvia, temperatura, humedad, radiación y UV en un mástil. Sus lecturas llegan por internet cada 5 minutos.</span>
+            @endunless
             <span class="solar-station__live">
                 <svg viewBox="0 0 20 20" class="solar-station__compass" style="--wind-direction: {{ $wind['directionDegrees'] ?? 0 }}deg" @if ($wind['directionDegrees'] === null) data-no-direction @endif data-station-compass aria-hidden="true">
                     <circle cx="10" cy="10" r="8.5" /><path d="M10 1.5v2.2" /><path d="M10 4.2l2.6 6.8h-5.2z" class="solar-station__needle" />
@@ -56,13 +60,15 @@
                 <span>Viento de la última lectura: <span data-station-wind-text>{{ $wind['text'] }}</span></span>
             </span>
         </div>
-        <div data-station-caption="weather-station">
-            <strong>Estación del centro meteorológico</strong>
-            <span>Abrigo meteorológico para temperatura y humedad, sensores UVA y UVB, y medidor de CO₂ y partículas (PM2.5 y PM10).</span>
-        </div>
-        <div data-station-caption="nasa">
-            <strong>Satélites de NASA POWER</strong>
-            <span>Miden la radiación desde el espacio. NASA POWER la publica por día para el punto marcado en La Guajira, con unos días de retraso.</span>
-        </div>
+        @unless ($compact)
+            <div data-station-caption="weather-station">
+                <strong>Estación del centro meteorológico</strong>
+                <span>Abrigo meteorológico para temperatura y humedad, sensores UVA y UVB, y medidor de CO₂ y partículas (PM2.5 y PM10).</span>
+            </div>
+            <div data-station-caption="nasa">
+                <strong>Satélites de NASA POWER</strong>
+                <span>Miden la radiación desde el espacio. NASA POWER la publica por día para el punto marcado en La Guajira, con unos días de retraso.</span>
+            </div>
+        @endunless
     </figcaption>
 </figure>

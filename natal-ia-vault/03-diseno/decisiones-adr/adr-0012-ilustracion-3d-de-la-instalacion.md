@@ -133,6 +133,13 @@ Un mismo componente, `<x-solar-scene>`, dibuja la figura en los dos lugares; la 
 - **Carga:** la pide desde el `<head>`, con el resto de la página, y deja el indicador común mientras llega. Sin WebGL queda el boceto plano de cada tipo de lugar y los botones se ocultan.
 - **De paso,** el paso 2 de "Cómo funciona" ya no dice "ingresa tu consumo": ahora se agregan los equipos ([[adr-0013-creacion-guiada-y-diario-de-consumo]]).
 
+**Estaciones en la landing.** La sección "Datos reales" muestra las estaciones en 3D de [[adr-0018-estaciones-de-datos-en-3d]]:
+- **Una sola figura** (la del encabezado de *Datos climáticos*, en modo compacto) a la izquierda, y las tres fuentes como tarjetas a la derecha.
+- **Elegir una tarjeta** cambia la estación: el mástil de Ambient Weather (Riohacha), la estación propia de Maicao o el satélite de NASA POWER sobre el globo. La figura sigue `data-station`, igual que las pestañas de *Datos climáticos*.
+- **Datos reales:** la veleta gira con el viento de la última lectura y debajo se lee "Viento de la última lectura: 13 km/h del noreste".
+- **Las tarjetas describen** cada fuente; la figura no repite el texto.
+- **Sin WebGL** quedan los bocetos planos de cada estación.
+
 **Formulario (modo `preview`).**
 - **Dónde:** en el último paso, junto al resumen del lugar, la ubicación y el techo.
 - **Qué muestra:** el techo con **los paneles que caben**, con la misma cuenta que la pista del paso del techo: `área × % útil ÷ área del panel`. Si no cabe ninguno, lo dice.

@@ -2,7 +2,7 @@
 tipo: adr
 descripcion: ADR-0018 — En Datos climáticos, la estación de la pestaña elegida se ve en 3D (mástil Ambient Weather, centro meteorológico, satélite de NASA POWER) en lugar de tarjetas que repetían los conteos
 estado: ✅ Implementada
-actualizado: 2026-10-02
+actualizado: 2026-10-03
 ---
 
 # ADR-0018 · Estaciones de datos en 3D
@@ -78,6 +78,9 @@ Son figuras simples (*low-poly*), con el estilo de [[adr-0012-ilustracion-3d-de-
 - **Modelos GLB descargados:** exigen licencias, pesan más y no muestran el viento real.
 - **Tarjetas con otra información (por ejemplo, la hora de la última lectura):** encaja mejor con la salud de la sincronización ([[adr-0016-alertas-de-sincronizacion-de-datos]]).
 - **Una foto satelital de la Tierra como textura:** pesa varios MB y necesita atribución; el mapa dibujado ocupa unos KB.
+
+## En la landing (2026-10-03)
+La figura también está en la sección "Datos reales" de la landing, en modo compacto (`$compact`: sin los textos de cada estación, solo el viento en vivo). Las tarjetas de las fuentes cambian la estación con `[data-station-choice]`; ver [[adr-0012-ilustracion-3d-de-la-instalacion]].
 
 ## Por decidir
 - ¿Mostrar en la figura la hora de la última lectura de cada fuente, junto con el aviso de [[adr-0016-alertas-de-sincronizacion-de-datos]]?

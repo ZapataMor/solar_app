@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AmbientWeatherReading;
 use App\Models\Municipality;
 use App\Models\SolarProject;
 use App\Models\User;
@@ -32,6 +33,25 @@ class SolarSceneShowcaseTest extends TestCase
             // Without WebGL the flat sketch of each kind of place stays.
             $this->assertStringContainsString('data-sketch="'.$type.'"', $html);
         }
+    }
+
+    public function test_the_landing_shows_the_3d_stations_of_its_data_sources_with_the_real_wind(): void
+    {
+        AmbientWeatherReading::query()->create(['mac_address' => 'AA:BB', 'recorded_at' => '2026-10-02 13:00:00', 'wind_speed' => 13.4, 'wind_direction' => 45]);
+
+        $html = $this->get(route('home'))->assertOk()->getContent();
+
+        // One figure that follows the card chosen (ADR-0018), starting with the Ambient Weather station.
+        $this->assertMatchesRegularExpression('/<figure[^>]*data-station-scene[^>]*data-station="ambient"[^>]*data-wind-speed="13.4"[^>]*data-wind-direction="45"/s', $html);
+        $this->assertStringContainsString('Preparando la estación en 3D…', $html);
+        $this->assertMatchesRegularExpression('/Viento de la última lectura: <span data-station-wind-text>13 km\/h del noreste<\/span>/', $html);
+
+        foreach (['ambient', 'weather-station', 'nasa'] as $station) {
+            $this->assertMatchesRegularExpression('/data-station-choice="'.$station.'"\s+aria-pressed="'.($station === 'ambient' ? 'true' : 'false').'"/', $html);
+            $this->assertStringContainsString('data-station-sketch="'.$station.'"', $html);
+        }
+        // The cards describe each station: the figure does not repeat it.
+        $this->assertStringNotContainsString('Abrigo meteorológico para temperatura', $html);
     }
 
     public function test_the_landing_describes_the_guided_flow_not_the_old_consumption_field(): void

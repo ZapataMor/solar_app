@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Climate\DescribeDataStations;
 use App\Http\Controllers\ApiDataController;
 use App\Http\Controllers\ApplianceCatalogController;
 use App\Http\Controllers\ReferenceValueController;
@@ -14,6 +15,8 @@ Route::get('/', fn () => auth()->check()
     ? redirect()->route('solar-projects.index')
     : view('landing', [
         'municipalities' => Municipality::query()->active()->orderBy('name')->pluck('name'),
+        // The vane of the 3D station follows the wind of the latest reading (ADR-0018).
+        'stations' => app(DescribeDataStations::class)(),
     ]))->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
