@@ -92,6 +92,18 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   pestaña por `data-station` (`showApiDataTab` en `app.js`). La veleta usa el viento de la última
   lectura (`DescribeDataStations`); la sincronización de Ambient lo reenvía en `wind`. Los conteos
   viven en las pestañas (`data-ambient-count`…): no vuelvas a ponerlos en el encabezado.
+- **Diseñador 3D (ADR-0021):** pantalla solo de desarrollo (gate `design-3d`: admin y `APP_ENV=local`; ítem
+  *Desarrollo* del sidebar). Su primer modelo, `resources/js/system-scene/`, anima un día de un sistema híbrido en
+  una casa en corte (cuarto técnico a la izquierda, sala a la derecha, techo plano con los paneles en su
+  estructura). Los equipos y cables van a menos de 2,5 m: la losa tapa lo de más arriba.
+  `simulation.js` (puro, sin DOM ni Three.js) decide el sol, lo que producen los paneles y a
+  dónde va la energía (paneles → casa → baterías → red; sin energía, apagón); los demás archivos solo muestran
+  su resultado (`readout`): `model.js` arma la casa y los cables, `equipment.js` los equipos con sus pantallas,
+  `flow.js` la corriente y los haces de luz, `atmosphere.js` el cielo, las luces y el clima según la hora,
+  `controls.js` los controles de la página (`data-system-*` en `designer/index.blade.php`) y `scene.js` el
+  ciclo. Cada parte lleva `userData.info = {title, text, live(readout)}` para su etiqueta. Sin pruebas
+  automáticas de la escena: revísala en `/disenador-3d`; en la consola, `figure.systemScene.advance(10)` deja pasar
+  diez segundos de golpe y `figure.systemScene.simulation` permite cambiar la hora o las condiciones.
 - **Salud de la sincronización (ADR-0016):** cada comando de clima (`ambient:sync`, `weather-station:fetch`,
   `nasa-power:fetch`) abre un `SyncRun` y lo cierra con `complete()` o `fail()`: **un comando de sincronización
   nuevo debe hacer lo mismo**. `DescribeSyncHealth` arma la franja de *Datos climáticos* y la insignia roja

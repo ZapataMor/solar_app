@@ -1,0 +1,490 @@
+/* The system animation of the 3D designer (ADR-0021, resources/js/system-scene). The picture carries the
+   readout (the four numbers up on the left, the clock up on the right, what the system is doing below) and
+   the time runs under it; the scenes, the conditions and the equipment sit in a column on the right.
+   Without WebGL the stage keeps its message and the controls stay dim. */
+
+@layer components {
+    .solar-system-scene {
+        display: grid;
+        gap: 1rem;
+        margin: 0;
+    }
+
+    @media (min-width: 64rem) {
+        .solar-system-scene {
+            grid-template-columns: minmax(0, 1fr) 16.5rem;
+            align-items: start;
+        }
+    }
+
+    .solar-system-scene__main {
+        display: grid;
+        gap: 0.6rem;
+        min-width: 0;
+    }
+
+    .solar-system-scene__stage {
+        position: relative;
+        height: clamp(22rem, 58vh, 33rem);
+        overflow: hidden;
+        border: 1px solid var(--solar-border);
+        border-radius: 1.1rem;
+        background: linear-gradient(180deg, #7fb0de 0%, #e6dfcf 62%);
+        isolation: isolate;
+    }
+
+    .solar-system-scene__canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .solar-system-scene__fallback {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        text-align: center;
+        color: #1f2937;
+    }
+
+    .solar-system-scene.is-3d .solar-system-scene__fallback {
+        display: none;
+    }
+
+    /* The four numbers of the energy, small, up on the left of the picture. */
+    .solar-system-hud {
+        position: absolute;
+        top: 0.6rem;
+        left: 0.6rem;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 5.7rem));
+        gap: 0.25rem;
+        margin: 0;
+        padding: 0.3rem;
+        border-radius: 0.7rem;
+        background: rgba(8, 14, 26, 0.58);
+        color: #fff;
+        backdrop-filter: blur(6px);
+        pointer-events: none;
+    }
+
+    .solar-system-hud__item {
+        display: grid;
+        padding: 0.2rem 0.4rem;
+        border-left: 3px solid #94a3b8;
+        border-radius: 0.35rem;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .solar-system-hud dt {
+        font-size: 0.58rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .solar-system-hud dd {
+        display: grid;
+        margin: 0;
+    }
+
+    .solar-system-hud strong {
+        font-size: 0.85rem;
+        line-height: 1.2;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .solar-system-hud span {
+        overflow: hidden;
+        font-size: 0.6rem;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .solar-system-hud__item[data-state='on'],
+    .solar-system-hud__item[data-state='export'] {
+        border-left-color: #4ade80;
+    }
+
+    .solar-system-hud__item[data-state='use'] {
+        border-left-color: #f59e0b;
+    }
+
+    .solar-system-hud__item[data-state='import'] {
+        border-left-color: #c084fc;
+    }
+
+    .solar-system-hud__item[data-state='alert'] {
+        border-left-color: #f87171;
+    }
+
+    /* The clock, over the sky on the right. */
+    .solar-system-scene__clock {
+        position: absolute;
+        top: 0.6rem;
+        right: 0.6rem;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(8, 14, 26, 0.58);
+        color: #fff;
+        font-size: 0.8rem;
+        backdrop-filter: blur(6px);
+        pointer-events: none;
+    }
+
+    .solar-system-scene__clock strong {
+        font-size: 0.95rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .solar-system-scene__clock svg {
+        width: 1.05rem;
+        height: 1.05rem;
+    }
+
+    .solar-system-scene__clock .is-moon,
+    .solar-system-scene.is-night .solar-system-scene__clock .is-sun {
+        display: none;
+    }
+
+    .solar-system-scene.is-night .solar-system-scene__clock .is-moon {
+        display: block;
+    }
+
+    .solar-system-scene:not(.is-3d) :is(.solar-system-scene__clock, .solar-system-hud) {
+        display: none;
+    }
+
+    /* What the system is doing now, in a sentence; its edge takes the color of what is going on. */
+    .solar-system-scene__status {
+        position: absolute;
+        left: 0.6rem;
+        right: 0.6rem;
+        bottom: 0.6rem;
+        z-index: 1;
+        max-width: 28rem;
+        margin: 0;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--solar-border-strong);
+        border-left: 4px solid #94a3b8;
+        border-radius: 0.75rem;
+        background: color-mix(in srgb, var(--solar-surface-strong) 92%, transparent);
+        color: var(--solar-text);
+        font-size: 0.82rem;
+        line-height: 1.4;
+        box-shadow: var(--solar-shadow);
+        backdrop-filter: blur(8px);
+        pointer-events: none;
+    }
+
+    .solar-system-scene__status:empty {
+        display: none;
+    }
+
+    .solar-system-scene[data-mode='charging'] .solar-system-scene__status,
+    .solar-system-scene[data-mode='exporting'] .solar-system-scene__status,
+    .solar-system-scene[data-mode='direct'] .solar-system-scene__status {
+        border-left-color: #16a34a;
+    }
+
+    .solar-system-scene[data-mode='battery'] .solar-system-scene__status,
+    .solar-system-scene[data-mode='battery-assist'] .solar-system-scene__status,
+    .solar-system-scene[data-mode='curtailed'] .solar-system-scene__status {
+        border-left-color: #d97706;
+    }
+
+    .solar-system-scene[data-mode='grid'] .solar-system-scene__status,
+    .solar-system-scene[data-mode='grid-assist'] .solar-system-scene__status {
+        border-left-color: #9333ea;
+    }
+
+    .solar-system-scene[data-mode='blackout'] .solar-system-scene__status {
+        border-left-color: #dc2626;
+        background: color-mix(in srgb, var(--solar-danger-bg) 88%, var(--solar-surface-strong));
+    }
+
+    .solar-system-scene__tip {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 2;
+        display: grid;
+        gap: 0.25rem;
+        max-width: 19rem;
+        padding: 0.65rem 0.8rem;
+        border: 1px solid var(--solar-border-strong);
+        border-radius: 0.8rem;
+        background: color-mix(in srgb, var(--solar-surface-strong) 96%, transparent);
+        color: var(--solar-text);
+        font-size: 0.85rem;
+        line-height: 1.35;
+        box-shadow: var(--solar-shadow);
+        pointer-events: none;
+    }
+
+    .solar-system-scene__tip[hidden] {
+        display: none;
+    }
+
+    /* "Now: …", the live line of the label. */
+    .solar-system-scene__tip em {
+        font-style: normal;
+        font-weight: 600;
+        color: var(--solar-sun);
+    }
+
+    /* The time, under the picture, as in a player. */
+    .solar-system-transport {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 0.4rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-surface-strong) 60%, transparent);
+    }
+
+    .solar-system-transport input[type='range'] {
+        flex: 1;
+        min-width: 0;
+        accent-color: var(--solar-sun);
+    }
+
+    .solar-system-transport output {
+        min-width: 5.2rem;
+        padding-right: 0.6rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        color: var(--solar-text);
+    }
+
+    .solar-system-play {
+        gap: 0.5rem;
+        padding: 0.55rem 0.95rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .solar-system-play svg {
+        width: 1.05rem;
+        height: 1.05rem;
+    }
+
+    .solar-system-play .is-pause,
+    .solar-system-play[aria-pressed='true'] .is-play {
+        display: none;
+    }
+
+    .solar-system-play[aria-pressed='true'] .is-pause {
+        display: block;
+    }
+
+    /* The column on the right: scenes, conditions, equipment and what each color means. */
+    .solar-system-panel {
+        display: grid;
+        align-content: start;
+        gap: 1.1rem;
+        padding: 1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1.1rem;
+        background: color-mix(in srgb, var(--solar-surface-strong) 55%, transparent);
+    }
+
+    .solar-system-scene:not(.is-3d) :is(.solar-system-panel, .solar-system-transport) {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .solar-system-panel__group {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .solar-system-panel__title {
+        margin: 0;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--solar-text-muted);
+    }
+
+    .solar-system-panel__scenes {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.4rem;
+    }
+
+    .solar-system-panel__scenes .solar-system-chip {
+        justify-content: center;
+        padding: 0.45rem 0.4rem;
+        border-radius: 0.7rem;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .solar-system-panel__scenes .solar-system-chip:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    .solar-system-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    .solar-system-chip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.8rem;
+        border: 1px solid var(--solar-border-strong);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-surface-elevated) 80%, transparent);
+        color: var(--solar-text);
+        font-size: 0.82rem;
+        font-weight: 500;
+        line-height: 1.2;
+        cursor: pointer;
+        transition: border-color 160ms ease, background 160ms ease;
+    }
+
+    .solar-system-chip:hover {
+        border-color: var(--solar-sun);
+    }
+
+    .solar-system-chip[aria-pressed='true'],
+    .solar-system-chip:has(input:checked) {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 18%, var(--solar-surface-strong));
+    }
+
+    .solar-system-chip:focus-visible,
+    .solar-system-chip:has(input:focus-visible) {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    /* The checkbox covers the whole chip, so it is the chip that is clicked. */
+    .solar-system-chip input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .solar-system-chip--toggle::before {
+        content: '';
+        width: 0.65rem;
+        height: 0.65rem;
+        border: 2px solid currentColor;
+        border-radius: 50%;
+        opacity: 0.45;
+    }
+
+    .solar-system-chip--toggle:has(input:checked)::before {
+        border-color: var(--solar-sun);
+        background: var(--solar-sun);
+        opacity: 1;
+    }
+
+    .solar-system-slider {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.2rem 0.75rem;
+        font-size: 0.82rem;
+        color: var(--solar-text);
+    }
+
+    .solar-system-slider > span {
+        grid-column: 1 / -1;
+    }
+
+    .solar-system-slider input[type='range'] {
+        width: 100%;
+        accent-color: var(--solar-sun);
+    }
+
+    .solar-system-slider output {
+        min-width: 3rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+
+    .solar-system-legend {
+        display: grid;
+        gap: 0.3rem;
+        margin: 0;
+        padding: 0.8rem 0 0;
+        border-top: 1px solid var(--solar-border);
+        list-style: none;
+        font-size: 0.75rem;
+        color: var(--solar-text-muted);
+    }
+
+    .solar-system-legend li {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .solar-system-legend i {
+        flex: none;
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 999px;
+    }
+
+    /* When the picture is narrow, the four numbers go two by two. */
+    @media (max-width: 72rem) and (min-width: 64rem), (max-width: 40rem) {
+        .solar-system-hud {
+            grid-template-columns: repeat(2, minmax(0, 5.7rem));
+        }
+    }
+
+    /* Between a phone and a wide screen, the column lies under the picture in two halves. */
+    @media (min-width: 40rem) and (max-width: 63.99rem) {
+        .solar-system-panel {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 40rem) {
+        /* No room for both over the picture: the time is already in the bar under it. */
+        .solar-system-scene__clock {
+            display: none;
+        }
+
+        .solar-system-scene__status {
+            max-width: none;
+            font-size: 0.78rem;
+        }
+
+        /* Only the icon shows; the words stay for screen readers. */
+        .solar-system-play [data-system-play-label] {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+    }
+}

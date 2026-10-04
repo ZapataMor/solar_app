@@ -18,7 +18,21 @@ class Designer3dTest extends TestCase
             ->get(route('solar-projects.index'))
             ->assertSee(route('designer.index'), false);
 
-        $this->get(route('designer.index'))->assertOk()->assertSee('Diseñador 3D');
+        $this->get(route('designer.index'))
+            ->assertOk()
+            ->assertSee('Diseñador 3D')
+            ->assertSee('data-system-scene', false)
+            ->assertSee('data-system-stage', false)
+            ->assertSee('data-system-time', false)
+            ->assertSee('data-system-play', false)
+            ->assertSee('data-system-status', false)
+            ->assertSee('data-system-battery', false)
+            ->assertSee('data-system-toggle="grid-down"', false)
+            ->assertSee('data-system-toggle="clouds"', false);
+
+        foreach (['noon', 'sunset', 'night', 'empty', 'blackout'] as $scene) {
+            $this->get(route('designer.index'))->assertSee('data-system-preset="'.$scene.'"', false);
+        }
     }
 
     public function test_it_is_hidden_and_forbidden_outside_local_environment(): void
