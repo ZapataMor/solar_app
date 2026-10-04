@@ -84,6 +84,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('catalogo-de-equipos/{catalogAppliance}', [ApplianceCatalogController::class, 'update'])->name('appliance-catalog.update');
     });
 
+    // 3D designer: development only (gate `design-3d`, APP_ENV=local).
+    Route::view('disenador-3d', 'designer.index')
+        ->middleware('can:design-3d')
+        ->name('designer.index');
+
     // Climate readings are global: only system administrators may sync them.
     Route::middleware('can:sync-climate-data')->group(function () {
         Route::post('solar-projects/{solarProject}/fetch-weather-data', [SolarProjectController::class, 'fetchWeatherData'])

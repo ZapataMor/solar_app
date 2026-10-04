@@ -53,6 +53,9 @@ class AppServiceProvider extends ServiceProvider
         // Platform administration (raw data, future users/prices screens).
         Gate::define('administer-platform', fn (User $user): bool => $user->isAdmin());
 
+        // 3D designer: a workbench for the models, only for admins and only with APP_ENV=local.
+        Gate::define('design-3d', fn (User $user): bool => $user->isAdmin() && app()->environment('local'));
+
         // Climate readings are shared by every project, so only admins may trigger a sync.
         Gate::define('sync-climate-data', fn (User $user): bool => $user->isAdmin());
 

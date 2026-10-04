@@ -42,6 +42,13 @@
                         {{ __('Catálogo de equipos') }}
                     </flux:sidebar.item>
                 @endcan
+
+                @can('design-3d')
+                    <div class="solar-nav-label solar-nav-label--group">{{ __('Desarrollo') }}</div>
+                    <flux:sidebar.item class="solar-nav-item" icon="cube" :href="route('designer.index')" :current="request()->routeIs('designer.*')" :tooltip="__('Diseñador 3D')" wire:navigate>
+                        {{ __('Diseñador 3D') }}
+                    </flux:sidebar.item>
+                @endcan
             </flux:sidebar.nav>
 
             <flux:spacer />
