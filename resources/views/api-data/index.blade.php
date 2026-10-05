@@ -2,6 +2,9 @@
     $formatNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'N/A';
     $formatNasaNumber = fn ($value, int $decimals = 2) => $value !== null ? number_format((float) $value, $decimals, ',', '.') : 'Dato no publicado por NASA';
     $formatDate = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->timezone(config('app.display_timezone'))->format('Y-m-d H:i') : 'N/A';
+    // NASA se pide por día, nunca por hora (ADR-0009): su fila es una fecha marcada a medianoche, así
+    // que llevarla a otra zona mostraría el día anterior a las 19:00.
+    $formatDay = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->format('Y-m-d') : 'N/A';
 
     $totalRows = $ambientCount + $weatherStationCount + $nasaCount;
 
@@ -543,7 +546,7 @@
                                     };
                                 @endphp
                                 <tr>
-                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDate($row->recorded_at) }}</td>
+                                    <td class="font-semibold text-[color:var(--solar-text)]">{{ $formatDay($row->recorded_at) }}</td>
                                     <td>
                                         <span class="solar-pill {{ $isIncomplete ? 'solar-pill-warn' : '' }}">
                                             {{ $isIncomplete ? 'Incompleto' : 'Completo' }}

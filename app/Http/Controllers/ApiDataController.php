@@ -273,6 +273,25 @@ class ApiDataController extends Controller
             ]);
     }
 
+    /**
+     * The clock the page prints (api-data/index.blade.php): readings are stored in UTC and read in
+     * Bogotá. Without the conversion, the rows a sync returns come back five hours ahead of the ones
+     * the page had just rendered, with the same values under a different hour.
+     */
+    private function displayDate(mixed $value): string
+    {
+        return $value ? Carbon::parse($value)->timezone(config('app.display_timezone'))->format('Y-m-d H:i') : 'N/A';
+    }
+
+    /**
+     * NASA is asked by day, never by hour (ADR-0009): its rows are a date stamped at midnight, so
+     * moving them to another timezone would show the day before at 19:00.
+     */
+    private function displayDay(mixed $value): string
+    {
+        return $value ? Carbon::parse($value)->format('Y-m-d') : 'N/A';
+    }
+
     private function ambientRowsCount(): int
     {
         return AmbientWeatherReading::query()->count();
@@ -291,7 +310,7 @@ class ApiDataController extends Controller
             ->reverse()
             ->values()
             ->map(fn (object $row): array => [
-                'recorded_at'    => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'recorded_at'    => $this->displayDate($row->recorded_at),
                 'radiation'      => $row->solar_radiation !== null ? (float) $row->solar_radiation : null,
                 'uv_index'       => $row->uv_index !== null ? (float) $row->uv_index : null,
                 'temperature'    => $row->temperature !== null ? (float) $row->temperature : null,
@@ -310,7 +329,7 @@ class ApiDataController extends Controller
             ->limit(15)
             ->get()
             ->map(fn (object $row): array => [
-                'recorded_at' => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'recorded_at' => $this->displayDate($row->recorded_at),
                 'mac_address' => $row->mac_address ?? 'N/A',
                 'radiation' => $this->formatJsonNumber($row->radiation, 2),
                 'temperature' => $this->formatJsonNumber($row->temperature, 2),
@@ -393,7 +412,7 @@ class ApiDataController extends Controller
             ->limit(15)
             ->get()
             ->map(fn (object $row): array => [
-                'recorded_at' => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'recorded_at' => $this->displayDay($row->recorded_at),
                 'status' => $this->nasaRowIsIncomplete($row) ? 'Incompleto' : 'Completo',
                 'is_incomplete' => $this->nasaRowIsIncomplete($row),
                 'radiation' => $this->formatJsonNasaNumber($row->radiation, 3),
@@ -446,7 +465,7 @@ class ApiDataController extends Controller
             ->get()
             ->map(fn (object $row): array => [
                 'project_name' => $row->project_name ?? 'Sin asociar',
-                'recorded_at' => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'recorded_at' => $this->displayDate($row->recorded_at),
                 'device_code' => $row->device_code ?? 'N/A',
                 'radiation' => $this->formatJsonNumber($row->radiation, 3),
                 'temperature' => $this->formatJsonNumber($row->temperature, 2),
@@ -475,7 +494,7 @@ class ApiDataController extends Controller
             ->reverse()
             ->values()
             ->map(fn (object $row): array => [
-                'recorded_at' => $row->recorded_at ? Carbon::parse($row->recorded_at)->format('Y-m-d H:i') : 'N/A',
+                'recorded_at' => $this->displayDate($row->recorded_at),
                 'radiation' => $row->radiation !== null ? (float) $row->radiation : null,
                 'uva' => $row->uva !== null ? (float) $row->uva : null,
                 'uvb' => $row->uvb !== null ? (float) $row->uvb : null,

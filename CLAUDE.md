@@ -193,6 +193,12 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   con clases, no con el atributo `hidden`.
 - Pint ya reporta estilo en archivos heredados (`SolarProjectController`,
   `ClimateSourceFallbackService`, …). No reformatees archivos enteros: solo lo que tocas.
+- **Las lecturas se guardan en UTC y se leen en Bogotá** (`app.display_timezone`, 5 h menos). Toda fecha
+  que vaya a la pantalla pasa por `ApiDataController::displayDate()` o por `$formatDate` de
+  `api-data/index.blade.php`; si se te olvida, la tabla sale 5 h adelantada y los mismos valores
+  aparecen bajo otra hora al sincronizar. **NASA es la excepción:** su fila es un día marcado a
+  medianoche (ADR-0009), así que usa `displayDay()` / `$formatDay`, o la convertirás al día anterior
+  a las 19:00.
 - Radiación: se guarda como **W/m² promedio de 24 h**. HSP (kWh/m²/día) = W/m² × 24 / 1000.
 - **NASA POWER se pide por día, nunca por hora** (ADR-0009): la radiación horaria llega en `-999`
   durante meses. `nasa-power:fetch` reconsulta 45 días para confirmar estimaciones y nunca cambia

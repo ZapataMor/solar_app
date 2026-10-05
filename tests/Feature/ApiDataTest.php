@@ -61,7 +61,8 @@ class ApiDataTest extends TestCase
             ->assertSee('Obtener datos NASA POWER')
             ->assertSee('Obtener datos de estacion')
             ->assertSee('ST-001')
-            ->assertSee('2026-05-21 12:30');
+            // Stored in UTC, read in Bogotá: 12:30 UTC is half past seven in the morning there.
+            ->assertSee('2026-05-21 07:30');
     }
 
     public function test_nasa_power_table_shows_unique_rows_without_project_names(): void
@@ -173,7 +174,8 @@ class ApiDataTest extends TestCase
             ->postJson(route('api-data.fetch-nasa-data'))
             ->assertOk()
             ->assertJsonPath('nasaCount', 1)
-            ->assertJsonPath('rows.0.recorded_at', '2026-05-21 00:00')
+            // NASA is asked by day, never by hour (ADR-0009): the row is a date, not midnight.
+            ->assertJsonPath('rows.0.recorded_at', '2026-05-21')
             ->assertJsonPath('rows.0.status', 'Completo')
             ->assertJsonPath('rows.0.radiation', '5,200')
             ->assertJsonPath('rows.0.radiation_source', 'NASA real')
@@ -266,7 +268,7 @@ class ApiDataTest extends TestCase
             ->assertJsonPath('weatherStationCount', 1)
             ->assertJsonPath('rows.0.project_name', 'Global')
             ->assertJsonPath('rows.0.device_code', 'ST-AJAX')
-            ->assertJsonPath('rows.0.recorded_at', '2026-05-21 12:30')
+            ->assertJsonPath('rows.0.recorded_at', '2026-05-21 07:30')
             ->assertJsonPath('rows.0.temperature', '31,45')
             ->assertJsonPath('rows.0.radiation', '620,123')
             ->assertJsonPath('rows.0.uv_index', '7,456');
@@ -310,7 +312,7 @@ class ApiDataTest extends TestCase
             ->assertJsonPath('message', 'Ambient Weather al día: 1 lectura nueva. La última es de las 8:45 a. m. del 21 de mayo.')
             ->assertJsonPath('ambientCount', 1)
             ->assertJsonPath('rows.0.mac_address', 'AA:BB:CC:DD:EE:FF')
-            ->assertJsonPath('rows.0.recorded_at', '2026-05-21 13:45')
+            ->assertJsonPath('rows.0.recorded_at', '2026-05-21 08:45')
             ->assertJsonPath('rows.0.temperature', '30,25')
             ->assertJsonPath('rows.0.radiation', '710,75')
             ->assertJsonPath('rows.0.uv_index', '8,20');
