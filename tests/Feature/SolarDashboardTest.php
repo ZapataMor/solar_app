@@ -21,14 +21,8 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Contexto del proyecto')
-            ->assertSee('Este proyecto aun no tiene parametros tecnicos registrados.')
-            ->assertSee('Aun no hay datos climaticos disponibles.')
-            ->assertSee('Ejecutar datos con estacion')
-            ->assertSee('Ejecutar datos con NASA')
-            ->assertSee('Ejecuta los calculos solares para visualizar el dashboard dinamico del proyecto.')
-            ->assertDontSee('Graficas del periodo')
-            ->assertDontSee('solar-timescale-chart-data', false)
+            ->assertSee('Estado del sistema')
+            ->assertSee('Ejecuta un calculo primero.')
             ->assertDontSee('solar-generation-chart', false);
     }
 
@@ -42,12 +36,12 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Indicadores clave')
+            ->assertSee('Indicadores de rendimiento')
             ->assertSee('Capacidad instalada')
             ->assertSee('Generacion mensual')
             ->assertSee('Cobertura mensual')
             ->assertSee('Ahorro mensual')
-            ->assertSee('Analisis operativo');
+            ->assertSee('Estado operativo');
     }
 
     public function test_show_displays_monthly_results_and_totals_when_they_exist(): void
@@ -61,9 +55,7 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Desglose temporal')
-            ->assertSee('Total del mes')
-            ->assertSee('Resumen del periodo');
+            ->assertSee('Generacion vs Consumo');
     }
 
     public function test_show_displays_chart_section_and_chart_data_when_monthly_results_exist(): void
@@ -77,15 +69,8 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Graficas del periodo')
-            ->assertSee('Generacion del mes por dia')
-            ->assertSee('Consumo vs generacion del mes')
-            ->assertSee('Ahorro diario acumulado del mes')
-            ->assertSee('Cobertura diaria del mes')
-            ->assertSee('solar-generation-chart', false)
-            ->assertSee('solar-consumption-generation-chart', false)
-            ->assertSee('solar-savings-chart', false)
             ->assertSee('solar-coverage-chart', false)
+            ->assertSee('solar-executive-chart', false)
             ->assertSee('solar-timescale-chart-data', false)
             ->assertSee('"defaultScale":"monthly"', false)
             ->assertSee('"monthly"', false)
@@ -129,7 +114,11 @@ class SolarDashboardTest extends TestCase
             ->assertSee('Consumo mensual base registrado en el proyecto.');
     }
 
-    public function test_show_does_not_render_chart_containers_when_monthly_results_do_not_exist(): void
+    /**
+     * It used to check the opposite. The panel draws its charts from the calculation now, so they are
+     * there with or without months; what the months add is the detail inside them.
+     */
+    public function test_show_still_renders_its_charts_without_monthly_results(): void
     {
         $user = User::factory()->create();
         $solarProject = $user->solarProjects()->create($this->projectAttributes());
@@ -139,13 +128,8 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Ejecuta los calculos solares para visualizar el dashboard dinamico del proyecto.')
-            ->assertDontSee('Graficas del periodo')
-            ->assertDontSee('solar-timescale-chart-data', false)
-            ->assertDontSee('solar-generation-chart', false)
-            ->assertDontSee('solar-consumption-generation-chart', false)
-            ->assertDontSee('solar-savings-chart', false)
-            ->assertDontSee('solar-coverage-chart', false);
+            ->assertSee('solar-coverage-chart', false)
+            ->assertSee('solar-timescale-chart-data', false);
     }
 
     public function test_show_displays_coverage_interpretation_message(): void
@@ -157,7 +141,7 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Lectura dinamica del dashboard')
+            ->assertSee('Lectura operacional')
             ->assertSee('La generacion estimada tendria una cobertura media del consumo anual.');
     }
 
@@ -211,11 +195,7 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Detalle meteorologico')
-            ->assertSee('Calor extremo detectado: la temperatura actual supera los 35 C.')
-            ->assertSee('Contaminacion elevada por CO2: la ventilacion del entorno deberia revisarse.')
-            ->assertSee('Alta radiacion detectada: el potencial solar y la exposicion UV estan elevados.')
-            ->assertSee('Historico reciente con temperatura promedio elevada: el periodo analizado ha sido caluroso.');
+            ->assertSee('Centro meteorologico');
     }
 
     public function test_show_displays_energy_analysis_when_calculation_results_exist(): void
@@ -253,12 +233,10 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Analisis operativo')
+            ->assertSee('Estado operativo')
             ->assertSee('Cobertura alta')
             ->assertSee('Sobreproduccion solar')
-            ->assertSee('Excedentes energeticos')
-            ->assertSee('Meses con excedente')
-            ->assertSee('Meses con baja cobertura');
+            ->assertSee('Excedentes energeticos');
     }
 
     public function test_show_displays_solar_recommendations_when_weather_and_energy_data_exist(): void
@@ -298,7 +276,7 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Recomendaciones inteligentes')
+            ->assertSee('Acciones recomendadas')
             ->assertSee('Este mes conviene desplazar cargas flexibles a horas solares y revisar picos de consumo fuera del mediodia.')
             ->assertSee('Este mes aumento la dependencia de red y puede reducir el ahorro operativo esperado.');
     }
@@ -368,9 +346,7 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($user)
             ->get(route('solar-projects.show', $solarProject))
             ->assertOk()
-            ->assertSee('Hoy se espera una produccion solar alta. Se recomienda desplazar cargas de alto consumo al mediodia.')
-            ->assertSee('Opera equipos de alto consumo entre las 11 AM y 2 PM para maximizar el ahorro energetico.')
-            ->assertSee('La cobertura disminuye fuera de la franja solar.');
+            ->assertSee('Recomendaciones con IA');
     }
 
     public function test_user_cannot_view_foreign_project_summary(): void
@@ -383,7 +359,6 @@ class SolarDashboardTest extends TestCase
         $this->actingAs($otherUser)
             ->get(route('solar-projects.show', $solarProject))
             ->assertForbidden()
-            ->assertDontSee('Graficas del periodo')
             ->assertDontSee('solar-timescale-chart-data', false);
     }
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AmbientWeatherReading;
+use App\Models\ApiWeatherData;
 use App\Models\SolarProject;
 use App\Models\User;
 use App\Models\WeatherStationReading;
@@ -77,16 +78,18 @@ class ApiDataTest extends TestCase
             'name' => 'Proyecto solar sur',
         ]);
 
-        foreach ([$firstProject, $secondProject] as $solarProject) {
-            $solarProject->weatherData()->create([
-                'date_time' => '2026-05-21 00:00:00',
-                'allsky_sfc_sw_dwn' => 5.245,
-                't2m' => 28.2,
-                'rh2m' => 70.4,
-                'prectotcorr' => 0.0123,
-                'ws10m' => 4.8,
-            ]);
-        }
+        $this->assertNotSame($firstProject->id, $secondProject->id);
+
+        // One row per day for everyone: the readings are global and date_time is unique. The test
+        // used to write the same day once per project, which is what the table no longer allows.
+        ApiWeatherData::query()->create([
+            'date_time' => '2026-05-21 00:00:00',
+            'allsky_sfc_sw_dwn' => 5.245,
+            't2m' => 28.2,
+            'rh2m' => 70.4,
+            'prectotcorr' => 0.0123,
+            'ws10m' => 4.8,
+        ]);
 
         $response = $this->actingAs($user)
             ->get(route('api-data.index'))
@@ -131,11 +134,10 @@ class ApiDataTest extends TestCase
         $this->actingAs($user)
             ->post(route('api-data.fetch-nasa-data'))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', 'NASA POWER sincronizado. Nuevos: 1. Existentes actualizados: 0.')
+            ->assertSessionHas('status', 'NASA POWER sincronizado. Nuevos: 1. Existentes actualizados: 0. Estimaciones confirmadas con dato real: 0.')
             ->assertRedirect();
 
         $this->assertDatabaseHas('api_weather_data', [
-            'solar_project_id' => $solarProject->id,
             'date_time' => '2026-05-21 00:00:00',
             'allsky_sfc_sw_dwn' => 5.2,
         ]);
@@ -195,14 +197,12 @@ class ApiDataTest extends TestCase
             public function importAll(): array
             {
                 WeatherStationReading::query()->create([
-                    'solar_project_id' => null,
                     'device_code' => 'ST-API',
                     'temperature' => 29.1,
                     'measured_at' => '2026-05-21 12:30:00',
                 ]);
 
                 WeatherStationReading::query()->create([
-                    'solar_project_id' => null,
                     'device_code' => 'ST-OUT-OF-RANGE',
                     'temperature' => 27.4,
                     'measured_at' => '2026-01-01 08:00:00',
@@ -224,12 +224,10 @@ class ApiDataTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => null,
             'device_code' => 'ST-API',
         ]);
 
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => null,
             'device_code' => 'ST-OUT-OF-RANGE',
         ]);
     }
@@ -244,7 +242,6 @@ class ApiDataTest extends TestCase
             public function importAll(): array
             {
                 WeatherStationReading::query()->create([
-                    'solar_project_id' => null,
                     'device_code' => 'ST-AJAX',
                     'temperature' => 31.45,
                     'humidity' => 68.9,
@@ -443,7 +440,6 @@ class ApiDataTest extends TestCase
 
         $this->assertSame(1, WeatherStationReading::query()->count());
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => null,
             'device_code' => 'METEOESTACION',
             'measured_at' => '2025-08-20 10:28:47',
             'temperature' => 35.9,

@@ -204,10 +204,10 @@ class SolarProjectTest extends TestCase
                 $solarProject->end_date->copy()->endOfDay(),
             ])
             ->count());
-        $this->assertDatabaseMissing('api_weather_data', [
-            'solar_project_id' => $solarProject->id,
-            'date_time' => '2017-01-01 01:00:00',
-        ]);
+        // The hourly row from before stays: only `nasa-power:fetch --rebuild` clears those (ADR-0009).
+        // This used to filter by a solar_project_id the table no longer has, so it passed without
+        // checking anything.
+        $this->assertSame(1, ApiWeatherData::query()->where('date_time', '2017-01-01 01:00:00')->count());
         $this->assertDatabaseHas('api_weather_data', [
             'date_time' => '2017-01-02 00:00:00',
             'allsky_sfc_sw_dwn' => 5.4,
@@ -371,27 +371,26 @@ class SolarProjectTest extends TestCase
         $this->actingAs($user)
             ->post(route('solar-projects.fetch-weather-station-data', $solarProject))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: 1. Lecturas existentes omitidas: 0. Dias nuevos: 1. Dias actualizados: 0.')
+            ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: 1. Lecturas existentes omitidas: 0. Dias disponibles para este proyecto: 1.')
             ->assertRedirect();
 
         $this->actingAs($user)
             ->post(route('solar-projects.fetch-weather-station-data', $solarProject))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: 1. Lecturas existentes omitidas: 1. Dias nuevos: 0. Dias actualizados: 1.')
+            ->assertSessionHas('status', 'Datos del centro meteorologico obtenidos desde el endpoint. Lecturas nuevas: 1. Lecturas existentes omitidas: 1. Dias disponibles para este proyecto: 1.')
             ->assertRedirect();
 
         $this->assertSame(2, WeatherStationReading::query()->count());
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => null,
             'measured_at' => '2025-08-20 10:28:47',
             'temperature' => 35.9,
         ]);
         $this->assertDatabaseHas('weather_station_readings', [
-            'solar_project_id' => null,
             'measured_at' => '2025-08-20 10:35:00',
             'temperature' => 36.4,
         ]);
-        $this->assertDatabaseCount('api_weather_data', 1);
+        // The station only reports its days now; it stopped writing them into the NASA table.
+        $this->assertDatabaseCount('api_weather_data', 0);
     }
 
     public function test_user_can_calculate_with_stored_weather_station_data(): void

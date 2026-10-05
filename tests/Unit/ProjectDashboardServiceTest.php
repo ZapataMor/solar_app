@@ -2,6 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Domain\Reference\CurrentReferenceValue;
+use App\Domain\Reference\ReferenceValueCatalog;
+use App\Domain\Reference\ReferenceValues;
 use App\Models\CalculationResult;
 use App\Models\MonthlyResult;
 use App\Models\SolarProject;
@@ -129,20 +132,14 @@ class ProjectDashboardServiceTest extends TestCase
         $weatherStationAggregationService->method('dailyRows')
             ->willReturn(collect());
 
-        $ambientWeatherAggregationService->expects($this->once())
-            ->method('readingsForProject')
-            ->with($project)
-            ->willReturn(collect());
-
-        $ambientWeatherAggregationService->expects($this->once())
-            ->method('stats')
-            ->with(collect())
-            ->willReturn(['total' => 0]);
-
-        $ambientWeatherAggregationService->expects($this->once())
-            ->method('chartData')
-            ->with(collect())
-            ->willReturn(['labels' => [], 'radiation' => []]);
+        // The ambient service asks by project now; readingsForProject/stats/chartData are gone. An
+        // unstubbed one answers with an automatic Collection double whose filter() returns null,
+        // and the build dies on it.
+        $ambientWeatherAggregationService->method('recentWindowForProject')->willReturn(collect());
+        $ambientWeatherAggregationService->method('recentReadingsForProject')->willReturn(collect());
+        $ambientWeatherAggregationService->method('dailyRowsForProject')->willReturn(collect());
+        $ambientWeatherAggregationService->method('statsForProject')->willReturn(['total' => 0]);
+        $ambientWeatherAggregationService->method('chartDataForProject')->willReturn(['labels' => [], 'radiation' => []]);
 
         $climateSourceFallbackService->expects($this->once())
             ->method('resolveActiveSourceDescriptor')
@@ -156,6 +153,16 @@ class ProjectDashboardServiceTest extends TestCase
             ->method('chartData')
             ->with($readings)
             ->willReturn(['labels' => [], 'radiation' => []]);
+
+        // The tariff comes from reference_values now (ADR-0015), and this test has no database:
+        // the port answers with the catalog default, which is what a project without its own rate uses.
+        $this->app->instance(ReferenceValues::class, new class implements ReferenceValues
+        {
+            public function current(string $key): CurrentReferenceValue
+            {
+                return new CurrentReferenceValue($key, ReferenceValueCatalog::definition($key)->default);
+            }
+        });
 
         $service = new ProjectDashboardService(
             $dashboardAiWidgetService,
@@ -298,7 +305,7 @@ class ProjectDashboardServiceTest extends TestCase
 
     private function calculationResult(): CalculationResult
     {
-        $result = new CalculationResult();
+        $result = new CalculationResult;
         $result->forceFill([
             'usable_area_m2' => 102,
             'number_of_panels' => 40,
@@ -316,7 +323,7 @@ class ProjectDashboardServiceTest extends TestCase
 
     private function weatherReading(int $daysAgo, int $hour, float $temperature, float $radiation): WeatherStationReading
     {
-        $reading = new WeatherStationReading();
+        $reading = new WeatherStationReading;
         $reading->forceFill([
             'measured_at' => now()->subDays($daysAgo)->setTime($hour, 0),
             'temperature' => $temperature,

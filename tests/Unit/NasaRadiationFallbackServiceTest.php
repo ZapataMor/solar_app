@@ -62,10 +62,13 @@ class NasaRadiationFallbackServiceTest extends TestCase
             '20260521',
             ['20260521'],
             ['20260521' => null],
-            ['20260521' => 28.0],
-            ['20260521' => 70.0],
-            ['20260521' => 0.0],
-            ['20260521' => 4.0],
+            // Without weather signals: the chain gained `weather_signals_model` between the
+            // interpolation and the historical average, and with temperature and humidity it never
+            // reaches the step this test is about.
+            ['20260521' => null],
+            ['20260521' => null],
+            ['20260521' => null],
+            ['20260521' => null],
         );
 
         $this->assertSame('estimated', $result['source']);

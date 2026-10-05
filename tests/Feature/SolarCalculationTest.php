@@ -53,7 +53,9 @@ class SolarCalculationTest extends TestCase
         $this->actingAs($user)
             ->post(route('solar-projects.calculate', $solarProject))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', 'Calculos solares ejecutados correctamente.')
+            // The message names the climate source that was used, which depends on the data at hand:
+            // pinning the whole sentence made this test break every time the chain changed.
+            ->assertSessionHas('status', fn (string $status): bool => str_contains($status, 'Calculos ejecutados'))
             ->assertRedirect();
 
         $calculationResult = CalculationResult::query()->whereBelongsTo($solarProject)->first();

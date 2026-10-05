@@ -26,6 +26,9 @@ class AmbientWeatherImportServiceTest extends TestCase
             'ambient.cache_minutes'   => 0,
             'ambient.base_url'        => 'https://api.ambientweather.net/v1',
         ]);
+
+        // A pattern that stops matching must fail here, not quietly call the real Ambient API.
+        Http::preventStrayRequests();
     }
 
     public function test_import_returns_zeroes_when_ambient_disabled(): void
@@ -46,11 +49,11 @@ class AmbientWeatherImportServiceTest extends TestCase
 
         Http::fake([
             // getDevices()
-            'api.ambientweather.net/v1/devices' => Http::response([
+            'api.ambientweather.net/v1/devices?*' => Http::response([
                 ['macAddress' => $mac],
             ], 200),
             // getLatestData()
-            "api.ambientweather.net/v1/devices/{$mac}" => Http::response([
+            "api.ambientweather.net/v1/devices/{$mac}*" => Http::response([
                 $this->rawReading(),
             ], 200),
         ]);
@@ -70,10 +73,10 @@ class AmbientWeatherImportServiceTest extends TestCase
         $mac = 'AA:BB:CC:DD:EE:FF';
 
         Http::fake([
-            'api.ambientweather.net/v1/devices' => Http::response([
+            'api.ambientweather.net/v1/devices?*' => Http::response([
                 ['macAddress' => $mac],
             ], 200),
-            "api.ambientweather.net/v1/devices/{$mac}" => Http::response([
+            "api.ambientweather.net/v1/devices/{$mac}*" => Http::response([
                 $this->rawReading(),
             ], 200),
         ]);
@@ -85,10 +88,10 @@ class AmbientWeatherImportServiceTest extends TestCase
 
         // Re-queue same fake response for second call
         Http::fake([
-            'api.ambientweather.net/v1/devices' => Http::response([
+            'api.ambientweather.net/v1/devices?*' => Http::response([
                 ['macAddress' => $mac],
             ], 200),
-            "api.ambientweather.net/v1/devices/{$mac}" => Http::response([
+            "api.ambientweather.net/v1/devices/{$mac}*" => Http::response([
                 $this->rawReading(),
             ], 200),
         ]);
@@ -106,8 +109,8 @@ class AmbientWeatherImportServiceTest extends TestCase
         $mac = 'AA:BB:CC:DD:EE:FF';
 
         Http::fake([
-            'api.ambientweather.net/v1/devices' => Http::response([['macAddress' => $mac]], 200),
-            "api.ambientweather.net/v1/devices/{$mac}" => Http::response([$this->rawReading()], 200),
+            'api.ambientweather.net/v1/devices?*' => Http::response([['macAddress' => $mac]], 200),
+            "api.ambientweather.net/v1/devices/{$mac}*" => Http::response([$this->rawReading()], 200),
         ]);
 
         $this->makeService()->importLatestForAllDevices();
@@ -126,7 +129,7 @@ class AmbientWeatherImportServiceTest extends TestCase
         Cache::flush();
 
         Http::fake([
-            'api.ambientweather.net/v1/devices' => Http::response([
+            'api.ambientweather.net/v1/devices?*' => Http::response([
                 ['info' => ['name' => 'no-mac-device']],
             ], 200),
         ]);
