@@ -10,23 +10,8 @@
         'rural_dispersa' => 'Rural dispersa',
         'alta_guajira' => 'Alta Guajira',
     ];
-    $municipalityDaneCodes = [
-        'Riohacha' => '44001',
-        'Albania' => '44035',
-        'Barrancas' => '44078',
-        'Dibulla' => '44090',
-        'Distracción' => '44098',
-        'El Molino' => '44110',
-        'Fonseca' => '44279',
-        'Hatonuevo' => '44378',
-        'La Jagua del Pilar' => '44420',
-        'Maicao' => '44430',
-        'Manaure' => '44560',
-        'San Juan del Cesar' => '44650',
-        'Uribia' => '44847',
-        'Urumita' => '44855',
-        'Villanueva' => '44874',
-    ];
+    // One source for both maps: the project's and the installer's coverage (ADR-0021).
+    $municipalityDaneCodes = \App\Domain\Property\MunicipalityBoundaries::DANE_CODES;
     $selectedPropertyType = old('property_type', $solarProject?->property_type);
     // How the consumption is given (ADR-0020). A new project starts with neither chosen: the client must pick.
     $selectedConsumptionMode = old('consumption_mode', $solarProject ? ConsumptionMode::normalize($solarProject->consumption_mode) : null);
