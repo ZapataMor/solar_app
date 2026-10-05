@@ -3,6 +3,7 @@
 use App\Actions\Climate\DescribeDataStations;
 use App\Http\Controllers\ApiDataController;
 use App\Http\Controllers\ApplianceCatalogController;
+use App\Http\Controllers\InstallerController;
 use App\Http\Controllers\ReferenceValueController;
 use App\Http\Controllers\SolarProjectConsumptionController;
 use App\Http\Controllers\SolarProjectController;
@@ -65,7 +66,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('solar-projects.calculate-ambient-weather');
 
     Route::view('guia-recibo', 'guides.energy-bill')->name('guides.energy-bill');
-    Route::view('instaladores', 'installers.index')->name('installers.index');
+
+    // Allied installers (ADR-0021): the directory and the quote request, which is the lead of ADR-0005.
+    Route::get('instaladores', [InstallerController::class, 'index'])->name('installers.index');
+    Route::post('instaladores/{installer}/solicitudes', [InstallerController::class, 'requestQuote'])
+        ->name('installers.quote-requests.store');
 
     Route::get('api-data', ApiDataController::class)
         ->middleware('can:administer-platform')
@@ -82,6 +87,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('catalogo-de-equipos', [ApplianceCatalogController::class, 'store'])->name('appliance-catalog.store');
         Route::get('catalogo-de-equipos/{catalogAppliance}/editar', [ApplianceCatalogController::class, 'edit'])->name('appliance-catalog.edit');
         Route::put('catalogo-de-equipos/{catalogAppliance}', [ApplianceCatalogController::class, 'update'])->name('appliance-catalog.update');
+
+        // Allied installers (ADR-0021): an administrator creates them; there is no `installer` role yet.
+        Route::get('instaladores/nuevo', [InstallerController::class, 'create'])->name('installers.create');
+        Route::post('instaladores', [InstallerController::class, 'store'])->name('installers.store');
+        Route::get('instaladores/{installer}/editar', [InstallerController::class, 'edit'])->name('installers.edit');
+        Route::put('instaladores/{installer}', [InstallerController::class, 'update'])->name('installers.update');
     });
 
     // 3D designer: development only (gate `design-3d`, APP_ENV=local).

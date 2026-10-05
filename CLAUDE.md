@@ -98,6 +98,26 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   del menú; los umbrales y los estados están en `App\Domain\Sync`. El latido del programador
   (`scheduler-heartbeat`, cada minuto) prueba que el cron corre; `HEARTBEAT_PING_URL` lo avisa a un monitor
   externo. Las horas de la estación local están en `config/services.php`, no en `routes/console.php`.
+- **Instaladores (ADR-0021):** `/instaladores` es el directorio del cliente: elige uno de sus proyectos
+  y le pide cotización a quien cubre su municipio (`DescribeInstallerDirectory`,
+  `RequestInstallerQuote`). La solicitud (`quote_requests`) es el lead del ADR-0005: **los datos de
+  contacto solo se muestran a quien ya la pidió**, y sin consumo no se cotiza (`QuoteNotPossible`).
+  El instalador es un registro, no un usuario: lo crea el admin desde la misma pantalla
+  (`can:administer-platform`); el rol `installer` del ADR-0003 todavía no existe. Los de
+  `InstallerSeeder` son de ejemplo y la página lo advierte: quita el aviso cuando entren reales.
+- **Mapa de cobertura (ADR-0021):** el formulario de instalador elige municipios en el mismo mapa del
+  formulario de proyecto (`resources/js/coverage-map.js`, Leaflet desde el CDN y solo en esa página).
+  Usa `public/maps/la_guajira_municipios_simple.geojson` (26 KB): el original del IGAC (4 MB) congela la
+  pestaña al repintar, y `scripts/maps/simplify-geojson.py` lo regenera. Los códigos DANE que unen cada
+  municipio con su polígono están en `App\Domain\Property\MunicipalityBoundaries`, que comparten los dos
+  formularios. Las casillas son el campo real; el mapa solo las marca. Tres cosas que no hay que
+  deshacer: se dibuja en **SVG** (en canvas el hover va lento porque repinta los 15 polígonos), solo se
+  repinta el municipio que cambió, y *Seleccionar todos* **dispara un `change`** o el mapa queda
+  pintado con la respuesta vieja. Cada forma lleva su nombre (fijo solo las grandes): la etiqueta de
+  ciudad que trae la tesela engaña, porque el municipio de Riohacha es enorme y la ciudad un punto.
+  Las teselas y los colores son los del formulario de proyecto (oro = municipio, naranja quemado =
+  cubierto), sin filtros encima. Los estilos de Leaflet se sobrescriben **fuera** de
+  `@layer components`: viene del CDN sin capa y en Tailwind v4 lo no-capado gana.
 - **Cambios en el cálculo:** van en `SolarCalculator` / `InstallationCostCalculator`, con test
   en `tests/Unit/Domain` (extienden `PHPUnit\Framework\TestCase`, sin base de datos).
 - Decisiones de arquitectura: registra un ADR en `natal-ia-vault/03-diseno/decisiones-adr/`.

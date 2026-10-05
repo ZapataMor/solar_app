@@ -1,0 +1,519 @@
+/* Allied installers (ADR-0021): the client's directory and the administrator's form. The 3D figure of
+   the chosen project is the shared <x-solar-scene>, styled in system-panel.css and scene-showcase.css. */
+
+@layer components {
+    .solar-installers-notice {
+        margin: 0;
+        padding: 0.75rem 1rem;
+        border: 1px solid color-mix(in srgb, var(--solar-warning) 34%, transparent);
+        border-radius: 0.9rem;
+        background: var(--solar-warning-bg);
+        color: var(--solar-text);
+        font-size: 0.85rem;
+    }
+
+    .solar-installers-empty {
+        max-width: 42rem;
+    }
+
+    /* The chosen project: its figures on the left, its roof in 3D on the right. */
+    .solar-installers-project {
+        display: grid;
+        gap: 1.5rem;
+        align-items: center;
+    }
+
+    @media (min-width: 64rem) {
+        .solar-installers-project {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+        }
+    }
+
+    .solar-installers-project__data {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .solar-installers-figures {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+        gap: 0.6rem;
+        margin: 0;
+    }
+
+    .solar-installers-figures > div {
+        padding: 0.65rem 0.8rem;
+        border-radius: 0.85rem;
+        background: color-mix(in srgb, var(--solar-text) 5%, transparent);
+    }
+
+    .solar-installers-figures dt {
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .solar-installers-figures dd {
+        margin: 0.2rem 0 0;
+        color: var(--solar-text);
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .solar-installers-warning {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+    }
+
+    .solar-installers-warning a {
+        color: var(--solar-sun);
+        font-weight: 600;
+        text-decoration: underline;
+    }
+
+    /* The scene keeps its own aspect ratio; the card only gives it room. */
+    .solar-installers-scene {
+        width: 100%;
+        margin: 0;
+    }
+
+    .solar-installers-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+        gap: 1rem;
+    }
+
+    .solar-installer-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .solar-installer-card.is-requested {
+        border-color: color-mix(in srgb, var(--solar-success) 42%, transparent);
+    }
+
+    .solar-installer-card.is-hidden {
+        opacity: 0.6;
+    }
+
+    .solar-installer-card__head {
+        display: flex;
+        gap: 0.75rem;
+        align-items: start;
+        justify-content: space-between;
+    }
+
+    .solar-installer-card__head h2 {
+        color: var(--solar-text);
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    .solar-installer-card__tagline {
+        margin: 0.15rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+    }
+
+    .solar-installer-years {
+        flex: none;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+        color: var(--solar-gold);
+        font-size: 0.72rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .solar-installer-card__text {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+
+    .solar-installer-card__coverage {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 0.85rem;
+    }
+
+    .solar-installer-card__coverage svg {
+        width: 1rem;
+        height: 1rem;
+        flex: none;
+        color: var(--solar-sun);
+    }
+
+    /* The contact data appears only once the quote was requested (ADR-0021). */
+    .solar-installer-card__contact {
+        display: grid;
+        gap: 0.4rem;
+        margin-top: auto;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--solar-border);
+    }
+
+    .solar-installer-badge {
+        justify-self: start;
+        margin: 0;
+        padding: 0.18rem 0.6rem;
+        border-radius: 999px;
+        background: var(--solar-success-bg);
+        color: var(--solar-success);
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .solar-installer-badge.is-muted {
+        background: color-mix(in srgb, var(--solar-text) 10%, transparent);
+        color: var(--solar-text-muted);
+    }
+
+    .solar-installer-card__who {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    .solar-installer-card__links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .solar-installer-card__links a {
+        color: var(--solar-sun);
+        text-decoration: underline;
+    }
+
+    .solar-installer-card__action {
+        display: grid;
+        gap: 0.4rem;
+        margin-top: auto;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--solar-border);
+    }
+
+    .solar-installer-card__action button {
+        justify-self: start;
+    }
+
+    .solar-installer-card__action span,
+    .solar-installer-card__action.is-blocked {
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    /* Administration of the card: it belongs to the administrator, not to the client reading the
+       directory, so it sits below a rule with the edit button spelled out as a button. */
+    .solar-installer-card__admin {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 0.15rem;
+        padding-top: 0.7rem;
+        border-top: 1px dashed var(--solar-border-strong);
+    }
+
+    .solar-installer-card__requests {
+        display: inline-flex;
+        gap: 0.35rem;
+        align-items: center;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    .solar-installer-card__requests svg {
+        width: 0.95rem;
+        height: 0.95rem;
+        flex: none;
+    }
+
+    .solar-installer-edit {
+        display: inline-flex;
+        gap: 0.35rem;
+        align-items: center;
+        padding: 0.32rem 0.75rem;
+        border: 1px solid color-mix(in srgb, var(--solar-sun) 55%, transparent);
+        border-radius: 999px;
+        color: var(--solar-sun);
+        font-size: 0.78rem;
+        font-weight: 600;
+        transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .solar-installer-edit svg {
+        width: 0.9rem;
+        height: 0.9rem;
+        flex: none;
+    }
+
+    .solar-installer-edit:hover {
+        border-color: var(--solar-sun);
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+        color: var(--solar-text);
+    }
+
+    .solar-installer-edit:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    /* Administrator's form: one card per question the directory answers, with the heading beside the
+       fields so a text input never stretches across the whole screen. */
+    .solar-installer-page {
+        width: min(100%, 72rem);
+        margin: 0 auto;
+    }
+
+    .solar-installer-form {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .solar-installer-section {
+        display: grid;
+        gap: 1rem 2.5rem;
+        align-items: start;
+    }
+
+    @media (min-width: 64rem) {
+        .solar-installer-section {
+            grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+        }
+    }
+
+    .solar-installer-section__head h2 {
+        color: var(--solar-text);
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .solar-installer-section__head p {
+        margin: 0.35rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
+    .solar-installer-section__body {
+        display: grid;
+        gap: 1.1rem;
+        max-width: 42rem;
+    }
+
+    .solar-installer-form__row {
+        display: grid;
+        gap: 1.1rem;
+        align-items: start;
+    }
+
+    @media (min-width: 48rem) {
+        .solar-installer-form__row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    /* Only the box is short; the label still has the width of the column. */
+    .solar-installer-form__narrow .solar-input {
+        max-width: 10rem;
+    }
+
+    /* "Donde trabaja" carries a map, so its body is wider than a column of text fields. */
+    .solar-installer-section--wide .solar-installer-section__body {
+        max-width: 54rem;
+    }
+
+    /* Leaflet measures its container, so the height is set before the map arrives. */
+    /* The department is about as tall as it is wide: beside the list, the map is nearly square and
+       the shapes fill it, instead of floating in a wide strip. */
+    .solar-coverage-layout {
+        display: grid;
+        gap: 1rem;
+    }
+
+    @media (min-width: 72rem) {
+        .solar-coverage-layout {
+            grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+        }
+    }
+
+    .solar-coverage-map {
+        height: 22rem;
+        overflow: hidden;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.9rem;
+        background: var(--solar-surface-muted);
+    }
+
+    .is-mapless .solar-coverage-map {
+        display: none;
+    }
+
+    /* The browser outlines a clicked SVG polygon; coverage is shown with colour instead. */
+    .solar-coverage-map path.leaflet-interactive:focus {
+        outline: none;
+    }
+
+    .solar-coverage-map.leaflet-container:focus:not(:focus-visible) {
+        outline: none;
+    }
+
+    .solar-installer-municipalities__head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+        align-items: baseline;
+    }
+
+    .solar-installer-municipalities__count {
+        flex: 1;
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+    }
+
+    .solar-installer-municipalities__toggle {
+        padding: 0.25rem 0.7rem;
+        font-size: 0.78rem;
+    }
+
+    .solar-installer-municipalities {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+        gap: 0.45rem;
+    }
+
+    .solar-installer-municipality {
+        display: grid;
+        padding: 0.45rem 0.7rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.7rem;
+        color: var(--solar-text-muted);
+        font-size: 0.84rem;
+        font-weight: 600;
+        line-height: 1.3;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+    }
+
+    .solar-installer-municipality small {
+        color: var(--solar-text-muted);
+        font-size: 0.68rem;
+        font-weight: 500;
+    }
+
+    .solar-installer-municipality:has(input:checked) {
+        border-color: color-mix(in srgb, var(--solar-sun) 60%, transparent);
+        background: color-mix(in srgb, var(--solar-sun) 14%, transparent);
+        color: var(--solar-text);
+    }
+
+    .solar-installer-municipality:has(input:focus-visible) {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    /* The switch of "se ofrece a los clientes": a row, not a stray box above its label. */
+    .solar-installer-toggle {
+        display: flex;
+        gap: 0.7rem;
+        align-items: start;
+        padding: 0.8rem 0.95rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.85rem;
+        cursor: pointer;
+    }
+
+    .solar-installer-toggle:has(input:checked) {
+        border-color: color-mix(in srgb, var(--solar-sun) 50%, transparent);
+        background: color-mix(in srgb, var(--solar-sun) 8%, transparent);
+    }
+
+    .solar-installer-toggle input {
+        width: 1.05rem;
+        height: 1.05rem;
+        margin-top: 0.15rem;
+        flex: none;
+        accent-color: var(--solar-sun);
+    }
+
+    .solar-installer-toggle strong {
+        color: var(--solar-text);
+        font-size: 0.9rem;
+    }
+
+    .solar-installer-toggle small {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+        font-weight: 400;
+    }
+
+    .solar-installer-form__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding-top: 0.25rem;
+    }
+}
+
+/* Leaflet ships its stylesheet from the CDN, outside every layer, and an unlayered rule wins over a
+   layered one in Tailwind v4 however specific the layered one is. These overrides stay unlayered. */
+.solar-coverage-map.leaflet-container {
+    background: color-mix(in srgb, var(--solar-text) 4%, transparent);
+    font: inherit;
+}
+
+
+/* Hover in CSS, not in JavaScript: the browser repaints the one shape under the cursor, with no
+   event, no restyle of the other fourteen and no wait. */
+.solar-coverage-map path.leaflet-interactive {
+    cursor: pointer;
+    transition: fill-opacity 0.12s;
+}
+
+/* The hover of the project form: a brighter gold, told apart from the burnt orange of a covered one. */
+.solar-coverage-map path.leaflet-interactive:hover {
+    stroke: #f0a43a;
+    stroke-width: 2;
+    fill: #ffd166;
+    fill-opacity: 0.6;
+}
+
+/* The name written on the shape, not a bubble floating over it. */
+.solar-coverage-map .solar-coverage-label.leaflet-tooltip {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    /* Dark on a halo of white: the tiles underneath are light in either theme. */
+    color: #392719;
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+    text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff;
+    opacity: 1;
+    pointer-events: none;
+}
+
+.solar-coverage-map .solar-coverage-label.leaflet-tooltip::before {
+    display: none;
+}

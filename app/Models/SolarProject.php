@@ -136,6 +136,12 @@ class SolarProject extends Model
         return $this->hasMany(SolarProjectAiMessage::class);
     }
 
+    /** Installers this project asked for a quote (ADR-0021). */
+    public function quoteRequests(): HasMany
+    {
+        return $this->hasMany(QuoteRequest::class);
+    }
+
     public function syncConsumptionScales(): void
     {
         $monthlyConsumption = $this->numericConsumption($this->monthly_consumption_kwh);

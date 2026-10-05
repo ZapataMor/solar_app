@@ -1941,6 +1941,72 @@ const initCatalogForm = () => {
 document.addEventListener('DOMContentLoaded', initCatalogForm);
 document.addEventListener('livewire:navigated', initCatalogForm);
 
+// Installer form (installers/form.blade.php, ADR-0021): the municipality counter and the button that
+// picks or clears them all. Without JavaScript the checkboxes still work; only the count stands still.
+const installerForms = new WeakSet();
+
+const initInstallerForm = () => {
+    const fieldset = document.querySelector('[data-installer-municipalities]');
+
+    if (!fieldset || installerForms.has(fieldset)) {
+        return;
+    }
+
+    installerForms.add(fieldset);
+
+    const boxes = [...fieldset.querySelectorAll('input[type="checkbox"]')];
+    const count = fieldset.querySelector('[data-municipality-count]');
+    const toggle = fieldset.querySelector('[data-municipality-toggle]');
+
+    const refresh = () => {
+        const chosen = boxes.filter((box) => box.checked).length;
+        const all = chosen === boxes.length && boxes.length > 0;
+
+        count.textContent = chosen === 0
+            ? 'Ninguno elegido'
+            : all
+                ? `Toda La Guajira (${boxes.length})`
+                : `${chosen} de ${boxes.length}`;
+        toggle.textContent = all ? 'Quitar todos' : 'Seleccionar todos';
+    };
+
+    toggle.addEventListener('click', () => {
+        const select = boxes.some((box) => !box.checked);
+
+        boxes.forEach((box) => {
+            box.checked = select;
+        });
+        // A "change" nobody fires is a map left painted with the old answer: the coverage map
+        // repaints on this event, like it does for a click on a single municipality.
+        fieldset.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    fieldset.addEventListener('change', refresh);
+    refresh();
+};
+
+// Coverage map of the installer form (ADR-0021): Leaflet and the GeoJSON load only on that page.
+const coverageMaps = new WeakSet();
+
+const initCoverageMap = () => {
+    const root = document.querySelector('[data-coverage-map]');
+
+    if (!root || coverageMaps.has(root)) {
+        return;
+    }
+
+    coverageMaps.add(root);
+    import('./coverage-map.js')
+        .then(({ mountCoverageMap }) => mountCoverageMap(root))
+        .catch((error) => console.warn('Coverage map unavailable; the municipality list stays.', error));
+};
+
+document.addEventListener('DOMContentLoaded', initCoverageMap);
+document.addEventListener('livewire:navigated', initCoverageMap);
+
+document.addEventListener('DOMContentLoaded', initInstallerForm);
+document.addEventListener('livewire:navigated', initInstallerForm);
+
 // 3D illustration of "Mi sistema" (ADR-0012, resources/js/solar-scene): Three.js loads only where it is used.
 document.addEventListener('DOMContentLoaded', initSolarScenes);
 document.addEventListener('livewire:navigated', initSolarScenes);

@@ -24,7 +24,7 @@
                 <flux:sidebar.item class="solar-nav-item" icon="document-text" :href="route('guides.energy-bill')" :current="request()->routeIs('guides.energy-bill')" :tooltip="__('Guía del recibo')" wire:navigate>
                     {{ __('Guía del recibo') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item class="solar-nav-item" icon="wrench-screwdriver" :href="route('installers.index')" :current="request()->routeIs('installers.*')" :tooltip="__('Instaladores')" badge="Pronto" wire:navigate>
+                <flux:sidebar.item class="solar-nav-item" icon="wrench-screwdriver" :href="route('installers.index')" :current="request()->routeIs('installers.*')" :tooltip="__('Instaladores')" wire:navigate>
                     {{ __('Instaladores') }}
                 </flux:sidebar.item>
 
@@ -128,7 +128,7 @@
 
         {{-- Success messages are flashes: app.js shows them as a toast for a moment (not inline alerts).
              Only on app screens: the settings pages use "status" for internal keys (verification-link-sent…). --}}
-        @if (session('status') && request()->routeIs('solar-projects.*', 'api-data.*'))
+        @if (session('status') && request()->routeIs('solar-projects.*', 'api-data.*', 'installers.*'))
             <div hidden data-flash-toast data-variant="success">{{ session('status') }}</div>
         @endif
 
