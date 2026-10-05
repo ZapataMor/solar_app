@@ -110,6 +110,14 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   del menú; los umbrales y los estados están en `App\Domain\Sync`. El latido del programador
   (`scheduler-heartbeat`, cada minuto) prueba que el cron corre; `HEARTBEAT_PING_URL` lo avisa a un monitor
   externo. Las horas de la estación local están en `config/services.php`, no en `routes/console.php`.
+- **Sincronización por tráfico (ADR-0025):** además del programador, **cualquier visita GET** pone al
+  día lo vencido: `SyncClimateInBackground` (middleware *terminable*, por eso el visitante no espera)
+  → `SyncDueSources` → `SyncClimateSource`, que corre el mismo comando y abre su `SyncRun`. La cadencia
+  está en `App\Domain\Sync\SyncCadence` y debe seguir igual a la de `routes/console.php`. Un sello en
+  caché evita consultar en cada petición y un candado por fuente evita encolar dos veces. **Está
+  apagado en los tests** (`CLIMATE_SYNC_ON_TRAFFIC` en `phpunit.xml`): encendido, cada test de feature
+  sale a las APIs reales y la suite se cae por timeout. No reemplaza al cron: si nadie entra, nadie
+  sincroniza.
 - **Instaladores (ADR-0022):** `/instaladores` es el directorio del cliente: elige uno de sus proyectos
   y le pide cotización a quien cubre su municipio (`DescribeInstallerDirectory`,
   `RequestInstallerQuote`). La solicitud (`quote_requests`) es el lead del ADR-0005: **los datos de
@@ -166,14 +174,14 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 
 ## Trampas conocidas
 
-- **La suite ya falla en `main`: 22 tests.** Antes de concluir que rompiste algo, compara contra
-  esta línea base (por clase):
-  `SolarDashboardTest` 10 · `ApiDataTest` 4 · `AmbientWeatherImportServiceTest` 4 ·
-  `SolarCalculationTest` 1 (mensaje de estado desactualizado) · `SolarProjectTest` 1 ·
-  `NasaRadiationFallbackServiceTest` 1 · `ProjectDashboardServiceTest` 1.
-  Para comparar con precisión: `vendor/bin/phpunit --log-junit <archivo>`.
-- Los tests viejos de `AmbientWeather*` hacen **HTTP real** (fallan sin red o por SSL); los nuevos
-  (`AmbientWeatherSyncTest`) usan `Http::fake()` y `Sleep::fake()`.
+- **La suite pasa entera (362 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
+  tolerados. Los 22 que había eran tests que afirmaban pantallas y mensajes que ya no existían.
+- `Designer3dTest` falla con *Unable to locate file in Vite manifest* cuando el manifiesto está viejo:
+  corre `npm run build` (o ten `composer dev` levantado) y pasa. No es un fallo del código.
+- **`Http::fake()` no basta sin comodín:** las URLs de Ambient llevan las llaves en la consulta, así que
+  un patrón como `'…/v1/devices'` no casa y la petición **sale a internet de verdad**. Usa `devices?*`
+  para la lista y `devices/{mac}*` para las lecturas (en ese orden importa: Laravel toma el primero que
+  case), y `Http::preventStrayRequests()` para que una fuga falle en el test en vez de llamar a la API.
 - **Ambient Weather:** `ambient:sync` (cada 5 min, todo el día) y el botón traen desde la última
   lectura guardada hasta ahora (`importRecentForAllDevices`). La API admite 1 petición por segundo:
   `AmbientWeatherService::get()` espacia las peticiones y reintenta los 429. Las URLs llevan las
