@@ -842,6 +842,119 @@
         gap: 1.1rem;
     }
 
+    /* Prices per municipality (ADR-0024): one card per municipality, one row per kind of location. */
+    .solar-price-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+        gap: 1rem;
+    }
+
+    .solar-price-card {
+        display: grid;
+        gap: 0.8rem;
+        align-content: start;
+    }
+
+    .solar-price-card.is-empty {
+        border-color: color-mix(in srgb, var(--solar-warning) 40%, transparent);
+    }
+
+    .solar-price-card__head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.75rem;
+        align-items: start;
+        justify-content: space-between;
+    }
+
+    .solar-price-card__head h2 {
+        color: var(--solar-text);
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    .solar-price-card__head p {
+        margin: 0.15rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    .solar-price-types {
+        display: grid;
+        gap: 0.4rem;
+    }
+
+    .solar-price-type {
+        border: 1px solid var(--solar-border);
+        border-radius: 0.75rem;
+    }
+
+    .solar-price-type.is-set {
+        border-color: color-mix(in srgb, var(--solar-sun) 38%, transparent);
+    }
+
+    .solar-price-type.is-off {
+        opacity: 0.65;
+    }
+
+    .solar-price-type summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.75rem;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: 0.55rem 0.8rem;
+        cursor: pointer;
+    }
+
+    .solar-price-type__label {
+        color: var(--solar-text);
+        font-size: 0.86rem;
+        font-weight: 600;
+    }
+
+    .solar-price-type__value {
+        color: var(--solar-text);
+        font-family: var(--font-mono);
+        font-size: 0.86rem;
+    }
+
+    .solar-price-type__value small {
+        margin-left: 0.3rem;
+        color: var(--solar-text-muted);
+        font-size: 0.68rem;
+    }
+
+    .solar-price-type__value.is-empty {
+        color: var(--solar-text-muted);
+        font-style: italic;
+    }
+
+    .solar-price-form {
+        display: grid;
+        gap: 0.9rem;
+        padding: 0.3rem 0.8rem 0.9rem;
+        border-top: 1px solid var(--solar-border);
+    }
+
+    @media (min-width: 30rem) {
+        .solar-price-form {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .solar-price-form__notes,
+        .solar-price-form__active,
+        .solar-price-form__actions {
+            grid-column: 1 / -1;
+        }
+    }
+
+    .solar-price-form__actions {
+        display: grid;
+        gap: 0.4rem;
+        justify-items: start;
+    }
+
     .solar-inbox-empty {
         max-width: 42rem;
     }

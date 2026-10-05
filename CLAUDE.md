@@ -139,6 +139,13 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   calcula comisión porque el ADR-0005 no tiene porcentaje. *Precios de referencia* le muestra el $/kW por
   municipio del que sale el presupuesto que ya vio el cliente. Gate `answer-quote-requests`; el sidebar le
   oculta *Centro solar* y los *Recursos* del cliente. Cuentas de prueba en `InstallerAccountSeeder`.
+- **Precios por municipio (ADR-0024):** pantalla de admin *Precios por municipio*; el precio final es
+  `base × factor logístico` y hay **uno solo por municipio y tipo de ubicación** (índice único; antes se
+  podían duplicar y el costo dependía del orden de inserción). **Guardar no toca lo ya cotizado:** el
+  proyecto conserva su `estimated_installation_cost` y la solicitud su `quoted_cost_cop`, congelado por
+  `RequestInstallerQuote`. Si vuelves a cotizar al guardar, rompes la decisión. Un proyecto que el
+  cliente sigue editando sí se recotiza (`SyncProjectConsumption`). Desactivar un precio hace que el
+  municipio cotice con su precio urbano (`SolarInstallationCostService`).
 - **Cambios en el cálculo:** van en `SolarCalculator` / `InstallationCostCalculator`, con test
   en `tests/Unit/Domain` (extienden `PHPUnit\Framework\TestCase`, sin base de datos).
 - Decisiones de arquitectura: registra un ADR en `natal-ia-vault/03-diseno/decisiones-adr/`.

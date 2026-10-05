@@ -61,6 +61,9 @@
                     <flux:sidebar.item class="solar-nav-item" icon="bolt" :href="route('appliance-catalog.index')" :current="request()->routeIs('appliance-catalog.*')" :tooltip="__('Catálogo de equipos')" wire:navigate>
                         {{ __('Catálogo de equipos') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item class="solar-nav-item" icon="banknotes" :href="route('municipality-prices.index')" :current="request()->routeIs('municipality-prices.*')" :tooltip="__('Precios por municipio')" wire:navigate>
+                        {{ __('Precios por municipio') }}
+                    </flux:sidebar.item>
                 @endcan
 
                 @can('design-3d')

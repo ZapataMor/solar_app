@@ -5,6 +5,7 @@ use App\Http\Controllers\ApiDataController;
 use App\Http\Controllers\ApplianceCatalogController;
 use App\Http\Controllers\InstallerController;
 use App\Http\Controllers\InstallerInboxController;
+use App\Http\Controllers\MunicipalityPriceController;
 use App\Http\Controllers\ReferenceValueController;
 use App\Http\Controllers\SolarProjectConsumptionController;
 use App\Http\Controllers\SolarProjectController;
@@ -89,6 +90,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('can:administer-platform')->group(function () {
         Route::get('valores-de-referencia', [ReferenceValueController::class, 'index'])->name('reference-values.index');
         Route::post('valores-de-referencia', [ReferenceValueController::class, 'store'])->name('reference-values.store');
+
+        // The price per kW each municipality is quoted with (ADR-0024).
+        Route::get('precios-por-municipio', [MunicipalityPriceController::class, 'index'])->name('municipality-prices.index');
+        Route::post('precios-por-municipio', [MunicipalityPriceController::class, 'store'])->name('municipality-prices.store');
 
         // Appliance catalog (ADR-0017): reference of consumption, and the appliances administrators add.
         Route::get('catalogo-de-equipos', [ApplianceCatalogController::class, 'index'])->name('appliance-catalog.index');
