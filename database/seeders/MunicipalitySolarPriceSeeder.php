@@ -37,9 +37,12 @@ class MunicipalitySolarPriceSeeder extends Seeder
                 ->where('name', $municipalityName)
                 ->firstOrFail();
 
+            // By location type, which is what identifies a price since ADR-0024: keying on the zone
+            // name created a second row whenever that name changed.
             $municipality->solarPrices()->updateOrCreate(
-                ['zone_name' => $zoneName, 'location_type' => $locationType],
+                ['location_type' => $locationType],
                 [
+                    'zone_name' => $zoneName,
                     'base_price_per_kw' => $base,
                     'logistic_factor' => $factor,
                     'min_price_per_kw' => $min,
