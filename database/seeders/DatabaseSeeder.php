@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
             // Before the projects: they follow the reference tariff (ADR-0015).
             ReferenceValueSeeder::class,
             UserSolarProjectSeeder::class,
-            // Example allied installers, not a real network (ADR-0021).
+            // Example allied installers, not a real network (ADR-0022).
             InstallerSeeder::class,
         ]);
     }

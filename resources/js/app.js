@@ -1942,7 +1942,7 @@ const initCatalogForm = () => {
 document.addEventListener('DOMContentLoaded', initCatalogForm);
 document.addEventListener('livewire:navigated', initCatalogForm);
 
-// Installer form (installers/form.blade.php, ADR-0021): the municipality counter and the button that
+// Installer form (installers/form.blade.php, ADR-0022): the municipality counter and the button that
 // picks or clears them all. Without JavaScript the checkboxes still work; only the count stands still.
 const installerForms = new WeakSet();
 
@@ -1986,7 +1986,7 @@ const initInstallerForm = () => {
     refresh();
 };
 
-// Coverage map of the installer form (ADR-0021): Leaflet and the GeoJSON load only on that page.
+// Coverage map of the installer form (ADR-0022): Leaflet and the GeoJSON load only on that page.
 const coverageMaps = new WeakSet();
 
 const initCoverageMap = () => {

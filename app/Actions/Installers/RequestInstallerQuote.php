@@ -10,7 +10,7 @@ use App\Models\QuoteRequest;
 use App\Models\SolarProject;
 
 /**
- * Use case: a client asks an installer to quote a project (ADR-0021). The row is the lead of
+ * Use case: a client asks an installer to quote a project (ADR-0022). The row is the lead of
  * ADR-0005; asking twice keeps the first one, so the date of the contact does not move.
  */
 final class RequestInstallerQuote

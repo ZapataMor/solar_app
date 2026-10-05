@@ -1,11 +1,11 @@
 ---
 tipo: adr
-descripcion: ADR-0021 — Primera etapa del marketplace: directorio de instaladores y solicitudes de cotización
+descripcion: ADR-0022 — Primera etapa del marketplace: directorio de instaladores y solicitudes de cotización
 estado: 🟢 Aceptada
 actualizado: 2026-10-04
 ---
 
-# ADR-0021 · Directorio de instaladores y solicitudes de cotización
+# ADR-0022 · Directorio de instaladores y solicitudes de cotización
 
 - **Estado:** 🟢 Aceptada
 - **Fecha:** 2026-10-04

@@ -5,7 +5,7 @@ namespace App\Domain\Installers;
 use RuntimeException;
 
 /**
- * The project cannot ask this installer for a quote (ADR-0021). The directory already hides these
+ * The project cannot ask this installer for a quote (ADR-0022). The directory already hides these
  * cases; this guards the request that arrives anyway.
  */
 final class QuoteNotPossible extends RuntimeException

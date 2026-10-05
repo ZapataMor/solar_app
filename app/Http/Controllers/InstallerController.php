@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
- * Allied installers (ADR-0021): the directory a client reads to ask for a quote, and the screens
+ * Allied installers (ADR-0022): the directory a client reads to ask for a quote, and the screens
  * where an administrator keeps it. The installer is a record, not a user: there is no role for it yet.
  */
 class InstallerController extends Controller

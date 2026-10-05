@@ -8,7 +8,7 @@ namespace App\Domain\Property;
  * always written as the app writes them (accents, "San Juan del Cesar").
  *
  * Used by the map of the project form (one municipality) and by the coverage map of the installer
- * form (ADR-0021, several).
+ * form (ADR-0022, several).
  */
 final class MunicipalityBoundaries
 {

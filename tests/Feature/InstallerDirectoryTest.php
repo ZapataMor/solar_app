@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Vite;
 use Tests\TestCase;
 
 /**
- * ADR-0021: the client finds the installers that cover their project's municipality and asks one of
+ * ADR-0022: the client finds the installers that cover their project's municipality and asks one of
  * them for a quote; an administrator keeps the list.
  */
 class InstallerDirectoryTest extends TestCase

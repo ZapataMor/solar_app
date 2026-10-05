@@ -5,7 +5,7 @@ namespace App\Actions\Installers;
 use App\Models\Installer;
 
 /**
- * Use case: an administrator creates or edits an allied installer (ADR-0021), with the municipalities
+ * Use case: an administrator creates or edits an allied installer (ADR-0022), with the municipalities
  * it covers. Hiding one keeps the quote requests it already received.
  */
 final class SaveInstaller

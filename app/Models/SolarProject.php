@@ -136,7 +136,7 @@ class SolarProject extends Model
         return $this->hasMany(SolarProjectAiMessage::class);
     }
 
-    /** Installers this project asked for a quote (ADR-0021). */
+    /** Installers this project asked for a quote (ADR-0022). */
     public function quoteRequests(): HasMany
     {
         return $this->hasMany(QuoteRequest::class);

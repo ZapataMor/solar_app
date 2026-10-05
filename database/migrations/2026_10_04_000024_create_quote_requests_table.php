@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * ADR-0021: the lead of ADR-0005. A client asks an installer for a quote over an estimate that is
+ * ADR-0022: the lead of ADR-0005. A client asks an installer for a quote over an estimate that is
  * already calculated; the row (project ↔ installer ↔ date) is the attribution the commission will
  * need. One request per pair: asking twice does not create a second lead.
  */

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A client asked an installer to quote a project (ADR-0021): the lead of ADR-0005.
+ * A client asked an installer to quote a project (ADR-0022): the lead of ADR-0005.
  */
 class QuoteRequest extends Model
 {

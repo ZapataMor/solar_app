@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * An allied installer, as an administrator writes it (ADR-0021).
+ * An allied installer, as an administrator writes it (ADR-0022).
  */
 class InstallerRequest extends FormRequest
 {

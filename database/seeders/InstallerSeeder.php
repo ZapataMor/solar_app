@@ -7,7 +7,7 @@ use App\Models\Municipality;
 use Illuminate\Database\Seeder;
 
 /**
- * Example installers for the first stage (ADR-0021). They are NOT a real network: the directory says
+ * Example installers for the first stage (ADR-0022). They are NOT a real network: the directory says
  * so with a visible notice, the phones are placeholders and the domains are reserved for examples.
  * Delete them the day real allies sign up.
  */

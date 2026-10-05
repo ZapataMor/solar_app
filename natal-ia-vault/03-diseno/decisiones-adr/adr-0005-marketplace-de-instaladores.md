@@ -18,7 +18,7 @@ El modelo de ingresos propuesto ([[modelo-de-ingresos]]) es:
 
 Para cobrar, el software debe poder atribuir el cliente al instalador.
 
-> **Primera etapa implementada:** [[adr-0021-directorio-de-instaladores-y-solicitudes]] acota lo que
+> **Primera etapa implementada:** [[adr-0022-directorio-de-instaladores-y-solicitudes]] acota lo que
 > ya existe (directorio por municipio y solicitudes de cotización). Lo demás sigue pendiente aquí.
 
 ## Decisión
@@ -38,4 +38,4 @@ Para cobrar, el software debe poder atribuir el cliente al instalador.
 - **Solo comisión:** baja la barrera para el instalador, pero es difícil de verificar.
 
 ## Relacionado
-[[asesoria-felix-bada]] · [[clientes-y-usuarios]] · [[adr-0021-directorio-de-instaladores-y-solicitudes]]
+[[asesoria-felix-bada]] · [[clientes-y-usuarios]] · [[adr-0022-directorio-de-instaladores-y-solicitudes]]

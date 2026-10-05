@@ -1,5 +1,5 @@
 {{--
-    Add or change an allied installer (ADR-0021). Administration only: the installer is a record, not
+    Add or change an allied installer (ADR-0022). Administration only: the installer is a record, not
     a user, so nobody signs up here. The form is grouped the way the directory reads it: who they are,
     how they are contacted, and where they work.
     Params: $installer (Installer|null), $municipalities, $covered (list<int>).

@@ -110,14 +110,14 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   del menú; los umbrales y los estados están en `App\Domain\Sync`. El latido del programador
   (`scheduler-heartbeat`, cada minuto) prueba que el cron corre; `HEARTBEAT_PING_URL` lo avisa a un monitor
   externo. Las horas de la estación local están en `config/services.php`, no en `routes/console.php`.
-- **Instaladores (ADR-0021):** `/instaladores` es el directorio del cliente: elige uno de sus proyectos
+- **Instaladores (ADR-0022):** `/instaladores` es el directorio del cliente: elige uno de sus proyectos
   y le pide cotización a quien cubre su municipio (`DescribeInstallerDirectory`,
   `RequestInstallerQuote`). La solicitud (`quote_requests`) es el lead del ADR-0005: **los datos de
   contacto solo se muestran a quien ya la pidió**, y sin consumo no se cotiza (`QuoteNotPossible`).
   El instalador es un registro, no un usuario: lo crea el admin desde la misma pantalla
   (`can:administer-platform`); el rol `installer` del ADR-0003 todavía no existe. Los de
   `InstallerSeeder` son de ejemplo y la página lo advierte: quita el aviso cuando entren reales.
-- **Mapa de cobertura (ADR-0021):** el formulario de instalador elige municipios en el mismo mapa del
+- **Mapa de cobertura (ADR-0022):** el formulario de instalador elige municipios en el mismo mapa del
   formulario de proyecto (`resources/js/coverage-map.js`, Leaflet desde el CDN y solo en esa página).
   Usa `public/maps/la_guajira_municipios_simple.geojson` (26 KB): el original del IGAC (4 MB) congela la
   pestaña al repintar, y `scripts/maps/simplify-geojson.py` lo regenera. Los códigos DANE que unen cada

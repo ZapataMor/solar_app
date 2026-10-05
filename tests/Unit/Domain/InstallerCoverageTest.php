@@ -6,7 +6,7 @@ use App\Domain\Installers\InstallerCoverage;
 use PHPUnit\Framework\TestCase;
 
 /**
- * ADR-0021: how the directory says the municipalities an installer covers.
+ * ADR-0022: how the directory says the municipalities an installer covers.
  */
 class InstallerCoverageTest extends TestCase
 {

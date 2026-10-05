@@ -1,5 +1,5 @@
 {{--
-    Allied installers (ADR-0021): the client picks one of their projects and asks for a quote over the
+    Allied installers (ADR-0022): the client picks one of their projects and asks for a quote over the
     estimate that is already calculated. The 3D illustration (ADR-0012) shows that project's roof; it is
     the same <x-solar-scene> of the landing and the form, so no new scene is loaded.
 
@@ -32,7 +32,7 @@
             @endcan
         </div>
 
-        {{-- The network is not real yet (ADR-0021); this notice goes away with the first real ally. --}}
+        {{-- The network is not real yet (ADR-0022); this notice goes away with the first real ally. --}}
         <p class="solar-installers-notice" role="note">
             <strong>Datos de ejemplo.</strong> Estamos armando la red de instaladores aliados de La Guajira.
             Los de esta lista sirven para probar el flujo: todavía no son empresas reales.

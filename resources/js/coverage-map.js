@@ -1,5 +1,5 @@
 /**
- * Coverage map of the installer form (ADR-0021): the municipalities of La Guajira, where a click
+ * Coverage map of the installer form (ADR-0022): the municipalities of La Guajira, where a click
  * covers or uncovers one. The checkboxes are the real field; the map only clicks them, so the form
  * works the same without this file.
  *

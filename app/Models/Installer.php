@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
- * An allied installer an administrator added (ADR-0021).
+ * An allied installer an administrator added (ADR-0022).
  */
 class Installer extends Model
 {

@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
- * Use case: the installers directory a client sees (ADR-0021). One project is chosen, and the page
+ * Use case: the installers directory a client sees (ADR-0022). One project is chosen, and the page
  * shows who covers its municipality and what was already asked of each one.
  *
  * The contact details travel only with a request already made: asking is the moment of contact, and

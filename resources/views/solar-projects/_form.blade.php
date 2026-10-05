@@ -10,7 +10,7 @@
         'rural_dispersa' => 'Rural dispersa',
         'alta_guajira' => 'Alta Guajira',
     ];
-    // One source for both maps: the project's and the installer's coverage (ADR-0021).
+    // One source for both maps: the project's and the installer's coverage (ADR-0022).
     $municipalityDaneCodes = \App\Domain\Property\MunicipalityBoundaries::DANE_CODES;
     $selectedPropertyType = old('property_type', $solarProject?->property_type);
     // How the consumption is given (ADR-0020). A new project starts with neither chosen: the client must pick.

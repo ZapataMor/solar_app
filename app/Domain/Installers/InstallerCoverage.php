@@ -3,7 +3,7 @@
 namespace App\Domain\Installers;
 
 /**
- * The municipalities an installer covers (ADR-0021), as the directory says them.
+ * The municipalities an installer covers (ADR-0022), as the directory says them.
  *
  * A card has room for a line, not for fifteen names: up to three are listed, and beyond that the
  * first two carry the rest as a count. An installer that covers every active municipality is not a
