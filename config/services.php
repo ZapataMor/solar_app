@@ -60,6 +60,12 @@ return [
         ],
     ],
 
+    // Any visit keeps the climate data up to date (ADR-0025). Off in the tests, where it would send
+    // every feature test out to the real APIs; a kill switch in production if it ever misbehaves.
+    'climate_sync' => [
+        'on_traffic' => env('CLIMATE_SYNC_ON_TRAFFIC', true),
+    ],
+
     'weather_station' => [
         'endpoint' => env('WEATHER_STATION_API_URL', env('METEO_API_ENDPOINT', 'https://meteoestacion.desarrollougmaicao.com/api_publica.php')),
         'device_code' => env('METEO_DEVICE_CODE', 'METEOESTACION'),
