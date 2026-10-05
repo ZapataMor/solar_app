@@ -130,6 +130,15 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   Las teselas y los colores son los del formulario de proyecto (oro = municipio, naranja quemado =
   cubierto), sin filtros encima. Los estilos de Leaflet se sobrescriben **fuera** de
   `@layer components`: viene del CDN sin capa y en Tailwind v4 lo no-capado gana.
+- **Bandeja del instalador (ADR-0023):** el instalador entra con su propia cuenta (rol `installer` en
+  `users.role` + `users.installer_id`; la crea el admin desde la ficha, no hay registro público) y cae en
+  `/solicitudes` (`LoginResponse` en `FortifyServiceProvider`). La lista dice cuál abrir y cada solicitud
+  tiene su página (`installer-inbox.show`), con la estimación y **el diario de equipos del cliente**
+  (`BuildConsumptionDiary`; con recibo no hay diario, ADR-0020). Responde con `QuoteRequestStatus`:
+  contactada, ganada o perdida, y **ganada exige el valor del contrato** (`QuoteNotPossible`); no se
+  calcula comisión porque el ADR-0005 no tiene porcentaje. *Precios de referencia* le muestra el $/kW por
+  municipio del que sale el presupuesto que ya vio el cliente. Gate `answer-quote-requests`; el sidebar le
+  oculta *Centro solar* y los *Recursos* del cliente. Cuentas de prueba en `InstallerAccountSeeder`.
 - **Cambios en el cálculo:** van en `SolarCalculator` / `InstallationCostCalculator`, con test
   en `tests/Unit/Domain` (extienden `PHPUnit\Framework\TestCase`, sin base de datos).
 - Decisiones de arquitectura: registra un ADR en `natal-ia-vault/03-diseno/decisiones-adr/`.
