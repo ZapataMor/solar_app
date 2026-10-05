@@ -14,6 +14,8 @@ class QuoteRequest extends Model
     protected $fillable = [
         'solar_project_id',
         'installer_id',
+        'quoted_cost_cop',
+        'quoted_price_per_kw_cop',
         'status',
         'contract_value_cop',
         'note',
@@ -23,6 +25,8 @@ class QuoteRequest extends Model
     protected function casts(): array
     {
         return [
+            'quoted_cost_cop' => 'decimal:2',
+            'quoted_price_per_kw_cop' => 'decimal:2',
             'contract_value_cop' => 'decimal:2',
             'answered_at' => 'datetime',
         ];

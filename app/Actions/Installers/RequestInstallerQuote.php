@@ -11,7 +11,8 @@ use App\Models\SolarProject;
 
 /**
  * Use case: a client asks an installer to quote a project (ADR-0022). The row is the lead of
- * ADR-0005; asking twice keeps the first one, so the date of the contact does not move.
+ * ADR-0005; asking twice keeps the first one, so neither the date of the contact nor the budget
+ * it was asked with (ADR-0024) move.
  */
 final class RequestInstallerQuote
 {
@@ -37,7 +38,14 @@ final class RequestInstallerQuote
 
         return QuoteRequest::query()->firstOrCreate(
             ['solar_project_id' => $solarProject->id, 'installer_id' => $installer->id],
-            ['status' => QuoteRequestStatus::SENT, 'note' => $note],
+            [
+                'status' => QuoteRequestStatus::SENT,
+                'note' => $note,
+                // Frozen here (ADR-0024): if the price of the municipality changes later, what the
+                // two of them are talking about does not.
+                'quoted_cost_cop' => $solarProject->estimated_installation_cost,
+                'quoted_price_per_kw_cop' => $solarProject->final_price_per_kw_used,
+            ],
         );
     }
 }

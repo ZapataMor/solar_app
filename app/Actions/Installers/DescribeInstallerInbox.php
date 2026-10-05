@@ -43,6 +43,8 @@ final class DescribeInstallerInbox
                     'propertyType' => $project->property_type,
                     'municipality' => $project->municipality?->name,
                     'monthlyKwh' => $project->monthlyConsumption(),
+                    // The budget it was asked with, not the one the project would get today (ADR-0024).
+                    'quotedCostCop' => $request->quoted_cost_cop !== null ? (float) $request->quoted_cost_cop : null,
                 ];
             })->all(),
             'open' => $requests->filter(fn (QuoteRequest $request) => $request->isOpen())->count(),

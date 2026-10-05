@@ -55,7 +55,15 @@ final class DescribeQuoteRequest
             'roofIsEnough' => $sized !== null ? $sized['sizing']->roofIsEnough() : null,
             'coverage' => $sized !== null ? $sized['sizing']->coveragePercentage() : null,
             'fromClimateData' => $sized['fromClimateData'] ?? false,
-            'budgetCop' => $project->estimated_installation_cost !== null ? (float) $project->estimated_installation_cost : null,
+            // Frozen when the client asked (ADR-0024); the project's current figure only for the
+            // requests that are older than that rule.
+            'budgetCop' => $quoteRequest->quoted_cost_cop !== null
+                ? (float) $quoteRequest->quoted_cost_cop
+                : ($project->estimated_installation_cost !== null ? (float) $project->estimated_installation_cost : null),
+            'quotedPricePerKwCop' => $quoteRequest->quoted_price_per_kw_cop !== null ? (float) $quoteRequest->quoted_price_per_kw_cop : null,
+            'budgetMovedSince' => $quoteRequest->quoted_cost_cop !== null
+                && $project->estimated_installation_cost !== null
+                && abs((float) $quoteRequest->quoted_cost_cop - (float) $project->estimated_installation_cost) >= 1,
         ];
     }
 }

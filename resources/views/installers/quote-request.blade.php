@@ -88,7 +88,12 @@
                 </div>
                 <div>
                     <dt>Presupuesto de referencia</dt>
-                    <dd>{{ $budgetCop !== null ? $money($budgetCop) : '—' }}</dd>
+                    <dd>
+                        {{ $budgetCop !== null ? $money($budgetCop) : '—' }}
+                        @if ($quotedPricePerKwCop)
+                            <span class="solar-quote-sub">{{ $money($quotedPricePerKwCop) }} por kW</span>
+                        @endif
+                    </dd>
                 </div>
             </dl>
 
@@ -99,6 +104,9 @@
                     Los paneles salen del sol de referencia de La Guajira: el proyecto aún no se calculó con datos climáticos.
                 @endif
                 El presupuesto es el precio por kW de su municipio, no tu cotización.
+                @if ($budgetMovedSince)
+                    Es el del día en que te escribió: el precio del municipio cambió después y este número no se movió.
+                @endif
             </p>
         </section>
 
