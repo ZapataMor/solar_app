@@ -24,13 +24,18 @@ class MunicipalityPricesTest extends TestCase
         $municipality = $this->municipality();
         $this->price($municipality, 'urbana', 4_000_000);
 
-        $this->actingAs(User::factory()->create(['role' => 'admin']))
+        $html = $this->actingAs(User::factory()->create(['role' => 'admin']))
             ->get(route('municipality-prices.index'))
             ->assertOk()
             ->assertSee('Maicao')
             ->assertSee('$4.000.000')
             // A municipality with no price is the useful thing to see: a project there cannot quote.
-            ->assertSee('Sin precio');
+            ->assertSee('Sin precio')
+            ->getContent();
+
+        // Closed by default: fifteen municipalities by four kinds of location is a wall of rows.
+        $this->assertMatchesRegularExpression('/<details[^>]*data-test="municipality-\d+"(?![^>]*open)/', $html);
+        $this->assertStringContainsString('1 de 4 con precio', $html);
 
         $this->actingAs(User::factory()->create())->get(route('municipality-prices.index'))->assertForbidden();
     }

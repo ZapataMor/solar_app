@@ -151,7 +151,8 @@
 
         {{-- Success messages are flashes: app.js shows them as a toast for a moment (not inline alerts).
              Only on app screens: the settings pages use "status" for internal keys (verification-link-sent…). --}}
-        @if (session('status') && request()->routeIs('solar-projects.*', 'api-data.*', 'installers.*', 'installer-inbox.*'))
+        @if (session('status') && request()->routeIs('solar-projects.*', 'api-data.*', 'installers.*', 'installer-inbox.*',
+            'municipality-prices.*', 'reference-values.*', 'appliance-catalog.*'))
             <div hidden data-flash-toast data-variant="success">{{ session('status') }}</div>
         @endif
 

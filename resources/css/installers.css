@@ -843,16 +843,58 @@
     }
 
     /* Prices per municipality (ADR-0024): one card per municipality, one row per kind of location. */
+    /* Opening slides instead of snapping. A <details> cannot be animated the usual way, because its
+       panel is display:none until it opens; ::details-content is the box the browser gives us for
+       exactly this, and interpolate-size is what lets a height animate to auto. It is set on the
+       elements, not on :root, so no other "auto" in the app starts animating by accident.
+       Where the browser does not know them, the panel opens at once, as it did before. */
+    .solar-price-card,
+    .solar-price-type,
+    .solar-inbox-answer {
+        interpolate-size: allow-keywords;
+    }
+
+    .solar-price-card::details-content,
+    .solar-price-type::details-content,
+    .solar-inbox-answer::details-content {
+        block-size: 0;
+        overflow: hidden;
+        /* Fading a touch behind the slide: the panel arrives instead of appearing at full strength. */
+        opacity: 0;
+        transition:
+            block-size 0.3s cubic-bezier(0.2, 0.7, 0.3, 1),
+            opacity 0.22s ease-out,
+            content-visibility 0.3s allow-discrete;
+    }
+
+    .solar-price-card[open]::details-content,
+    .solar-price-type[open]::details-content,
+    .solar-inbox-answer[open]::details-content {
+        block-size: auto;
+        opacity: 1;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .solar-price-card::details-content,
+        .solar-price-type::details-content,
+        .solar-inbox-answer::details-content {
+            transition: none;
+        }
+
+        .solar-price-card__head::after {
+            transition: none;
+        }
+    }
+
+    /* One column, closed: sixty rows of prices at once are unreadable, and most say "sin precio". */
     .solar-price-list {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-        gap: 1rem;
+        gap: 0.5rem;
+        max-width: 72rem;
     }
 
     .solar-price-card {
-        display: grid;
-        gap: 0.8rem;
-        align-content: start;
+        padding: 0;
     }
 
     .solar-price-card.is-empty {
@@ -862,26 +904,72 @@
     .solar-price-card__head {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.4rem 0.75rem;
-        align-items: start;
+        gap: 0.3rem 1rem;
+        align-items: center;
         justify-content: space-between;
+        padding: 0.7rem 1rem;
+        cursor: pointer;
+        list-style: none;
     }
 
-    .solar-price-card__head h2 {
+    .solar-price-card__head::-webkit-details-marker {
+        display: none;
+    }
+
+    /* A chevron that turns: nothing else says these rows open. */
+    .solar-price-card__head::after {
+        content: '';
+        width: 0.5rem;
+        height: 0.5rem;
+        flex: none;
+        border-right: 2px solid var(--solar-text-muted);
+        border-bottom: 2px solid var(--solar-text-muted);
+        transform: rotate(45deg);
+        transform-origin: center;
+        transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.3, 1);
+    }
+
+    .solar-price-card[open] > .solar-price-card__head::after {
+        transform: rotate(-135deg);
+    }
+
+    .solar-price-card__head:hover {
+        background: color-mix(in srgb, var(--solar-sun) 5%, transparent);
+    }
+
+    .solar-price-card[open] .solar-price-card__head {
+        border-bottom: 1px solid var(--solar-border);
+    }
+
+    .solar-price-card__name {
+        display: grid;
+        gap: 0.12rem;
+    }
+
+    .solar-price-card__name strong {
         color: var(--solar-text);
-        font-size: 1.05rem;
+        font-size: 1rem;
         font-weight: 600;
     }
 
-    .solar-price-card__head p {
-        margin: 0.15rem 0 0;
+    .solar-price-card__name small,
+    .solar-price-card__summary small {
         color: var(--solar-text-muted);
-        font-size: 0.8rem;
+        font-size: 0.76rem;
+    }
+
+    .solar-price-card__summary {
+        display: grid;
+        gap: 0.12rem;
+        margin-left: auto;
+        justify-items: end;
+        text-align: right;
     }
 
     .solar-price-types {
         display: grid;
-        gap: 0.4rem;
+        gap: 0.35rem;
+        padding: 0.7rem 1rem 1rem;
     }
 
     .solar-price-type {
@@ -903,8 +991,12 @@
         gap: 0.4rem 0.75rem;
         align-items: baseline;
         justify-content: space-between;
-        padding: 0.55rem 0.8rem;
+        padding: 0.45rem 0.9rem;
         cursor: pointer;
+    }
+
+    .solar-price-type summary:hover {
+        background: color-mix(in srgb, var(--solar-sun) 6%, transparent);
     }
 
     .solar-price-type__label {
@@ -932,17 +1024,20 @@
 
     .solar-price-form {
         display: grid;
-        gap: 0.9rem;
-        padding: 0.3rem 0.8rem 0.9rem;
+        gap: 0.9rem 1rem;
+        /* Start, not stretch: only the factor carries a hint, and stretching made its neighbour's
+           box taller than it so the two inputs never lined up. */
+        align-items: start;
+        padding: 0.6rem 0.9rem 1rem;
         border-top: 1px solid var(--solar-border);
     }
 
-    @media (min-width: 30rem) {
+    @media (min-width: 48rem) {
         .solar-price-form {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            /* The two numbers are as wide as the numbers they hold; the note takes the rest. */
+            grid-template-columns: 11rem 9rem minmax(0, 1fr);
         }
 
-        .solar-price-form__notes,
         .solar-price-form__active,
         .solar-price-form__actions {
             grid-column: 1 / -1;
@@ -950,9 +1045,10 @@
     }
 
     .solar-price-form__actions {
-        display: grid;
-        gap: 0.4rem;
-        justify-items: start;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: center;
     }
 
     .solar-inbox-empty {

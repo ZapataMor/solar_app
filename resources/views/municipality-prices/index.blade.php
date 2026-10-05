@@ -1,11 +1,15 @@
 {{--
     Administration: the price per kW the app quotes each municipality with (ADR-0024).
+
+    An accordion, not a wall: fifteen municipalities by four kinds of location are sixty rows, and
+    most of them say "sin precio". Closed, each municipality says the one thing worth scanning (its
+    urban price and how many of its four are set); open, it shows the rows and their forms.
+
     Params: $municipalities, $locationTypes, $missing (App\Actions\Pricing\DescribeMunicipalityPrices).
 --}}
 @php
     $money = fn (float $cop): string => '$'.number_format(round($cop), 0, ',', '.');
     $factor = fn (float $value): string => number_format($value, 2, ',', '.');
-    $hasErrors = $errors->any();
 @endphp
 
 <x-layouts::app :title="__('Precios por municipio')">
@@ -17,15 +21,19 @@
                 <p class="solar-subtitle mt-2 max-w-3xl">
                     El precio por kW instalado con el que se cotiza cada municipio. De aquí sale la inversión
                     inicial de todo proyecto, su ahorro y su retorno.
+                    <strong>Lo ya cotizado no cambia:</strong> el precio nuevo rige para lo que se cotice
+                    desde que lo guardes.
                 </p>
             </div>
         </div>
 
-        <p class="solar-installers-notice" role="note">
-            <strong>Lo ya cotizado no se toca.</strong> Un proyecto guarda el precio con el que se cotizó y lo
-            conserva aunque este cambie; lo mismo la solicitud que el cliente ya le mandó a un instalador. El
-            precio nuevo rige para lo que se cotice de ahora en adelante.
-        </p>
+        @if ($errors->any())
+            <div class="solar-alert solar-alert-danger" role="alert">
+                @foreach ($errors->all() as $error)
+                    <p>{{ $error }}</p>
+                @endforeach
+            </div>
+        @endif
 
         @if ($missing > 0)
             <p class="solar-catalog-note">
@@ -34,29 +42,30 @@
             </p>
         @endif
 
-        @if ($hasErrors)
-            <div class="solar-alert solar-alert-danger" role="alert">
-                @foreach ($errors->all() as $error)
-                    <p>{{ $error }}</p>
-                @endforeach
-            </div>
-        @endif
-
         <div class="solar-price-list">
             @foreach ($municipalities as $municipality)
-                <section @class(['solar-card', 'solar-price-card', 'is-empty' => ! $municipality['prices']])>
-                    <header class="solar-price-card__head">
-                        <div>
-                            <h2>{{ $municipality['name'] }}</h2>
-                            <p>
+                @php($set = count($municipality['prices']))
+                @php($main = $municipality['prices']['urbana'] ?? reset($municipality['prices']) ?: null)
+
+                <details @class(['solar-card', 'solar-price-card', 'is-empty' => ! $set]) data-test="municipality-{{ $municipality['id'] }}">
+                    <summary class="solar-price-card__head">
+                        <span class="solar-price-card__name">
+                            <strong>{{ $municipality['name'] }}</strong>
+                            <small>
                                 {{ $municipality['zone'] ?? 'Sin zona' }}
                                 · {{ $municipality['projects'] === 1 ? '1 proyecto' : $municipality['projects'].' proyectos' }}
-                            </p>
-                        </div>
-                        @unless ($municipality['prices'])
-                            <span class="solar-installer-badge is-muted">Sin precio</span>
-                        @endunless
-                    </header>
+                            </small>
+                        </span>
+
+                        <span class="solar-price-card__summary">
+                            @if ($main)
+                                <span class="solar-price-type__value">{{ $money($main['finalPricePerKw']) }}<small>por kW</small></span>
+                                <small>{{ $set }} de {{ count($locationTypes) }} con precio</small>
+                            @else
+                                <span class="solar-installer-badge is-muted">Sin precio</span>
+                            @endif
+                        </span>
+                    </summary>
 
                     <div class="solar-price-types">
                         @foreach ($locationTypes as $type => $label)
@@ -108,7 +117,7 @@
                                             class="solar-input"
                                             inputmode="decimal"
                                         >
-                                        <span class="solar-field-hint">Lo que cuesta llegar. 1 es sin recargo.</span>
+                                        <span class="solar-field-hint">1 es sin recargo.</span>
                                     </label>
 
                                     <label class="solar-field solar-price-form__notes">
@@ -138,7 +147,7 @@
                             </details>
                         @endforeach
                     </div>
-                </section>
+                </details>
             @endforeach
         </div>
     </div>
