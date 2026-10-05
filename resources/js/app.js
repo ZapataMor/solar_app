@@ -2,6 +2,7 @@ import Chart from 'chart.js/auto';
 import { initSolarScenes } from './solar-scene';
 import { initStationScenes } from './station-scene';
 import { initApplianceScenes } from './appliance-scene';
+import { initSystemScenes } from './system-scene';
 
 const activeSolarCharts = new Map();
 let solarThemeObserver = null;
@@ -2018,3 +2019,7 @@ document.addEventListener('livewire:navigated', initStationScenes);
 // The chosen appliance in 3D in the consumption diary (ADR-0019, resources/js/appliance-scene).
 document.addEventListener('DOMContentLoaded', initApplianceScenes);
 document.addEventListener('livewire:navigated', initApplianceScenes);
+
+// The system animation of the 3D designer, development only (resources/js/system-scene).
+document.addEventListener('DOMContentLoaded', initSystemScenes);
+document.addEventListener('livewire:navigated', initSystemScenes);

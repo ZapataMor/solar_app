@@ -18,6 +18,7 @@
 @import './appliance-catalog.css';
 @import './sync-health.css';
 @import './installers.css';
+@import './system-scene.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
