@@ -5,8 +5,8 @@ namespace App\Domain\Installers;
 use RuntimeException;
 
 /**
- * The project cannot ask this installer for a quote (ADR-0022). The directory already hides these
- * cases; this guards the request that arrives anyway.
+ * A quote request cannot be made (ADR-0022) or answered (ADR-0023) the way it was asked. The screens
+ * already hide these cases; this guards the request that arrives anyway.
  */
 final class QuoteNotPossible extends RuntimeException
 {
@@ -23,5 +23,15 @@ final class QuoteNotPossible extends RuntimeException
     public static function notAvailable(): self
     {
         return new self('Ese instalador ya no está disponible.');
+    }
+
+    public static function unknownAnswer(): self
+    {
+        return new self('Esa no es una respuesta válida para la solicitud.');
+    }
+
+    public static function withoutContractValue(): self
+    {
+        return new self('Escribe en cuánto se cerró el negocio.');
     }
 }

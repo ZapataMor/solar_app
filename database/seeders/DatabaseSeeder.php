@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
             UserSolarProjectSeeder::class,
             // Example allied installers, not a real network (ADR-0022).
             InstallerSeeder::class,
+            // Its account and the requests it already received (ADR-0023).
+            InstallerAccountSeeder::class,
         ]);
     }
 }

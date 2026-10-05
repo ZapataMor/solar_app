@@ -1986,6 +1986,25 @@ const initInstallerForm = () => {
     refresh();
 };
 
+// Installer inbox (installers/inbox.blade.php, ADR-0023): the contract value belongs to a closed
+// deal, so it only shows for that answer. A class, never [hidden]: Tailwind hides that one for good.
+const initInboxAnswers = () => {
+    document.querySelectorAll('[data-inbox-answer]').forEach((answer) => {
+        const status = answer.querySelector('[data-inbox-status]');
+        const contract = answer.querySelector('[data-inbox-contract]');
+
+        if (!status || !contract || status.dataset.wired) {
+            return;
+        }
+
+        status.dataset.wired = 'true';
+        status.addEventListener('change', () => contract.classList.toggle('is-shown', status.value === 'won'));
+    });
+};
+
+document.addEventListener('DOMContentLoaded', initInboxAnswers);
+document.addEventListener('livewire:navigated', initInboxAnswers);
+
 // Coverage map of the installer form (ADR-0022): Leaflet and the GeoJSON load only on that page.
 const coverageMaps = new WeakSet();
 

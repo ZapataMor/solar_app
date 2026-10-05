@@ -15,8 +15,18 @@ class QuoteRequest extends Model
         'solar_project_id',
         'installer_id',
         'status',
+        'contract_value_cop',
         'note',
+        'answered_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'contract_value_cop' => 'decimal:2',
+            'answered_at' => 'datetime',
+        ];
+    }
 
     public function solarProject(): BelongsTo
     {
@@ -31,5 +41,10 @@ class QuoteRequest extends Model
     public function statusLabel(): string
     {
         return QuoteRequestStatus::label($this->status);
+    }
+
+    public function isOpen(): bool
+    {
+        return QuoteRequestStatus::isOpen($this->status);
     }
 }

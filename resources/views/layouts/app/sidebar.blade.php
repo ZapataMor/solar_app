@@ -12,21 +12,41 @@
             <flux:sidebar.nav>
                 @php($projectsLabel = auth()->user()->isAdmin() ? __('Todos los proyectos') : __('Mis proyectos'))
 
-                <div class="solar-nav-label">{{ __('Centro solar') }}</div>
-                <flux:sidebar.item class="solar-nav-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*') && ! request()->routeIs('solar-projects.create')" :tooltip="$projectsLabel" wire:navigate>
-                    {{ $projectsLabel }}
-                </flux:sidebar.item>
-                <flux:sidebar.item class="solar-nav-item" icon="plus-circle" :href="route('solar-projects.create')" :current="request()->routeIs('solar-projects.create')" :tooltip="__('Nuevo proyecto')" wire:navigate>
-                    {{ __('Nuevo proyecto') }}
-                </flux:sidebar.item>
+                {{-- The client's own screens. An installer has no projects: their work is the inbox (ADR-0023). --}}
+                @unless (auth()->user()->isInstaller())
+                    <div class="solar-nav-label">{{ __('Centro solar') }}</div>
+                    <flux:sidebar.item class="solar-nav-item" icon="sun" :href="route('solar-projects.index')" :current="request()->routeIs('solar-projects.*') && ! request()->routeIs('solar-projects.create')" :tooltip="$projectsLabel" wire:navigate>
+                        {{ $projectsLabel }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item class="solar-nav-item" icon="plus-circle" :href="route('solar-projects.create')" :current="request()->routeIs('solar-projects.create')" :tooltip="__('Nuevo proyecto')" wire:navigate>
+                        {{ __('Nuevo proyecto') }}
+                    </flux:sidebar.item>
+                @endunless
 
-                <div class="solar-nav-label solar-nav-label--group">{{ __('Recursos') }}</div>
-                <flux:sidebar.item class="solar-nav-item" icon="document-text" :href="route('guides.energy-bill')" :current="request()->routeIs('guides.energy-bill')" :tooltip="__('Guía del recibo')" wire:navigate>
-                    {{ __('Guía del recibo') }}
-                </flux:sidebar.item>
-                <flux:sidebar.item class="solar-nav-item" icon="wrench-screwdriver" :href="route('installers.index')" :current="request()->routeIs('installers.*')" :tooltip="__('Instaladores')" wire:navigate>
-                    {{ __('Instaladores') }}
-                </flux:sidebar.item>
+                @can('answer-quote-requests')
+                    <div class="solar-nav-label solar-nav-label--group">{{ __('Mi trabajo') }}</div>
+                    {{-- The installer's inbox (ADR-0023): the badge counts what still waits for an answer. --}}
+                    @php($openRequests = auth()->user()->installer?->quoteRequests()->whereIn('status', ['sent', 'contacted'])->count() ?? 0)
+                    <flux:sidebar.item class="solar-nav-item" icon="inbox" :href="route('installer-inbox.index')" :current="request()->routeIs('installer-inbox.*')" :tooltip="__('Solicitudes')" :badge="$openRequests > 0 ? (string) $openRequests : null" wire:navigate>
+                        {{ __('Solicitudes') }}
+                    </flux:sidebar.item>
+
+                    <div class="solar-nav-label solar-nav-label--group">{{ __('Recursos') }}</div>
+                    {{-- Where the reference budget the client already saw comes from. --}}
+                    <flux:sidebar.item class="solar-nav-item" icon="currency-dollar" :href="route('installer-prices.index')" :current="request()->routeIs('installer-prices.*')" :tooltip="__('Precios de referencia')" wire:navigate>
+                        {{ __('Precios de referencia') }}
+                    </flux:sidebar.item>
+                @endcan
+
+                @unless (auth()->user()->isInstaller())
+                    <div class="solar-nav-label solar-nav-label--group">{{ __('Recursos') }}</div>
+                    <flux:sidebar.item class="solar-nav-item" icon="document-text" :href="route('guides.energy-bill')" :current="request()->routeIs('guides.energy-bill')" :tooltip="__('Guía del recibo')" wire:navigate>
+                        {{ __('Guía del recibo') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item class="solar-nav-item" icon="wrench-screwdriver" :href="route('installers.index')" :current="request()->routeIs('installers.*')" :tooltip="__('Instaladores')" wire:navigate>
+                        {{ __('Instaladores') }}
+                    </flux:sidebar.item>
+                @endunless
 
                 @can('administer-platform')
                     <div class="solar-nav-label solar-nav-label--group">{{ __('Administración') }}</div>
@@ -128,7 +148,7 @@
 
         {{-- Success messages are flashes: app.js shows them as a toast for a moment (not inline alerts).
              Only on app screens: the settings pages use "status" for internal keys (verification-link-sent…). --}}
-        @if (session('status') && request()->routeIs('solar-projects.*', 'api-data.*', 'installers.*'))
+        @if (session('status') && request()->routeIs('solar-projects.*', 'api-data.*', 'installers.*', 'installer-inbox.*'))
             <div hidden data-flash-toast data-variant="success">{{ session('status') }}</div>
         @endif
 

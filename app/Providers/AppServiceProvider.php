@@ -56,6 +56,9 @@ class AppServiceProvider extends ServiceProvider
         // 3D designer: a workbench for the models, only for admins and only with APP_ENV=local.
         Gate::define('design-3d', fn (User $user): bool => $user->isAdmin() && app()->environment('local'));
 
+        // The installer's inbox (ADR-0023): only an account tied to an allied installer.
+        Gate::define('answer-quote-requests', fn (User $user): bool => $user->isInstaller());
+
         // Climate readings are shared by every project, so only admins may trigger a sync.
         Gate::define('sync-climate-data', fn (User $user): bool => $user->isAdmin());
 

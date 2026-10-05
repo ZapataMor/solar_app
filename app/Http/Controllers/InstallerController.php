@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Actions\Installers\DescribeInstallerDirectory;
 use App\Actions\Installers\RequestInstallerQuote;
 use App\Actions\Installers\SaveInstaller;
+use App\Actions\Installers\SaveInstallerAccount;
 use App\Domain\Installers\QuoteNotPossible;
+use App\Http\Requests\InstallerAccountRequest;
 use App\Http\Requests\InstallerRequest;
 use App\Models\Installer;
 use App\Models\Municipality;
@@ -67,10 +69,20 @@ class InstallerController extends Controller
             ->with('status', "Se agregó {$installer->name}: ya aparece para los clientes de los municipios que cubre.");
     }
 
+    /** The login the installer answers its requests with (ADR-0023). */
+    public function account(InstallerAccountRequest $request, Installer $installer, SaveInstallerAccount $saveInstallerAccount): RedirectResponse
+    {
+        $account = $saveInstallerAccount($installer, $request->validated());
+
+        return redirect()
+            ->route('installers.edit', $installer)
+            ->with('status', "{$installer->name} ya entra con el usuario {$account->username}.");
+    }
+
     public function edit(Installer $installer): View
     {
         return view('installers.form', [
-            'installer' => $installer,
+            'installer' => $installer->load('account'),
             'municipalities' => $this->municipalities(),
             'covered' => $installer->municipalities()->pluck('municipalities.id')->all(),
         ]);

@@ -474,6 +474,379 @@
     }
 }
 
+@layer components {
+    /* Installer inbox (ADR-0023): the requests one installer received. */
+    .solar-inbox-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+        gap: 0.75rem;
+        margin: 0;
+    }
+
+    .solar-inbox-summary > div {
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.9rem;
+        background: var(--solar-surface-muted);
+    }
+
+    .solar-inbox-summary dt {
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .solar-inbox-summary dd {
+        margin: 0.25rem 0 0;
+        color: var(--solar-text);
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+
+    .solar-inbox-summary dd span {
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .solar-inbox-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    /* A row of the list: status, who and what, and the figures that say which one to open. */
+    .solar-inbox-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+        align-items: center;
+        justify-content: space-between;
+        transition: border-color 0.15s, background-color 0.15s;
+    }
+
+    .solar-inbox-row:hover {
+        border-color: color-mix(in srgb, var(--solar-sun) 55%, transparent);
+        background: color-mix(in srgb, var(--solar-sun) 5%, transparent);
+    }
+
+    /* What still waits for an answer is why this screen gets opened. */
+    .solar-inbox-row.is-open {
+        border-left: 3px solid var(--solar-sun);
+    }
+
+    .solar-inbox-row__main {
+        display: grid;
+        gap: 0.3rem;
+        flex: 1 1 18rem;
+    }
+
+    .solar-inbox-row__main strong {
+        color: var(--solar-text);
+        font-size: 1.02rem;
+        font-weight: 600;
+    }
+
+    .solar-inbox-row__meta {
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    .solar-inbox-row__figures {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5rem;
+    }
+
+    .solar-inbox-row__figures > span {
+        display: grid;
+        gap: 0.15rem;
+        color: var(--solar-text);
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .solar-inbox-row__figures small {
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .solar-inbox-row__figures .is-won {
+        color: var(--solar-success);
+    }
+
+    .solar-inbox-row__chevron {
+        width: 1.1rem;
+        height: 1.1rem;
+        flex: none;
+        color: var(--solar-text-muted);
+    }
+
+    .solar-inbox-card__status {
+        display: inline-block;
+        justify-self: start;
+        margin: 0;
+        padding: 0.18rem 0.6rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-text) 10%, transparent);
+        color: var(--solar-text-muted);
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+
+    .solar-inbox-card__status[data-status='sent'] {
+        background: color-mix(in srgb, var(--solar-sun) 18%, transparent);
+        color: var(--solar-gold);
+    }
+
+    .solar-inbox-card__status[data-status='won'] {
+        background: var(--solar-success-bg);
+        color: var(--solar-success);
+    }
+
+    /* The page of one request. */
+    .solar-quote-heading {
+        color: var(--solar-text);
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    .solar-quote-sub {
+        display: block;
+        color: var(--solar-text-muted);
+        font-size: 0.72rem;
+        font-weight: 500;
+    }
+
+    .solar-quote-client {
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.9rem;
+        background: var(--solar-surface-muted);
+    }
+
+    .solar-quote-client__name {
+        margin: 0.15rem 0 0.2rem;
+        color: var(--solar-text);
+        font-weight: 600;
+    }
+
+    .solar-quote-spaces {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1rem;
+    }
+
+    @media (min-width: 64rem) {
+        .solar-quote-spaces {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    .solar-quote-space {
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.9rem;
+    }
+
+    .solar-quote-space__head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem 0.75rem;
+        align-items: baseline;
+        justify-content: space-between;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--solar-border);
+    }
+
+    .solar-quote-space__head h3 {
+        color: var(--solar-text);
+        font-size: 0.92rem;
+        font-weight: 600;
+    }
+
+    .solar-quote-space__head p {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+    }
+
+    .solar-quote-appliances {
+        display: grid;
+        gap: 0.5rem;
+        margin: 0.6rem 0 0;
+    }
+
+    .solar-quote-appliances li {
+        display: grid;
+        grid-template-columns: 1.4rem minmax(0, 1fr) auto;
+        gap: 0.2rem 0.6rem;
+        align-items: center;
+    }
+
+    .solar-quote-appliances svg {
+        width: 1.4rem;
+        height: 1.4rem;
+        grid-row: span 2;
+        color: var(--solar-sun);
+    }
+
+    .solar-quote-appliance__name {
+        color: var(--solar-text);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .solar-quote-appliance__name small {
+        color: var(--solar-text-muted);
+        font-weight: 400;
+    }
+
+    .solar-quote-appliance__usage {
+        grid-column: 2;
+        color: var(--solar-text-muted);
+        font-size: 0.76rem;
+    }
+
+    .solar-quote-appliance__kwh {
+        grid-column: 3;
+        grid-row: span 2;
+        color: var(--solar-text);
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+
+    .solar-inbox-figures {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+        gap: 0.6rem;
+        margin: 0;
+    }
+
+    .solar-inbox-figures > div {
+        padding: 0.65rem 0.8rem;
+        border-radius: 0.85rem;
+        background: color-mix(in srgb, var(--solar-text) 5%, transparent);
+    }
+
+    .solar-inbox-figures dt {
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.66rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .solar-inbox-figures dd {
+        margin: 0.2rem 0 0;
+        color: var(--solar-text);
+        font-size: 0.98rem;
+        font-weight: 600;
+    }
+
+    .solar-inbox-warning {
+        display: block;
+        color: var(--solar-warning);
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+
+    .solar-inbox-note,
+    .solar-inbox-quote {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    .solar-inbox-quote {
+        padding-left: 0.8rem;
+        border-left: 2px solid var(--solar-border-strong);
+        font-style: italic;
+    }
+
+    .solar-inbox-card__label {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.66rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .solar-inbox-mail {
+        color: var(--solar-sun);
+        font-size: 0.88rem;
+        font-weight: 600;
+        text-decoration: underline;
+    }
+
+    .solar-inbox-answer summary {
+        color: var(--solar-text);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-inbox-form {
+        display: grid;
+        gap: 0.9rem;
+        align-items: start;
+        margin-top: 0.75rem;
+    }
+
+    @media (min-width: 48rem) {
+        .solar-inbox-form {
+            grid-template-columns: minmax(0, 14rem) minmax(0, 16rem);
+        }
+    }
+
+    /* Its own row: a button stretched beside two fields of different heights never lines up. */
+    .solar-inbox-form button {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+    /* The contract value belongs to a closed deal; app.js shows it with the class (never [hidden]).
+       Two classes deep on purpose: .solar-field sets display:grid later in the sheet and would win. */
+    .solar-inbox-form .solar-inbox-contract {
+        display: none;
+    }
+
+    .solar-inbox-form .solar-inbox-contract.is-shown {
+        display: grid;
+    }
+
+    .solar-installer-account__state {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.85rem;
+    }
+
+    .solar-installer-account__state.is-missing {
+        color: var(--solar-warning);
+        font-weight: 600;
+    }
+
+    .solar-installer-form__account {
+        display: grid;
+        gap: 1.1rem;
+    }
+
+    .solar-inbox-empty {
+        max-width: 42rem;
+    }
+}
+
 /* Leaflet ships its stylesheet from the CDN, outside every layer, and an unlayered rule wins over a
    layered one in Tailwind v4 however specific the layered one is. These overrides stay unlayered. */
 .solar-coverage-map.leaflet-container {

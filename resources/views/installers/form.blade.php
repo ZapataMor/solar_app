@@ -179,5 +179,58 @@
                 <a href="{{ route('installers.index') }}" class="solar-button-ghost" wire:navigate>Cancelar</a>
             </div>
         </form>
+
+        @if ($editing)
+            {{-- The login the installer answers with (ADR-0023). Its own form: it posts elsewhere. --}}
+            @php($account = $installer->account)
+            <section class="solar-card solar-installer-section solar-installer-account">
+                <div class="solar-installer-section__head">
+                    <h2>Cuenta de acceso</h2>
+                    <p>Con ella entra a ver las solicitudes que le piden. No hay registro público: la cuenta la creas tú.</p>
+                </div>
+
+                <div class="solar-installer-section__body">
+                    @if ($account)
+                        <p class="solar-installer-account__state">
+                            Ya entra como <strong>{{ $account->username }}</strong> · {{ $account->email }}
+                        </p>
+                    @else
+                        <p class="solar-installer-account__state is-missing">Todavía no tiene cuenta: no puede ver sus solicitudes.</p>
+                    @endif
+
+                    <form method="POST" action="{{ route('installers.account.store', $installer) }}" class="solar-installer-form__account">
+                        @csrf
+
+                        <label class="solar-field">
+                            <span class="solar-field-label">Nombre de quien la usa</span>
+                            <input name="account_name" value="{{ old('account_name', $account?->name ?? $installer->contact_name ?? $installer->name) }}" required maxlength="255" class="solar-input">
+                        </label>
+
+                        <div class="solar-installer-form__row">
+                            <label class="solar-field">
+                                <span class="solar-field-label">Usuario</span>
+                                <input name="username" value="{{ old('username', $account?->username) }}" required maxlength="60" class="solar-input" placeholder="sol-de-riohacha">
+                            </label>
+
+                            <label class="solar-field">
+                                <span class="solar-field-label">Correo</span>
+                                <input type="email" name="email" value="{{ old('email', $account?->email ?? $installer->email) }}" required maxlength="255" class="solar-input">
+                            </label>
+                        </div>
+
+                        <label class="solar-field">
+                            <span class="solar-field-label">Contraseña @if ($account)<span class="solar-field-optional">· solo para cambiarla</span>@endif</span>
+                            <input type="password" name="password" @required(! $account) autocomplete="new-password" class="solar-input">
+                            <span class="solar-field-hint">Escríbela una vez y pásasela al instalador; después él la cambia desde su perfil.</span>
+                        </label>
+
+                        <div class="solar-installer-form__actions">
+                            <button type="submit" class="solar-button-ghost">{{ $account ? 'Actualizar la cuenta' : 'Crear la cuenta' }}</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        @endif
+
     </div>
 </x-layouts::app>

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 /**
@@ -40,6 +41,12 @@ class Installer extends Model
     public function quoteRequests(): HasMany
     {
         return $this->hasMany(QuoteRequest::class);
+    }
+
+    /** The account that answers for this installer (ADR-0023); null until an admin creates it. */
+    public function account(): HasOne
+    {
+        return $this->hasOne(User::class);
     }
 
     public function scopeActive(Builder $query): Builder
