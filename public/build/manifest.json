@@ -1,16 +1,23 @@
 {
-  "_OrbitControls-BP-ES_jK.js": {
-    "file": "assets/OrbitControls-BP-ES_jK.js",
+  "_OrbitControls-5ee1bEvl.js": {
+    "file": "assets/OrbitControls-5ee1bEvl.js",
     "name": "OrbitControls",
     "imports": [
-      "_three.module-BwdOT5rx.js"
+      "_three.module-DvLw33g4.js"
     ]
   },
-  "_buildings-Dqi9c_0y.js": {
-    "file": "assets/buildings-Dqi9c_0y.js",
+  "_RoundedBoxGeometry-DIiqpHLy.js": {
+    "file": "assets/RoundedBoxGeometry-DIiqpHLy.js",
+    "name": "RoundedBoxGeometry",
+    "imports": [
+      "_three.module-DvLw33g4.js"
+    ]
+  },
+  "_buildings-CBc2jVzI.js": {
+    "file": "assets/buildings-CBc2jVzI.js",
     "name": "buildings",
     "imports": [
-      "_three.module-BwdOT5rx.js"
+      "_three.module-DvLw33g4.js"
     ]
   },
   "_fonts-BXr6Abe-.css": {
@@ -289,19 +296,20 @@
     "file": "assets/ibm-plex-sans-700-normal-wyJ6jzdA.woff2",
     "src": "_ibm-plex-sans-700-normal-wyJ6jzdA.woff2"
   },
-  "_parts-DbjqHsf2.js": {
-    "file": "assets/parts-DbjqHsf2.js",
+  "_parts-CKfdujDi.js": {
+    "file": "assets/parts-CKfdujDi.js",
     "name": "parts",
     "imports": [
-      "_three.module-BwdOT5rx.js"
+      "_three.module-DvLw33g4.js",
+      "_RoundedBoxGeometry-DIiqpHLy.js"
     ]
   },
-  "_three.module-BwdOT5rx.js": {
-    "file": "assets/three.module-BwdOT5rx.js",
+  "_three.module-DvLw33g4.js": {
+    "file": "assets/three.module-DvLw33g4.js",
     "name": "three.module"
   },
   "resources/css/app.css": {
-    "file": "assets/app-m6lp8BN2.css",
+    "file": "assets/app-BarEWEz3.css",
     "name": "app",
     "names": [
       "app.css"
@@ -310,7 +318,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-CxDNiJJr.js",
+    "file": "assets/app-DXr47Jzx.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -332,168 +340,176 @@
       "resources/js/appliance-scene/microwave.js",
       "resources/js/appliance-scene/blender.js",
       "resources/js/appliance-scene/iron.js",
-      "resources/js/appliance-scene/scene.js"
+      "resources/js/appliance-scene/scene.js",
+      "resources/js/system-scene/scene.js",
+      "resources/js/coverage-map.js"
     ]
   },
   "resources/js/appliance-scene/air-conditioner.js": {
-    "file": "assets/air-conditioner-C2U0D8-Q.js",
+    "file": "assets/air-conditioner-mY6eUBZx.js",
     "name": "air-conditioner",
     "src": "resources/js/appliance-scene/air-conditioner.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/beverage-cooler.js": {
-    "file": "assets/beverage-cooler-cwOJk_nG.js",
+    "file": "assets/beverage-cooler-cTOa44mD.js",
     "name": "beverage-cooler",
     "src": "resources/js/appliance-scene/beverage-cooler.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/blender.js": {
-    "file": "assets/blender-DCsVFBje.js",
+    "file": "assets/blender-h2qaMsdz.js",
     "name": "blender",
     "src": "resources/js/appliance-scene/blender.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/computer.js": {
-    "file": "assets/computer-Bs8pJJK5.js",
+    "file": "assets/computer-BaiG73G-.js",
     "name": "computer",
     "src": "resources/js/appliance-scene/computer.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/display-case.js": {
-    "file": "assets/display-case-BAwQVu92.js",
+    "file": "assets/display-case-DU0DHfSC.js",
     "name": "display-case",
     "src": "resources/js/appliance-scene/display-case.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/fan.js": {
-    "file": "assets/fan-Qzh7BPtJ.js",
+    "file": "assets/fan-Ct3go-UC.js",
     "name": "fan",
     "src": "resources/js/appliance-scene/fan.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/freezer.js": {
-    "file": "assets/freezer-BzGV6P3p.js",
+    "file": "assets/freezer-C9HgKwVT.js",
     "name": "freezer",
     "src": "resources/js/appliance-scene/freezer.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/fridge.js": {
-    "file": "assets/fridge-DVHhDq8P.js",
+    "file": "assets/fridge-B6Y9NK7n.js",
     "name": "fridge",
     "src": "resources/js/appliance-scene/fridge.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/iron.js": {
-    "file": "assets/iron-Di-FgAsu.js",
+    "file": "assets/iron-ClgRdd5t.js",
     "name": "iron",
     "src": "resources/js/appliance-scene/iron.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/lighting.js": {
-    "file": "assets/lighting-oJZgvc89.js",
+    "file": "assets/lighting-BQETPzeq.js",
     "name": "lighting",
     "src": "resources/js/appliance-scene/lighting.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/microwave.js": {
-    "file": "assets/microwave-HyaFLVAk.js",
+    "file": "assets/microwave-ZE_2YFwz.js",
     "name": "microwave",
     "src": "resources/js/appliance-scene/microwave.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/router.js": {
-    "file": "assets/router-CqYNUjq8.js",
+    "file": "assets/router-Cvcyw6hU.js",
     "name": "router",
     "src": "resources/js/appliance-scene/router.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/scene.js": {
-    "file": "assets/scene-tX_qCRn-.js",
+    "file": "assets/scene-CWXUQ5sD.js",
     "name": "scene",
     "src": "resources/js/appliance-scene/scene.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_OrbitControls-BP-ES_jK.js"
+      "_three.module-DvLw33g4.js",
+      "_OrbitControls-5ee1bEvl.js"
     ]
   },
   "resources/js/appliance-scene/tv.js": {
-    "file": "assets/tv-Dg44esGj.js",
+    "file": "assets/tv-9p8Gb10e.js",
     "name": "tv",
     "src": "resources/js/appliance-scene/tv.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/washing-machine.js": {
-    "file": "assets/washing-machine-CI88YlI2.js",
+    "file": "assets/washing-machine-DuO_49aW.js",
     "name": "washing-machine",
     "src": "resources/js/appliance-scene/washing-machine.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
   },
   "resources/js/appliance-scene/water-pump.js": {
-    "file": "assets/water-pump-mQKZ_GE-.js",
+    "file": "assets/water-pump-C2Cm-RIE.js",
     "name": "water-pump",
     "src": "resources/js/appliance-scene/water-pump.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_parts-DbjqHsf2.js"
+      "_three.module-DvLw33g4.js",
+      "_parts-CKfdujDi.js"
     ]
+  },
+  "resources/js/coverage-map.js": {
+    "file": "assets/coverage-map-Cw8g8F0C.js",
+    "name": "coverage-map",
+    "src": "resources/js/coverage-map.js",
+    "isDynamicEntry": true
   },
   "resources/js/passkeys.js": {
     "file": "assets/passkeys-ZWACIUjA.js",
@@ -502,25 +518,36 @@
     "isEntry": true
   },
   "resources/js/solar-scene/scene.js": {
-    "file": "assets/scene-B0afajMy.js",
+    "file": "assets/scene-DxQXxsYu.js",
     "name": "scene",
     "src": "resources/js/solar-scene/scene.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_OrbitControls-BP-ES_jK.js",
-      "_buildings-Dqi9c_0y.js"
+      "_three.module-DvLw33g4.js",
+      "_OrbitControls-5ee1bEvl.js",
+      "_buildings-CBc2jVzI.js"
     ]
   },
   "resources/js/station-scene/scene.js": {
-    "file": "assets/scene-L-nmJCi5.js",
+    "file": "assets/scene-Cv4WbGnO.js",
     "name": "scene",
     "src": "resources/js/station-scene/scene.js",
     "isDynamicEntry": true,
     "imports": [
-      "_three.module-BwdOT5rx.js",
-      "_OrbitControls-BP-ES_jK.js",
-      "_buildings-Dqi9c_0y.js"
+      "_three.module-DvLw33g4.js",
+      "_OrbitControls-5ee1bEvl.js",
+      "_buildings-CBc2jVzI.js"
+    ]
+  },
+  "resources/js/system-scene/scene.js": {
+    "file": "assets/scene-D_oNH1HK.js",
+    "name": "scene",
+    "src": "resources/js/system-scene/scene.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_three.module-DvLw33g4.js",
+      "_OrbitControls-5ee1bEvl.js",
+      "_RoundedBoxGeometry-DIiqpHLy.js"
     ]
   }
 }
