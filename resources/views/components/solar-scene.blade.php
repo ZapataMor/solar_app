@@ -6,13 +6,15 @@
     @param string $mode        preview | showcase
     @param string $propertyType house | business | institution
     @param int    $panels       Panels drawn on the roof
+    @param int    $panelsFit    Slots the roof has, when they are more than the panels drawn (ADR-0014);
+                                by default the roof is full, which is what the landing and the form show.
     @param float  $roofArea     m² of the roof: it sets the size of the building
     @param float  $panelArea    m² of one panel
     @param string $label        Text for screen readers
     @param string $note         Line under the scene
     @param array  $choices      Showcase only: [type => [label, panels, area]] for the chooser
 --}}
-@props(['mode', 'propertyType' => 'house', 'panels' => 0, 'roofArea' => 0, 'panelArea' => 2.6, 'label' => 'Ilustración de un techo con paneles solares', 'note' => '', 'choices' => []])
+@props(['mode', 'propertyType' => 'house', 'panels' => 0, 'panelsFit' => null, 'roofArea' => 0, 'panelArea' => 2.6, 'label' => 'Ilustración de un techo con paneles solares', 'note' => '', 'choices' => []])
 
 <figure
     class="solar-scene solar-scene--{{ $mode }}"
@@ -20,7 +22,7 @@
     data-scene-mode="{{ $mode }}"
     data-property-type="{{ $propertyType }}"
     data-panels-installed="{{ $panels }}"
-    data-panels-fit="{{ $panels }}"
+    data-panels-fit="{{ max((int) ($panelsFit ?? $panels), (int) $panels) }}"
     data-panels-missing="0"
     data-roof-area-m2="{{ $roofArea }}"
     data-panel-area-m2="{{ $panelArea }}"
