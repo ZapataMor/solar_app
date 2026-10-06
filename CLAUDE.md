@@ -147,6 +147,20 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   calcula comisión porque el ADR-0005 no tiene porcentaje. *Precios de referencia* le muestra el $/kW por
   municipio del que sale el presupuesto que ya vio el cliente. Gate `answer-quote-requests`; el sidebar le
   oculta *Centro solar* y los *Recursos* del cliente. Cuentas de prueba en `InstallerAccountSeeder`.
+- **Cotización del instalador (ADR-0026):** desde la página de la solicitud manda su precio, qué
+  incluye, si lleva baterías y hasta cuándo vale (`SendInstallerQuote` → tabla `installer_quotes`,
+  una por solicitud: reenviarla corrige la anterior). Va en su propia tabla y **no** en columnas de
+  `quote_requests`, donde `quoted_cost_cop` es el presupuesto *de referencia* congelado del ADR-0024:
+  dos números parecidos en la misma fila se confunden. Mandarla pone el estado en `quoted`, pero solo
+  si la solicitud sigue abierta (`QuoteRequestStatus::afterQuoting`): corregir el precio de un negocio
+  ya ganado no lo devuelve a la espera. El precio **vence**, porque los equipos son importados, y las
+  dos pantallas lo dicen cuando pasó. El cliente la lee en la tarjeta del directorio y la abre
+  completa en `/instaladores/cotizaciones/{solicitud}` (`DescribeQuoteForClient`,
+  `installers/quote.blade.php`; la ve quien puede `manage` el proyecto, y sin precio es 404). Ahí la
+  app **rehace el retorno con ese precio**, no con el de referencia
+  (`Profitability::paybackYearsFor()` + el ahorro anual del `calculation_results`; sin cálculo lo
+  dice en vez de inventarlo) y lo compara con el presupuesto congelado, con el $/kW y con lo que
+  ofrecieron los demás instaladores del mismo proyecto. Compara, pero no recomienda.
 - **Precios por municipio (ADR-0024):** pantalla de admin *Precios por municipio*; el precio final es
   `base × factor logístico` y hay **uno solo por municipio y tipo de ubicación** (índice único; antes se
   podían duplicar y el costo dependía del orden de inserción). **Guardar no toca lo ya cotizado:** el
