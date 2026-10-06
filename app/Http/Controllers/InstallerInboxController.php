@@ -6,7 +6,9 @@ use App\Actions\Installers\AnswerQuoteRequest;
 use App\Actions\Installers\DescribeInstallerInbox;
 use App\Actions\Installers\DescribeQuoteRequest;
 use App\Actions\Installers\DescribeReferencePrices;
+use App\Actions\Installers\SendInstallerQuote;
 use App\Domain\Installers\QuoteNotPossible;
+use App\Http\Requests\InstallerQuoteRequest;
 use App\Models\QuoteRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,6 +65,22 @@ class InstallerInboxController extends Controller
         return redirect()
             ->route('installer-inbox.show', $quoteRequest)
             ->with('status', 'Se actualizó la solicitud de '.$quoteRequest->solarProject->name.'.');
+    }
+
+    /** The price the installer offers for a request (ADR-0026). */
+    public function quote(InstallerQuoteRequest $request, QuoteRequest $quoteRequest, SendInstallerQuote $sendInstallerQuote): RedirectResponse
+    {
+        $this->belongsToTheirCompany($request, $quoteRequest);
+
+        try {
+            $sendInstallerQuote($quoteRequest, $request->validated());
+        } catch (QuoteNotPossible $exception) {
+            return back()->withErrors(['installer_quote' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('installer-inbox.show', $quoteRequest)
+            ->with('status', 'Tu cotización quedó enviada: el cliente ya la ve en su directorio.');
     }
 
     /** One installer never reads or answers for another, whatever id arrives in the URL. */

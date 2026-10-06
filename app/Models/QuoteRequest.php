@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Domain\Installers\QuoteRequestStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * A client asked an installer to quote a project (ADR-0022): the lead of ADR-0005.
@@ -40,6 +41,12 @@ class QuoteRequest extends Model
     public function installer(): BelongsTo
     {
         return $this->belongsTo(Installer::class);
+    }
+
+    /** What the installer offered for it (ADR-0026); null while they have not answered with a price. */
+    public function installerQuote(): HasOne
+    {
+        return $this->hasOne(InstallerQuote::class);
     }
 
     public function statusLabel(): string

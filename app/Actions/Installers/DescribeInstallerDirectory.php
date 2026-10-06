@@ -42,7 +42,7 @@ final class DescribeInstallerDirectory
         $project = $this->chosenProject($projects, $projectId);
         $requests = $project === null
             ? collect()
-            : $project->quoteRequests()->get()->keyBy('installer_id');
+            : $project->quoteRequests()->with('installerQuote')->get()->keyBy('installer_id');
 
         $installers = Installer::query()
             ->with('municipalities:id,name')
@@ -83,6 +83,8 @@ final class DescribeInstallerDirectory
                     'phone' => $request !== null ? $installer->phone : null,
                     'whatsapp' => $request !== null ? $installer->whatsappNumber() : null,
                     'email' => $request !== null ? $installer->email : null,
+                    // What this installer offered, if they already answered with a price (ADR-0026).
+                    'quote' => $request?->installerQuote,
                     'requests' => $installer->quote_requests_count,
                 ];
             })->all(),

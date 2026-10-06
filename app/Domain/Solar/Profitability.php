@@ -28,6 +28,21 @@ final readonly class Profitability
         public ?float $paybackYears,
     ) {}
 
+    /**
+     * How long a price takes to pay for itself with the savings a project already estimated.
+     *
+     * It is what lets a real quote be judged instead of the reference budget (ADR-0026): the same
+     * system from two installers pays back at different speeds.
+     */
+    public static function paybackYearsFor(float $costCop, float $annualSavingsCop): ?float
+    {
+        if ($costCop <= 0 || $annualSavingsCop <= 0) {
+            return null;
+        }
+
+        return round($costCop / $annualSavingsCop, 1);
+    }
+
     public static function fromPaybackYears(?float $paybackYears): self
     {
         $level = match (true) {

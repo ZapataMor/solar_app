@@ -155,6 +155,74 @@
     }
 
     /* The contact data appears only once the quote was requested (ADR-0021). */
+    /* What the installer offered (ADR-0026): the number the client came for. */
+    .solar-installer-offer {
+        padding: 0.7rem 0.85rem;
+        border: 1px solid color-mix(in srgb, var(--solar-success) 42%, transparent);
+        border-radius: 0.85rem;
+        background: var(--solar-success-bg);
+    }
+
+    .solar-installer-offer.is-expired {
+        border-color: color-mix(in srgb, var(--solar-warning) 42%, transparent);
+        background: var(--solar-warning-bg);
+    }
+
+    .solar-installer-offer__amount {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    .solar-installer-offer__amount small {
+        display: block;
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .solar-installer-offer__scope {
+        margin: 0.4rem 0 0;
+        color: var(--solar-text);
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
+    .solar-installer-offer__valid {
+        margin: 0.35rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.76rem;
+    }
+
+    /* The installer's own form, on the request page. */
+    .solar-quote-offer__head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.75rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .solar-quote-offer__form {
+        display: grid;
+        gap: 1rem;
+        align-items: start;
+        margin-top: 1rem;
+    }
+
+    @media (min-width: 48rem) {
+        .solar-quote-offer__form {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .solar-quote-offer__scope,
+        .solar-quote-offer__battery,
+        .solar-quote-offer__actions {
+            grid-column: 1 / -1;
+        }
+    }
+
     .solar-installer-card__contact {
         display: grid;
         gap: 0.4rem;
@@ -1053,6 +1121,200 @@
 
     .solar-inbox-empty {
         max-width: 42rem;
+    }
+
+    /* The quote one installer sent, read in detail by the client (ADR-0026). */
+    .solar-installer-offer__link {
+        display: inline-flex;
+        gap: 0.3rem;
+        align-items: center;
+        margin-top: 0.5rem;
+        color: var(--solar-gold);
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .solar-installer-offer__link svg {
+        width: 0.9rem;
+        height: 0.9rem;
+        transition: transform 150ms ease;
+    }
+
+    .solar-installer-offer__link:hover svg {
+        transform: translateX(0.15rem);
+    }
+
+    .solar-client-quote__price {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 2rem;
+        align-items: center;
+        justify-content: space-between;
+        border-color: color-mix(in srgb, var(--solar-success) 42%, transparent);
+    }
+
+    .solar-client-quote__price.is-expired {
+        border-color: color-mix(in srgb, var(--solar-warning) 42%, transparent);
+    }
+
+    .solar-client-quote__figure {
+        margin: 0.2rem 0 0;
+        color: var(--solar-text);
+        font-size: clamp(2rem, 6vw, 2.75rem);
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+    }
+
+    .solar-client-quote__meta {
+        margin: 0.35rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    .solar-client-quote__valid {
+        flex: 1 1 18rem;
+        margin: 0;
+        padding: 0.7rem 0.85rem;
+        border-radius: 0.85rem;
+        background: var(--solar-success-bg);
+        color: var(--solar-text);
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
+    .solar-client-quote__valid.is-expired {
+        background: var(--solar-warning-bg);
+    }
+
+    /* The verdict of the payback recalculated with this price, not with the reference budget. */
+    .solar-client-quote__verdict {
+        margin-top: 1rem;
+        padding: 0.75rem 0.9rem;
+        border-left: 3px solid var(--solar-text-muted);
+        border-radius: 0 0.85rem 0.85rem 0;
+        background: color-mix(in srgb, var(--solar-text) 4%, transparent);
+    }
+
+    .solar-client-quote__verdict[data-level='good'] {
+        border-left-color: var(--solar-success);
+        background: var(--solar-success-bg);
+    }
+
+    .solar-client-quote__verdict[data-level='fair'] {
+        border-left-color: var(--solar-warning);
+        background: var(--solar-warning-bg);
+    }
+
+    .solar-client-quote__verdict[data-level='poor'],
+    .solar-client-quote__verdict[data-level='none'] {
+        border-left-color: var(--solar-danger);
+        background: var(--solar-danger-bg);
+    }
+
+    .solar-client-quote__verdict-label {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    .solar-client-quote__verdict-text {
+        margin: 0.2rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    .solar-client-quote__others-title {
+        margin: 1.25rem 0 0;
+        color: var(--solar-text);
+        font-size: 0.92rem;
+        font-weight: 600;
+    }
+
+    .solar-client-quote__others {
+        display: grid;
+        gap: 0.5rem;
+        margin: 0.6rem 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .solar-client-quote__others a {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.15rem 0.75rem;
+        align-items: center;
+        padding: 0.6rem 0.8rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 0.75rem;
+        transition: border-color 150ms ease, background 150ms ease;
+    }
+
+    .solar-client-quote__others a:hover {
+        border-color: color-mix(in srgb, var(--solar-sun) 55%, transparent);
+        background: color-mix(in srgb, var(--solar-sun) 6%, transparent);
+    }
+
+    .solar-client-quote__others-name {
+        color: var(--solar-text);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .solar-client-quote__others-meta {
+        grid-column: 1;
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+    }
+
+    .solar-client-quote__others-amount {
+        grid-row: 1 / span 2;
+        grid-column: 2;
+        color: var(--solar-text);
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .solar-client-quote__scope {
+        margin: 0.6rem 0 0;
+        color: var(--solar-text);
+        font-size: 0.88rem;
+        line-height: 1.6;
+        white-space: pre-line;
+    }
+
+    .solar-client-quote__checklist {
+        display: grid;
+        gap: 0.4rem;
+        margin: 0.6rem 0 0;
+        padding: 0;
+        list-style: none;
+        color: var(--solar-text-muted);
+        font-size: 0.84rem;
+        line-height: 1.5;
+    }
+
+    .solar-client-quote__checklist li {
+        position: relative;
+        padding-left: 1.1rem;
+    }
+
+    .solar-client-quote__checklist li::before {
+        position: absolute;
+        top: 0;
+        left: 0;
+        color: var(--solar-gold);
+        content: '›';
+        font-weight: 700;
+    }
+
+    .solar-client-quote__contact {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 2rem;
+        align-items: center;
+        justify-content: space-between;
     }
 }
 

@@ -75,12 +75,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('precios-de-referencia', [InstallerInboxController::class, 'prices'])->name('installer-prices.index');
         Route::get('solicitudes/{quoteRequest}', [InstallerInboxController::class, 'show'])->name('installer-inbox.show');
         Route::put('solicitudes/{quoteRequest}', [InstallerInboxController::class, 'update'])->name('installer-inbox.update');
+        // The price the installer offers (ADR-0026).
+        Route::put('solicitudes/{quoteRequest}/cotizacion', [InstallerInboxController::class, 'quote'])->name('installer-inbox.quote');
     });
 
     // Allied installers (ADR-0022): the directory and the quote request, which is the lead of ADR-0005.
     Route::get('instaladores', [InstallerController::class, 'index'])->name('installers.index');
     Route::post('instaladores/{installer}/solicitudes', [InstallerController::class, 'requestQuote'])
         ->name('installers.quote-requests.store');
+    // The quote the installer sent, read in detail by the client who asked for it (ADR-0026).
+    Route::get('instaladores/cotizaciones/{quoteRequest}', [InstallerController::class, 'quote'])
+        ->name('installers.quotes.show');
 
     Route::get('api-data', ApiDataController::class)
         ->middleware('can:administer-platform')

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Installers\DescribeInstallerDirectory;
+use App\Actions\Installers\DescribeQuoteForClient;
 use App\Actions\Installers\RequestInstallerQuote;
 use App\Actions\Installers\SaveInstaller;
 use App\Actions\Installers\SaveInstallerAccount;
@@ -11,6 +12,7 @@ use App\Http\Requests\InstallerAccountRequest;
 use App\Http\Requests\InstallerRequest;
 use App\Models\Installer;
 use App\Models\Municipality;
+use App\Models\QuoteRequest;
 use App\Models\SolarProject;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,6 +51,19 @@ class InstallerController extends Controller
         return redirect()
             ->route('installers.index', ['proyecto' => $solarProject->id])
             ->with('status', "Le pedimos cotización a {$installer->name}: sus datos de contacto ya están en su tarjeta.");
+    }
+
+    /**
+     * The quote one installer sent, in detail (ADR-0026). It belongs to the project, so whoever may
+     * manage the project may read it; the installer reads their own copy in their inbox.
+     */
+    public function quote(Request $request, QuoteRequest $quoteRequest, DescribeQuoteForClient $describeQuoteForClient): View
+    {
+        abort_unless($request->user()->can('manage', $quoteRequest->solarProject), 403);
+        // Without a price there is nothing to read: the request is still waiting for an answer.
+        abort_if($quoteRequest->installerQuote === null, 404);
+
+        return view('installers.quote', $describeQuoteForClient($quoteRequest));
     }
 
     public function create(): View

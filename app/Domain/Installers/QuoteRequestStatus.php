@@ -15,11 +15,14 @@ final class QuoteRequestStatus
 
     public const CONTACTED = 'contacted';
 
+    /** The installer sent their price (ADR-0026). */
+    public const QUOTED = 'quoted';
+
     public const WON = 'won';
 
     public const LOST = 'lost';
 
-    public const ALL = [self::SENT, self::CONTACTED, self::WON, self::LOST];
+    public const ALL = [self::SENT, self::CONTACTED, self::QUOTED, self::WON, self::LOST];
 
     public static function normalize(?string $status): string
     {
@@ -30,6 +33,7 @@ final class QuoteRequestStatus
     {
         return match (self::normalize($status)) {
             self::CONTACTED => 'Te contactaron',
+            self::QUOTED => 'Te cotizaron',
             self::WON => 'Negocio cerrado',
             self::LOST => 'No continuó',
             default => 'Solicitud enviada',
@@ -39,7 +43,7 @@ final class QuoteRequestStatus
     /** An open request still waits for an answer; a closed one is history. */
     public static function isOpen(?string $status): bool
     {
-        return in_array(self::normalize($status), [self::SENT, self::CONTACTED], true);
+        return in_array(self::normalize($status), [self::SENT, self::CONTACTED, self::QUOTED], true);
     }
 
     /**
@@ -50,11 +54,21 @@ final class QuoteRequestStatus
      */
     public static function answers(): array
     {
+        // In the installer's own voice: that screen is theirs, not the client's.
         return [
-            self::CONTACTED => self::label(self::CONTACTED),
-            self::WON => self::label(self::WON),
-            self::LOST => self::label(self::LOST),
+            self::CONTACTED => self::installerLabel(self::CONTACTED),
+            self::WON => self::installerLabel(self::WON),
+            self::LOST => self::installerLabel(self::LOST),
         ];
+    }
+
+    /**
+     * Sending a price answers the request on its own (ADR-0026), but only while it is still open:
+     * a deal already won or lost does not go back to waiting because someone edited the figure.
+     */
+    public static function afterQuoting(?string $status): string
+    {
+        return self::isOpen($status) ? self::QUOTED : self::normalize($status);
     }
 
     /**
@@ -70,6 +84,7 @@ final class QuoteRequestStatus
     {
         return match (self::normalize($status)) {
             self::CONTACTED => 'Ya lo contacté',
+            self::QUOTED => 'Ya le coticé',
             self::WON => 'Negocio cerrado',
             self::LOST => 'No continuó',
             default => 'Sin responder',

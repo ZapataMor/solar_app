@@ -150,6 +150,34 @@
                         </p>
 
                         @if ($installer['requested'])
+                            @if ($installer['quote'])
+                                {{-- What this installer offered (ADR-0026): the reason the client asked. --}}
+                                @php($quote = $installer['quote'])
+                                <div @class(['solar-installer-offer', 'is-expired' => $quote->hasExpired()])>
+                                    <p class="solar-installer-offer__amount">
+                                        {{ $money((float) $quote->amount_cop) }}
+                                        <small>
+                                            {{ $quote->includes_battery ? 'con baterías' : 'sin baterías' }}
+                                            @if ($quote->power_kw) · {{ number_format((float) $quote->power_kw, 2, ',', '.') }} kW @endif
+                                        </small>
+                                    </p>
+                                    @if ($quote->scope)
+                                        <p class="solar-installer-offer__scope">{{ $quote->scope }}</p>
+                                    @endif
+                                    <p class="solar-installer-offer__valid">
+                                        @if ($quote->hasExpired())
+                                            Este precio venció el {{ $date($quote->valid_until) }}: pídele que lo actualice.
+                                        @else
+                                            Vale hasta el {{ $date($quote->valid_until) }}.
+                                        @endif
+                                    </p>
+                                    <a href="{{ route('installers.quotes.show', $quote->quote_request_id) }}" class="solar-installer-offer__link" wire:navigate>
+                                        Ver la cotización en detalle<span class="sr-only"> de {{ $installer['name'] }}</span>
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                                    </a>
+                                </div>
+                            @endif
+
                             <div class="solar-installer-card__contact">
                                 <p class="solar-installer-badge">{{ $installer['statusLabel'] }} · {{ $date($installer['requestedAt']) }}</p>
                                 @if ($installer['contactName'])

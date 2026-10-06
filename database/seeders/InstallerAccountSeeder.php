@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Domain\Installers\QuoteRequestStatus;
 use App\Models\Installer;
+use App\Models\InstallerQuote;
 use App\Models\QuoteRequest;
 use App\Models\SolarProject;
 use App\Models\User;
@@ -39,12 +40,12 @@ class InstallerAccountSeeder extends Seeder
         );
         $account->forceFill(['email_verified_at' => $account->email_verified_at ?? now()])->save();
 
-        // One of each state, so the inbox shows what it looks like full: Uribia is the one the
-        // installer covers, and the other two are there to give the summary something to add up.
+        // Only projects this installer covers: Energía Wayúu reaches Maicao, Uribia and Manaure, so a
+        // request from Riohacha would be one the app itself refuses to create (ADR-0022), and the
+        // client would never see it in their directory.
         // Asked days ago and answered after that, so the dates of a card read in order.
         $requests = [
             ['Institución educativa rural', QuoteRequestStatus::SENT, null, 'Queremos empezar por las aulas; el comedor puede esperar.', 1, null],
-            ['Vivienda familiar Riohacha', QuoteRequestStatus::CONTACTED, null, null, 6, 4],
             ['Local comercial centro', QuoteRequestStatus::WON, 18_400_000, 'Nos urge por el aire del local.', 20, 12],
         ];
 
@@ -68,5 +69,49 @@ class InstallerAccountSeeder extends Seeder
                 ],
             )->forceFill(['created_at' => now()->subDays($askedDaysAgo)])->save();
         }
+
+        $this->requestForRiohacha($client);
+
+        // The closed one carries the price it was closed on (ADR-0026): the client reads the offer in
+        // their directory and the installer sees the whole arc, quote and contract, in one card.
+        $quoted = QuoteRequest::query()
+            ->where('installer_id', $installer->id)
+            ->where('status', QuoteRequestStatus::WON)
+            ->first();
+
+        if ($quoted !== null) {
+            InstallerQuote::query()->updateOrCreate(
+                ['quote_request_id' => $quoted->id],
+                [
+                    'amount_cop' => 17_900_000,
+                    'power_kw' => 9.2,
+                    'includes_battery' => false,
+                    'scope' => 'Dieciséis paneles de 550 W, inversor, estructura, cableado, mano de obra y trámite con la electrificadora. No incluye baterías.',
+                    'valid_until' => now()->addDays(21),
+                ],
+            );
+        }
+    }
+
+    /**
+     * The house in Riohacha asks the installer that does cover Riohacha, so the directory of that
+     * project is not empty either.
+     */
+    private function requestForRiohacha(User $client): void
+    {
+        $installer = Installer::query()->where('name', 'Sol de Riohacha')->first();
+        $project = SolarProject::query()
+            ->where('user_id', $client->id)
+            ->where('name', 'Vivienda familiar Riohacha')
+            ->first();
+
+        if ($installer === null || $project === null) {
+            return;
+        }
+
+        QuoteRequest::query()->updateOrCreate(
+            ['solar_project_id' => $project->id, 'installer_id' => $installer->id],
+            ['status' => QuoteRequestStatus::SENT, 'note' => null, 'answered_at' => null],
+        )->forceFill(['created_at' => now()->subDays(2)])->save();
     }
 }

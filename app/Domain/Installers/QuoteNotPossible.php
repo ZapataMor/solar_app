@@ -30,6 +30,11 @@ final class QuoteNotPossible extends RuntimeException
         return new self('Esa no es una respuesta válida para la solicitud.');
     }
 
+    public static function withoutAmount(): self
+    {
+        return new self('Escribe cuánto cuesta la instalación.');
+    }
+
     public static function withoutContractValue(): self
     {
         return new self('Escribe en cuánto se cerró el negocio.');

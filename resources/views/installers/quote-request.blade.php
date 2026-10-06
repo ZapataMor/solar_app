@@ -159,8 +159,102 @@
             @endif
         </section>
 
+        {{-- The price the client asked for (ADR-0026). Above the status, because it is the answer. --}}
+        <section class="solar-card solar-quote-offer">
+            <div class="solar-quote-offer__head">
+                <h2 class="solar-quote-heading">Tu cotización</h2>
+                @if ($quote)
+                    <p @class(['solar-inbox-card__status', 'is-expired' => $quote->hasExpired()]) data-status="{{ $quote->hasExpired() ? 'lost' : 'won' }}">
+                        {{ $quote->hasExpired() ? 'Vencida' : 'Vigente' }}
+                    </p>
+                @endif
+            </div>
+
+            @if ($quote)
+                <p class="solar-subtitle mt-2">
+                    Le ofreciste <strong>{{ $money((float) $quote->amount_cop) }}</strong>
+                    @if ($quote->power_kw) por un sistema de {{ number_format((float) $quote->power_kw, 2, ',', '.') }} kW @endif
+                    {{ $quote->includes_battery ? 'con baterías' : 'sin baterías' }}.
+                    @if ($quote->hasExpired())
+                        <span class="solar-inbox-warning">El precio venció el {{ $date($quote->valid_until) }}; actualízalo si sigue en pie.</span>
+                    @else
+                        Vale hasta el {{ $date($quote->valid_until) }}.
+                    @endif
+                </p>
+            @else
+                <p class="solar-subtitle mt-2">Todavía no le has puesto precio. Es lo que el cliente fue a buscar.</p>
+            @endif
+
+            <form method="POST" action="{{ route('installer-inbox.quote', $quoteRequest) }}" class="solar-quote-offer__form">
+                @csrf
+                @method('PUT')
+
+                <label class="solar-field">
+                    <span class="solar-field-label">Cuánto cuesta</span>
+                    <input
+                        type="number"
+                        name="amount_cop"
+                        value="{{ old('amount_cop', $quote ? (int) $quote->amount_cop : '') }}"
+                        min="1000000"
+                        step="1000"
+                        required
+                        class="solar-input"
+                        inputmode="numeric"
+                        placeholder="18000000"
+                    >
+                    <span class="solar-field-hint">En pesos, sin puntos. Instalación completa.</span>
+                </label>
+
+                <label class="solar-field">
+                    <span class="solar-field-label">Potencia que propones <span class="solar-field-optional">· opcional</span></span>
+                    <input
+                        type="number"
+                        name="power_kw"
+                        value="{{ old('power_kw', $quote?->power_kw ? rtrim(rtrim(number_format((float) $quote->power_kw, 2, '.', ''), '0'), '.') : '') }}"
+                        min="0.1"
+                        step="0.1"
+                        class="solar-input"
+                        inputmode="decimal"
+                        placeholder="{{ $panels && $panelPowerW ? number_format($panels * $panelPowerW / 1000, 1, '.', '') : '5' }}"
+                    >
+                    <span class="solar-field-hint">En kW. Puede diferir de lo que estimó la app.</span>
+                </label>
+
+                <label class="solar-field">
+                    <span class="solar-field-label">Hasta cuándo vale</span>
+                    <input
+                        type="date"
+                        name="valid_until"
+                        value="{{ old('valid_until', $quote?->valid_until?->format('Y-m-d') ?? now()->addDays(30)->format('Y-m-d')) }}"
+                        min="{{ now()->format('Y-m-d') }}"
+                        required
+                        class="solar-input"
+                    >
+                    <span class="solar-field-hint">Los equipos son importados: el precio se mueve.</span>
+                </label>
+
+                <label class="solar-field solar-quote-offer__scope">
+                    <span class="solar-field-label">Qué incluye <span class="solar-field-optional">· opcional</span></span>
+                    <textarea name="scope" rows="3" maxlength="1000" class="solar-textarea" placeholder="Paneles, inversor, estructura, cableado, mano de obra, trámite con la electrificadora…">{{ old('scope', $quote?->scope) }}</textarea>
+                </label>
+
+                <label class="solar-installer-toggle solar-quote-offer__battery">
+                    <input type="hidden" name="includes_battery" value="0">
+                    <input type="checkbox" name="includes_battery" value="1" @checked(old('includes_battery', $quote?->includes_battery))>
+                    <span>
+                        <strong>Incluye baterías</strong>
+                        <small>Dos cotizaciones del mismo sistema no se comparan si una las lleva y la otra no.</small>
+                    </span>
+                </label>
+
+                <div class="solar-quote-offer__actions">
+                    <button type="submit" class="solar-button">{{ $quote ? 'Actualizar la cotización' : 'Enviar la cotización' }}</button>
+                </div>
+            </form>
+        </section>
+
         <section class="solar-card solar-quote-answer">
-            <h2 class="solar-quote-heading">Tu respuesta</h2>
+            <h2 class="solar-quote-heading">Cómo va</h2>
             <p class="solar-subtitle mt-2">
                 @if ($answeredAt)
                     La respondiste el {{ $date($answeredAt) }}.
@@ -175,8 +269,13 @@
                 @method('PUT')
 
                 <label class="solar-field">
-                    <span class="solar-field-label">¿Cómo va?</span>
-                    <select name="status" class="solar-input" data-inbox-status>
+                    <span class="solar-field-label">Marcar como</span>
+                    <select name="status" class="solar-input" data-inbox-status required>
+                        {{-- "Cotizada" is set by sending the price, not from here, so it is not an
+                             option: when that is the state, nothing comes preselected. --}}
+                        @unless (array_key_exists($status, QuoteRequestStatus::answers()))
+                            <option value="" disabled selected>Elige una</option>
+                        @endunless
                         @foreach (QuoteRequestStatus::answers() as $value => $label)
                             <option value="{{ $value }}" @selected($status === $value)>{{ $label }}</option>
                         @endforeach

@@ -27,6 +27,7 @@ final class DescribeQuoteRequest
     public function __invoke(QuoteRequest $quoteRequest): array
     {
         $project = $quoteRequest->solarProject->loadMissing(['user', 'municipality', 'technicalParameter', 'calculationResult']);
+        $quoteRequest->loadMissing('installerQuote');
         $sized = ($this->sizeProjectSystem)($project);
         $parameters = $project->technicalParameter;
         // With the bill there is no diary to read (ADR-0020): the client only wrote the kWh.
@@ -34,6 +35,7 @@ final class DescribeQuoteRequest
 
         return [
             'quoteRequest' => $quoteRequest,
+            'quote' => $quoteRequest->installerQuote,
             'status' => QuoteRequestStatus::normalize($quoteRequest->status),
             'statusLabel' => QuoteRequestStatus::installerLabel($quoteRequest->status),
             'open' => $quoteRequest->isOpen(),
