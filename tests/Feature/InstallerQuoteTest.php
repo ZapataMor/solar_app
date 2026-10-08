@@ -224,6 +224,120 @@ class InstallerQuoteTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_the_installer_sends_the_detail_of_a_real_quote(): void
+    {
+        [$installer, $account] = $this->installerWithAccount();
+        [, $solarProject] = $this->project();
+        $quoteRequest = $this->request($solarProject, $installer);
+
+        $this->actingAs($account)
+            ->put(route('installer-inbox.quote', $quoteRequest), $this->fullQuote())
+            ->assertSessionHasNoErrors();
+
+        $quote = InstallerQuote::query()->sole();
+        $this->assertSame(16, $quote->panel_count);
+        $this->assertSame(550, $quote->panel_watts);
+        $this->assertSame('Jinko Tiger Neo', $quote->panel_model);
+        $this->assertSame('Growatt MIN 5000TL-X', $quote->inverter_model);
+        // The power was not written: it comes from the panels (ADR-0027).
+        $this->assertEqualsWithDelta(8.8, (float) $quote->power_kw, 0.01);
+        $this->assertTrue($quote->includes_retie);
+        $this->assertTrue($quote->includes_grid_paperwork);
+        $this->assertFalse($quote->includes_bidirectional_meter);
+        $this->assertSame(25, $quote->panel_warranty_years);
+        $this->assertSame(40, $quote->down_payment_percentage);
+        $this->assertSame(45, $quote->delivery_days);
+        $this->assertTrue($quote->vat_included);
+        $this->assertSame('Obra civil y refuerzo del techo.', $quote->exclusions);
+    }
+
+    public function test_an_empty_field_clears_what_the_installer_had_written(): void
+    {
+        [$installer, $account] = $this->installerWithAccount();
+        [, $solarProject] = $this->project();
+        $quoteRequest = $this->request($solarProject, $installer);
+
+        $this->actingAs($account)->put(route('installer-inbox.quote', $quoteRequest), $this->fullQuote());
+        // Correcting a quote also means taking something out.
+        $this->actingAs($account)
+            ->put(route('installer-inbox.quote', $quoteRequest), [
+                ...$this->fullQuote(),
+                'panel_warranty_years' => '',
+                'delivery_days' => '',
+                'vat_included' => '',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $quote = InstallerQuote::query()->sole();
+        $this->assertNull($quote->panel_warranty_years);
+        $this->assertNull($quote->delivery_days);
+        $this->assertNull($quote->vat_included);
+    }
+
+    public function test_the_client_reads_what_the_price_covers_and_what_it_leaves_out(): void
+    {
+        [$installer, $account] = $this->installerWithAccount();
+        [$client, $solarProject] = $this->project();
+        $quoteRequest = $this->request($solarProject, $installer);
+        $this->actingAs($account)->put(route('installer-inbox.quote', $quoteRequest), $this->fullQuote());
+
+        $this->actingAs($client)
+            ->get(route('installers.quotes.show', $quoteRequest))
+            ->assertOk()
+            ->assertSee('Certificación RETIE')
+            // The meter was not included, so the page says what that costs the client.
+            ->assertSee('no te pagan los excedentes')
+            ->assertSee('16 paneles de 550 W · Jinko Tiger Neo', false)
+            ->assertSee('Growatt MIN 5000TL-X')
+            ->assertSee('25 años')
+            ->assertSee('45 días');
+    }
+
+    public function test_a_quote_without_legalization_is_flagged_before_comparing_it(): void
+    {
+        [$installer, $account] = $this->installerWithAccount();
+        [$client, $solarProject] = $this->project();
+        $quoteRequest = $this->request($solarProject, $installer);
+        // The cheapest total is often the one that leaves the paperwork out (ADR-0027).
+        $this->actingAs($account)->put(route('installer-inbox.quote', $quoteRequest), $this->quote());
+
+        $this->actingAs($client)
+            ->get(route('installers.quotes.show', $quoteRequest))
+            ->assertOk()
+            ->assertSee('no cubre todo lo que legaliza la instalación');
+    }
+
+    /**
+     * A quote with the detail of a real one (ADR-0027).
+     *
+     * @return array<string, mixed>
+     */
+    private function fullQuote(): array
+    {
+        return [
+            'amount_cop' => 18_400_000,
+            'panel_count' => 16,
+            'panel_watts' => 550,
+            'panel_model' => 'Jinko Tiger Neo',
+            'inverter_model' => 'Growatt MIN 5000TL-X',
+            'monthly_generation_kwh' => 1100,
+            'includes_battery' => '0',
+            'includes_retie' => '1',
+            'includes_grid_paperwork' => '1',
+            'includes_bidirectional_meter' => '0',
+            'includes_maintenance' => '1',
+            'panel_warranty_years' => 25,
+            'inverter_warranty_years' => 10,
+            'workmanship_warranty_years' => 2,
+            'vat_included' => '1',
+            'down_payment_percentage' => 40,
+            'delivery_days' => 45,
+            'scope' => 'Paneles, inversor, estructura y mano de obra.',
+            'exclusions' => 'Obra civil y refuerzo del techo.',
+            'valid_until' => now()->addDays(30)->format('Y-m-d'),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

@@ -13,8 +13,11 @@
     $kwh = fn (float $value): string => number_format($value, $value < 10 ? 1 : 0, ',', '.');
     $kw = fn (float $value): string => number_format($value, 2, ',', '.');
     $date = fn ($value): string => \Illuminate\Support\Carbon::parse($value)->locale('es')->isoFormat('D [de] MMMM [de] YYYY');
+    $years = fn (int $value): string => $value === 1 ? '1 año' : $value.' años';
     $expired = $quote->hasExpired();
     $daysLeft = $quote->daysLeft();
+    $hasWarranties = $quote->panel_warranty_years || $quote->inverter_warranty_years || $quote->workmanship_warranty_years;
+    $hasTerms = $quote->down_payment_percentage !== null || $quote->delivery_days || $quote->vat_included !== null;
 @endphp
 
 <x-layouts::app :title="'Cotización de '.$installer->name">
@@ -41,10 +44,19 @@
                 <p class="solar-inbox-card__label">Lo que te cuesta la instalación</p>
                 <p class="solar-client-quote__figure">{{ $money($amountCop) }}</p>
                 <p class="solar-client-quote__meta">
+                    @if ($powerKw) Sistema de {{ $kw($powerKw) }} kW · @endif
                     {{ $quote->includes_battery ? 'Con baterías' : 'Sin baterías' }}
-                    @if ($powerKw) · Sistema de {{ $kw($powerKw) }} kW @endif
+                    @if ($quote->includes_battery && $quote->battery_kwh) de {{ $kw((float) $quote->battery_kwh) }} kWh @endif
                     @if ($pricePerKwCop) · {{ $money($pricePerKwCop) }} por kW @endif
+                    @if ($quote->vat_included !== null) · IVA {{ $quote->vat_included ? 'incluido' : 'aparte' }} @endif
                 </p>
+                @if ($quote->panelText() || $quote->inverter_model)
+                    <p class="solar-client-quote__equipment">
+                        @if ($quote->panelText()) {{ $quote->panelText() }} @endif
+                        @if ($quote->panelText() && $quote->inverter_model) · @endif
+                        @if ($quote->inverter_model) Inversor {{ $quote->inverter_model }} @endif
+                    </p>
+                @endif
             </div>
 
             <p @class(['solar-client-quote__valid', 'is-expired' => $expired])>
@@ -162,6 +174,17 @@
                     <dt>Tu consumo</dt>
                     <dd>{{ $kwh($monthlyKwh) }} kWh/mes</dd>
                 </div>
+                @if ($quote->monthly_generation_kwh)
+                    <div>
+                        <dt>Producción que promete</dt>
+                        <dd>
+                            {{ $kwh((float) $quote->monthly_generation_kwh) }} kWh/mes
+                            @if ($monthlyKwh > 0)
+                                <span class="solar-quote-sub">{{ number_format(min((float) $quote->monthly_generation_kwh / $monthlyKwh * 100, 999), 0, ',', '.') }} % de lo que gastas</span>
+                            @endif
+                        </dd>
+                    </div>
+                @endif
             </dl>
 
             @if ($others)
@@ -188,25 +211,135 @@
             @endif
         </section>
 
+        {{-- Lo que cubre el precio (ADR-0027): la mitad de las veces la cotización más barata es
+             la que deja afuera el trámite y el medidor. --}}
         <section class="solar-card">
-            <h2 class="solar-quote-heading">Qué incluye</h2>
+            <h2 class="solar-quote-heading">Qué cubre el precio</h2>
 
-            @if ($quote->scope)
-                <p class="solar-client-quote__scope">{{ $quote->scope }}</p>
-            @else
-                <p class="solar-subtitle mt-2">
-                    {{ $installer->name }} no detalló qué entra en el precio. Pregúntaselo antes de decidir.
+            @php($inclusions = $quote->inclusions())
+
+            @if ($inclusions['included'] || $inclusions['excluded'])
+                <ul class="solar-client-quote__inclusions">
+                    @foreach ($inclusions['included'] as $item)
+                        <li class="is-in">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>
+                            <span>
+                                <strong>{{ $item['label'] }}</strong>
+                                <small>{{ $item['hint'] }}</small>
+                            </span>
+                        </li>
+                    @endforeach
+                    @foreach ($inclusions['excluded'] as $item)
+                        <li class="is-out">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                            <span>
+                                <strong>{{ $item['label'] }}</strong>
+                                <small>{{ $item['missing'] }}</small>
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+
+            @if ($quote->missesLegalization())
+                <p class="solar-client-quote__warning">
+                    Esta cotización no cubre todo lo que legaliza la instalación. Antes de compararla con
+                    otra, pregunta cuánto cuesta aparte: puede ser la diferencia entre las dos.
                 </p>
             @endif
 
-            <h3 class="solar-client-quote__others-title">Qué preguntar antes de firmar</h3>
+            @if ($quote->scope)
+                <h3 class="solar-client-quote__others-title">En palabras del instalador</h3>
+                <p class="solar-client-quote__scope">{{ $quote->scope }}</p>
+            @endif
+
+            @if ($quote->exclusions)
+                <h3 class="solar-client-quote__others-title">Lo que no entra</h3>
+                <p class="solar-client-quote__scope">{{ $quote->exclusions }}</p>
+            @endif
+
+            @unless ($quote->scope || $quote->exclusions)
+                <p class="solar-inbox-note mt-3">
+                    {{ $installer->name }} no escribió el detalle del alcance. Pídeselo antes de decidir.
+                </p>
+            @endunless
+        </section>
+
+        {{-- Las garantías y las condiciones: donde se separan dos ofertas del mismo precio. --}}
+        @if ($hasWarranties || $hasTerms)
+            <section class="solar-card">
+                <h2 class="solar-quote-heading">Garantías y condiciones</h2>
+
+                <dl class="solar-inbox-figures mt-3">
+                    @if ($quote->panel_warranty_years)
+                        <div>
+                            <dt>Garantía de los paneles</dt>
+                            <dd>{{ $years($quote->panel_warranty_years) }}</dd>
+                        </div>
+                    @endif
+                    @if ($quote->inverter_warranty_years)
+                        <div>
+                            <dt>Garantía del inversor</dt>
+                            <dd>{{ $years($quote->inverter_warranty_years) }}</dd>
+                        </div>
+                    @endif
+                    @if ($quote->workmanship_warranty_years)
+                        <div>
+                            <dt>Garantía de la obra</dt>
+                            <dd>{{ $years($quote->workmanship_warranty_years) }}</dd>
+                        </div>
+                    @endif
+                    @if ($quote->down_payment_percentage !== null)
+                        <div>
+                            <dt>Anticipo</dt>
+                            <dd>
+                                {{ $quote->down_payment_percentage }} %
+                                <span class="solar-quote-sub">{{ $money($amountCop * $quote->down_payment_percentage / 100) }}</span>
+                            </dd>
+                        </div>
+                    @endif
+                    @if ($quote->delivery_days)
+                        <div>
+                            <dt>Plazo hasta energizar</dt>
+                            <dd>{{ $quote->delivery_days }} días</dd>
+                        </div>
+                    @endif
+                    @if ($quote->vat_included !== null)
+                        <div>
+                            <dt>IVA</dt>
+                            <dd>{{ $quote->vat_included ? 'Incluido en el precio' : 'Se suma aparte' }}</dd>
+                        </div>
+                    @endif
+                </dl>
+
+                @unless ($hasWarranties)
+                    <p class="solar-inbox-note mt-3">
+                        No dice cuántos años garantiza nada. Es la pregunta que más vale la pena hacer:
+                        lo usual son 25 años en paneles, 5 a 10 en el inversor y 1 a 2 en la obra.
+                    </p>
+                @endunless
+            </section>
+        @endif
+
+        <section class="solar-card">
+            <h2 class="solar-quote-heading">Qué preguntar antes de firmar</h2>
             <ul class="solar-client-quote__checklist">
-                <li>¿El precio incluye la estructura del techo, el cableado y la mano de obra?</li>
-                <li>¿Quién hace el trámite con la electrificadora y cuánto demora?</li>
-                <li>¿Qué garantía tienen los paneles y el inversor, y quién responde por ella?</li>
+                @unless ($quote->panel_warranty_years && $quote->inverter_warranty_years)
+                    <li>¿Cuántos años garantizan los paneles y el inversor, y quién responde por la garantía?</li>
+                @endunless
+                @unless ($quote->panel_model && $quote->inverter_model)
+                    <li>¿Qué marca y referencia son los paneles y el inversor? Pide las fichas técnicas.</li>
+                @endunless
+                @unless ($quote->delivery_days)
+                    <li>¿Cuánto se demora desde el anticipo hasta que el sistema quede energizado?</li>
+                @endunless
+                @unless ($quote->vat_included !== null)
+                    <li>¿Este precio ya incluye IVA o se suma aparte?</li>
+                @endunless
                 @unless ($quote->includes_battery)
                     <li>Sin baterías, de noche sigues comprando energía: ¿cuánto costaría agregarlas?</li>
                 @endunless
+                <li>¿El precio incluye la estructura del techo, el cableado y la mano de obra?</li>
             </ul>
         </section>
 

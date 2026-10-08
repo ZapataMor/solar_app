@@ -5,6 +5,7 @@
     Params: App\Actions\Installers\DescribeQuoteRequest.
 --}}
 @php
+    use App\Domain\Installers\QuoteInclusions;
     use App\Domain\Installers\QuoteRequestStatus;
     use App\Domain\Property\PropertyType;
 
@@ -185,67 +186,235 @@
                 <p class="solar-subtitle mt-2">Todavía no le has puesto precio. Es lo que el cliente fue a buscar.</p>
             @endif
 
+            {{-- The sections of a real quote (ADR-0027): price, system, what it covers, warranties
+                 and terms. Only the total and the validity are required; the rest is what lets the
+                 client compare it with another. --}}
             <form method="POST" action="{{ route('installer-inbox.quote', $quoteRequest) }}" class="solar-quote-offer__form">
                 @csrf
                 @method('PUT')
 
-                <label class="solar-field">
-                    <span class="solar-field-label">Cuánto cuesta</span>
-                    <input
-                        type="number"
-                        name="amount_cop"
-                        value="{{ old('amount_cop', $quote ? (int) $quote->amount_cop : '') }}"
-                        min="1000000"
-                        step="1000"
-                        required
-                        class="solar-input"
-                        inputmode="numeric"
-                        placeholder="18000000"
-                    >
-                    <span class="solar-field-hint">En pesos, sin puntos. Instalación completa.</span>
-                </label>
+                <fieldset class="solar-quote-group">
+                    <legend>El precio</legend>
+                    <div class="solar-quote-group__fields">
+                        <label class="solar-field">
+                            <span class="solar-field-label">Cuánto cuesta</span>
+                            <input
+                                type="number"
+                                name="amount_cop"
+                                value="{{ old('amount_cop', $quote ? (int) $quote->amount_cop : '') }}"
+                                min="1000000"
+                                step="1000"
+                                required
+                                class="solar-input"
+                                inputmode="numeric"
+                                placeholder="18000000"
+                            >
+                            <span class="solar-field-hint">En pesos, sin puntos. Instalación completa.</span>
+                        </label>
 
-                <label class="solar-field">
-                    <span class="solar-field-label">Potencia que propones <span class="solar-field-optional">· opcional</span></span>
-                    <input
-                        type="number"
-                        name="power_kw"
-                        value="{{ old('power_kw', $quote?->power_kw ? rtrim(rtrim(number_format((float) $quote->power_kw, 2, '.', ''), '0'), '.') : '') }}"
-                        min="0.1"
-                        step="0.1"
-                        class="solar-input"
-                        inputmode="decimal"
-                        placeholder="{{ $panels && $panelPowerW ? number_format($panels * $panelPowerW / 1000, 1, '.', '') : '5' }}"
-                    >
-                    <span class="solar-field-hint">En kW. Puede diferir de lo que estimó la app.</span>
-                </label>
+                        <label class="solar-field">
+                            <span class="solar-field-label">IVA</span>
+                            <select name="vat_included" class="solar-input">
+                                @php($vat = old('vat_included', $quote?->vat_included === null ? '' : ($quote->vat_included ? '1' : '0')))
+                                <option value="" @selected((string) $vat === '')>Prefiero no decirlo</option>
+                                <option value="1" @selected((string) $vat === '1')>El precio ya lo incluye</option>
+                                <option value="0" @selected((string) $vat === '0')>Se suma aparte</option>
+                            </select>
+                            <span class="solar-field-hint">Los equipos de fuentes no convencionales pueden ir excluidos.</span>
+                        </label>
 
-                <label class="solar-field">
-                    <span class="solar-field-label">Hasta cuándo vale</span>
-                    <input
-                        type="date"
-                        name="valid_until"
-                        value="{{ old('valid_until', $quote?->valid_until?->format('Y-m-d') ?? now()->addDays(30)->format('Y-m-d')) }}"
-                        min="{{ now()->format('Y-m-d') }}"
-                        required
-                        class="solar-input"
-                    >
-                    <span class="solar-field-hint">Los equipos son importados: el precio se mueve.</span>
-                </label>
+                        <label class="solar-field">
+                            <span class="solar-field-label">Hasta cuándo vale</span>
+                            <input
+                                type="date"
+                                name="valid_until"
+                                value="{{ old('valid_until', $quote?->valid_until?->format('Y-m-d') ?? now()->addDays(30)->format('Y-m-d')) }}"
+                                min="{{ now()->format('Y-m-d') }}"
+                                required
+                                class="solar-input"
+                            >
+                            <span class="solar-field-hint">Los equipos son importados: el precio se mueve.</span>
+                        </label>
+                    </div>
+                </fieldset>
 
-                <label class="solar-field solar-quote-offer__scope">
-                    <span class="solar-field-label">Qué incluye <span class="solar-field-optional">· opcional</span></span>
-                    <textarea name="scope" rows="3" maxlength="1000" class="solar-textarea" placeholder="Paneles, inversor, estructura, cableado, mano de obra, trámite con la electrificadora…">{{ old('scope', $quote?->scope) }}</textarea>
-                </label>
+                <fieldset class="solar-quote-group">
+                    <legend>El sistema que propones</legend>
+                    <div class="solar-quote-group__fields">
+                        <label class="solar-field">
+                            <span class="solar-field-label">Cuántos paneles <span class="solar-field-optional">· opcional</span></span>
+                            <input
+                                type="number"
+                                name="panel_count"
+                                value="{{ old('panel_count', $quote?->panel_count) }}"
+                                min="1"
+                                step="1"
+                                class="solar-input"
+                                inputmode="numeric"
+                                placeholder="{{ $panels ?: 10 }}"
+                            >
+                        </label>
 
-                <label class="solar-installer-toggle solar-quote-offer__battery">
-                    <input type="hidden" name="includes_battery" value="0">
-                    <input type="checkbox" name="includes_battery" value="1" @checked(old('includes_battery', $quote?->includes_battery))>
-                    <span>
-                        <strong>Incluye baterías</strong>
-                        <small>Dos cotizaciones del mismo sistema no se comparan si una las lleva y la otra no.</small>
-                    </span>
-                </label>
+                        <label class="solar-field">
+                            <span class="solar-field-label">De cuántos W cada uno <span class="solar-field-optional">· opcional</span></span>
+                            <input
+                                type="number"
+                                name="panel_watts"
+                                value="{{ old('panel_watts', $quote?->panel_watts) }}"
+                                min="50"
+                                max="2000"
+                                step="5"
+                                class="solar-input"
+                                inputmode="numeric"
+                                placeholder="{{ $panelPowerW ? (int) $panelPowerW : 550 }}"
+                            >
+                            <span class="solar-field-hint">Con esto calculamos los kW; si prefieres, escríbelos abajo.</span>
+                        </label>
+
+                        <label class="solar-field">
+                            <span class="solar-field-label">Potencia total <span class="solar-field-optional">· opcional</span></span>
+                            <input
+                                type="number"
+                                name="power_kw"
+                                value="{{ old('power_kw', $quote?->power_kw ? rtrim(rtrim(number_format((float) $quote->power_kw, 2, '.', ''), '0'), '.') : '') }}"
+                                min="0.1"
+                                step="0.1"
+                                class="solar-input"
+                                inputmode="decimal"
+                                placeholder="{{ $panels && $panelPowerW ? number_format($panels * $panelPowerW / 1000, 1, '.', '') : '5' }}"
+                            >
+                            <span class="solar-field-hint">En kW. Puede diferir de lo que estimó la app.</span>
+                        </label>
+
+                        <label class="solar-field">
+                            <span class="solar-field-label">Marca y referencia de los paneles <span class="solar-field-optional">· opcional</span></span>
+                            <input
+                                type="text"
+                                name="panel_model"
+                                value="{{ old('panel_model', $quote?->panel_model) }}"
+                                maxlength="120"
+                                class="solar-input"
+                                placeholder="Jinko Tiger Neo 550 W"
+                            >
+                        </label>
+
+                        <label class="solar-field">
+                            <span class="solar-field-label">Marca y referencia del inversor <span class="solar-field-optional">· opcional</span></span>
+                            <input
+                                type="text"
+                                name="inverter_model"
+                                value="{{ old('inverter_model', $quote?->inverter_model) }}"
+                                maxlength="120"
+                                class="solar-input"
+                                placeholder="Growatt MIN 5000TL-X"
+                            >
+                        </label>
+
+                        <label class="solar-field">
+                            <span class="solar-field-label">Cuánto producirá al mes <span class="solar-field-optional">· opcional</span></span>
+                            <input
+                                type="number"
+                                name="monthly_generation_kwh"
+                                value="{{ old('monthly_generation_kwh', $quote?->monthly_generation_kwh ? (int) $quote->monthly_generation_kwh : '') }}"
+                                min="1"
+                                step="1"
+                                class="solar-input"
+                                inputmode="numeric"
+                                placeholder="{{ (int) $monthlyKwh }}"
+                            >
+                            <span class="solar-field-hint">En kWh/mes. El cliente consume {{ $kwh($monthlyKwh) }}.</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="solar-quote-group">
+                    <legend>Qué cubre el precio</legend>
+                    <p class="solar-quote-group__note">
+                        El trámite y el medidor valen millones: una cotización que los deja afuera no
+                        es más barata, es más corta. Marca solo lo que de verdad entra.
+                    </p>
+                    <div class="solar-quote-group__toggles">
+                        @foreach (QuoteInclusions::all() as $key => $item)
+                            <label class="solar-installer-toggle">
+                                <input type="hidden" name="{{ $key }}" value="0">
+                                <input type="checkbox" name="{{ $key }}" value="1" @checked(old($key, $quote?->{$key}))>
+                                <span>
+                                    <strong>{{ $item['label'] }}</strong>
+                                    <small>{{ $item['hint'] }}</small>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <label class="solar-field solar-quote-group__battery">
+                        <span class="solar-field-label">Capacidad de las baterías <span class="solar-field-optional">· opcional</span></span>
+                        <input
+                            type="number"
+                            name="battery_kwh"
+                            value="{{ old('battery_kwh', $quote?->battery_kwh ? rtrim(rtrim(number_format((float) $quote->battery_kwh, 2, '.', ''), '0'), '.') : '') }}"
+                            min="0.1"
+                            step="0.1"
+                            class="solar-input"
+                            inputmode="decimal"
+                            placeholder="10"
+                        >
+                        <span class="solar-field-hint">En kWh, si las incluiste.</span>
+                    </label>
+                </fieldset>
+
+                <fieldset class="solar-quote-group">
+                    <legend>Garantías</legend>
+                    <p class="solar-quote-group__note">
+                        Es donde se separan dos ofertas del mismo precio. En Colombia lo usual son
+                        25 años en paneles, 5 a 10 en el inversor y 1 a 2 en la obra.
+                    </p>
+                    <div class="solar-quote-group__fields">
+                        <label class="solar-field">
+                            <span class="solar-field-label">Paneles <span class="solar-field-optional">· opcional</span></span>
+                            <input type="number" name="panel_warranty_years" value="{{ old('panel_warranty_years', $quote?->panel_warranty_years) }}" min="1" max="40" step="1" class="solar-input" inputmode="numeric" placeholder="25">
+                            <span class="solar-field-hint">Años.</span>
+                        </label>
+                        <label class="solar-field">
+                            <span class="solar-field-label">Inversor <span class="solar-field-optional">· opcional</span></span>
+                            <input type="number" name="inverter_warranty_years" value="{{ old('inverter_warranty_years', $quote?->inverter_warranty_years) }}" min="1" max="40" step="1" class="solar-input" inputmode="numeric" placeholder="10">
+                            <span class="solar-field-hint">Años.</span>
+                        </label>
+                        <label class="solar-field">
+                            <span class="solar-field-label">Obra y mano de obra <span class="solar-field-optional">· opcional</span></span>
+                            <input type="number" name="workmanship_warranty_years" value="{{ old('workmanship_warranty_years', $quote?->workmanship_warranty_years) }}" min="1" max="40" step="1" class="solar-input" inputmode="numeric" placeholder="2">
+                            <span class="solar-field-hint">Años.</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="solar-quote-group">
+                    <legend>Condiciones</legend>
+                    <div class="solar-quote-group__fields">
+                        <label class="solar-field">
+                            <span class="solar-field-label">Anticipo <span class="solar-field-optional">· opcional</span></span>
+                            <input type="number" name="down_payment_percentage" value="{{ old('down_payment_percentage', $quote?->down_payment_percentage) }}" min="0" max="100" step="5" class="solar-input" inputmode="numeric" placeholder="40">
+                            <span class="solar-field-hint">En %, sobre el total.</span>
+                        </label>
+                        <label class="solar-field">
+                            <span class="solar-field-label">Plazo hasta energizar <span class="solar-field-optional">· opcional</span></span>
+                            <input type="number" name="delivery_days" value="{{ old('delivery_days', $quote?->delivery_days) }}" min="1" max="730" step="1" class="solar-input" inputmode="numeric" placeholder="45">
+                            <span class="solar-field-hint">En días desde el anticipo.</span>
+                        </label>
+                    </div>
+
+                    <div class="solar-quote-group__texts">
+                        <label class="solar-field">
+                            <span class="solar-field-label">Qué incluye <span class="solar-field-optional">· opcional</span></span>
+                            <textarea name="scope" rows="3" maxlength="1000" class="solar-textarea" placeholder="Paneles, inversor, estructura, cableado, protecciones, mano de obra, puesta en marcha…">{{ old('scope', $quote?->scope) }}</textarea>
+                        </label>
+
+                        <label class="solar-field">
+                            <span class="solar-field-label">Qué no incluye <span class="solar-field-optional">· opcional</span></span>
+                            <textarea name="exclusions" rows="3" maxlength="1000" class="solar-textarea" placeholder="Obra civil, refuerzo del techo, acometida nueva, impuestos locales…">{{ old('exclusions', $quote?->exclusions) }}</textarea>
+                            <span class="solar-field-hint">Decirlo ahora evita el reclamo después.</span>
+                        </label>
+                    </div>
+                </fieldset>
 
                 <div class="solar-quote-offer__actions">
                     <button type="submit" class="solar-button">{{ $quote ? 'Actualizar la cotización' : 'Enviar la cotización' }}</button>

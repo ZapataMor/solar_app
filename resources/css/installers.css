@@ -211,17 +211,7 @@
         margin-top: 1rem;
     }
 
-    @media (min-width: 48rem) {
-        .solar-quote-offer__form {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
-        .solar-quote-offer__scope,
-        .solar-quote-offer__battery,
-        .solar-quote-offer__actions {
-            grid-column: 1 / -1;
-        }
-    }
+    /* One section per row: each fieldset lays out its own fields (ADR-0027). */
 
     .solar-installer-card__contact {
         display: grid;
@@ -1315,6 +1305,141 @@
         gap: 1rem 2rem;
         align-items: center;
         justify-content: space-between;
+    }
+
+    /* The sections of a real quote (ADR-0027), on the installer's form. */
+    .solar-quote-group {
+        padding: 1rem 1.1rem 1.1rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: color-mix(in srgb, var(--solar-text) 2.5%, transparent);
+    }
+
+    .solar-quote-group > legend {
+        padding: 0 0.45rem;
+        color: var(--solar-text);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .solar-quote-group__note {
+        margin: 0 0 0.9rem;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+        line-height: 1.5;
+    }
+
+    .solar-quote-group__fields {
+        display: grid;
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .solar-quote-group__toggles {
+        display: grid;
+        gap: 0.6rem;
+    }
+
+    .solar-quote-group__texts {
+        display: grid;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .solar-quote-group__battery {
+        margin-top: 1rem;
+        max-width: 22rem;
+    }
+
+    @media (min-width: 48rem) {
+        .solar-quote-group__fields {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .solar-quote-group__toggles {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .solar-quote-group__texts {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    /* What the price covers, as the client reads it. */
+    .solar-client-quote__inclusions {
+        display: grid;
+        gap: 0.55rem;
+        margin: 0.9rem 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    @media (min-width: 48rem) {
+        .solar-client-quote__inclusions {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    .solar-client-quote__inclusions li {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.55rem;
+        align-items: start;
+        padding: 0.55rem 0.7rem;
+        border-radius: 0.75rem;
+        background: color-mix(in srgb, var(--solar-text) 3.5%, transparent);
+    }
+
+    .solar-client-quote__inclusions svg {
+        width: 1rem;
+        height: 1rem;
+        margin-top: 0.1rem;
+    }
+
+    .solar-client-quote__inclusions li.is-in {
+        background: var(--solar-success-bg);
+    }
+
+    .solar-client-quote__inclusions li.is-in svg {
+        color: var(--solar-success);
+    }
+
+    .solar-client-quote__inclusions li.is-out svg {
+        color: var(--solar-text-muted);
+    }
+
+    .solar-client-quote__inclusions strong {
+        display: block;
+        color: var(--solar-text);
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .solar-client-quote__inclusions small {
+        display: block;
+        margin-top: 0.1rem;
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+        line-height: 1.45;
+    }
+
+    .solar-client-quote__warning {
+        margin: 0.9rem 0 0;
+        padding: 0.7rem 0.85rem;
+        border-left: 3px solid var(--solar-warning);
+        border-radius: 0 0.85rem 0.85rem 0;
+        background: var(--solar-warning-bg);
+        color: var(--solar-text);
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
+    .solar-client-quote__equipment {
+        margin: 0.3rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
     }
 }
 
