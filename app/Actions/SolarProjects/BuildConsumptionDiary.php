@@ -31,7 +31,8 @@ final class BuildConsumptionDiary
      *     dailyKwh: float,
      *     ratePerKwh: float,
      *     applianceCount: int,
-     *     biggest: array{label: string, kwh: float, cost: float, share: float}|null
+     *     biggest: array{label: string, kwh: float, cost: float, share: float}|null,
+     *     biggestSpace: string|null
      * }
      */
     public function __invoke(SolarProject $solarProject): array
@@ -71,6 +72,15 @@ final class BuildConsumptionDiary
             $biggest['share'] = $total > 0 ? $biggest['kwh'] / $total * 100 : 0.0;
         }
 
+        // The space that decides the system: it is the one a folded diary opens on.
+        $withItems = array_filter($spaces, fn (array $space): bool => $space['items'] !== []);
+        $biggestSpace = $withItems === []
+            ? null
+            : array_reduce(
+                $withItems,
+                fn (?array $best, array $space): array => $best === null || $space['kwh'] > $best['kwh'] ? $space : $best,
+            )['key'];
+
         return [
             'spaces' => array_values($spaces),
             'totalKwh' => $total,
@@ -79,6 +89,7 @@ final class BuildConsumptionDiary
             'ratePerKwh' => $rate,
             'applianceCount' => $appliances->count(),
             'biggest' => $biggest,
+            'biggestSpace' => $biggestSpace,
         ];
     }
 

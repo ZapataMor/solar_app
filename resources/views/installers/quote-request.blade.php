@@ -9,6 +9,16 @@
     use App\Domain\Installers\QuoteRequestStatus;
     use App\Domain\Property\PropertyType;
 
+    // The quote is filled in steps, in the order of a real one (ADR-0027). Each step knows its
+    // fields: after a rejected form the page opens on the first one that has an error.
+    $quoteSteps = [
+        'precio' => ['label' => 'El precio', 'short' => 'Precio', 'fields' => ['amount_cop', 'vat_included', 'valid_until']],
+        'sistema' => ['label' => 'El sistema', 'short' => 'Sistema', 'fields' => ['panel_count', 'panel_watts', 'power_kw', 'panel_model', 'inverter_model', 'monthly_generation_kwh']],
+        'cubre' => ['label' => 'Qué cubre', 'short' => 'Cubre', 'fields' => ['includes_retie', 'includes_grid_paperwork', 'includes_bidirectional_meter', 'includes_battery', 'includes_maintenance', 'battery_kwh']],
+        'garantias' => ['label' => 'Garantías', 'short' => 'Garantías', 'fields' => ['panel_warranty_years', 'inverter_warranty_years', 'workmanship_warranty_years']],
+        'condiciones' => ['label' => 'Condiciones', 'short' => 'Condiciones', 'fields' => ['down_payment_percentage', 'delivery_days', 'scope', 'exclusions']],
+    ];
+
     $money = fn (float $cop): string => '$'.number_format(round($cop, -3), 0, ',', '.');
     $kwh = fn (float $value): string => number_format($value, $value < 10 ? 1 : 0, ',', '.');
     $date = fn ($value): string => \Illuminate\Support\Carbon::parse($value)->locale('es')->isoFormat('D [de] MMMM [de] YYYY');
@@ -128,14 +138,26 @@
                     @endif
                 </p>
 
+                {{-- One card per space, in two columns and folded (ADR-0023): a house with twenty
+                     appliances was two screens of flat list. The biggest space opens by itself,
+                     because it is the one that decides the system; the rest say their share in the
+                     header, so nothing has to be opened to compare them. --}}
                 <div class="solar-quote-spaces">
                     @foreach ($diary['spaces'] as $space)
                         @continue(! $space['items'])
-                        <div class="solar-quote-space">
-                            <div class="solar-quote-space__head">
-                                <h3>{{ $space['label'] }}</h3>
-                                <p>{{ $kwh($space['kwh']) }} kWh/mes · {{ number_format($space['share'], 0) }} %</p>
-                            </div>
+                        <details class="solar-quote-space" @if ($space['key'] === ($diary['biggestSpace'] ?? null)) open @endif>
+                            <summary class="solar-quote-space__head">
+                                <span class="solar-quote-space__title">
+                                    <h3>{{ $space['label'] }}</h3>
+                                    <small>{{ count($space['items']) }} {{ count($space['items']) === 1 ? 'equipo' : 'equipos' }}</small>
+                                </span>
+                                <span class="solar-quote-space__figure">
+                                    {{ $kwh($space['kwh']) }} <small>kWh/mes</small>
+                                </span>
+                                <span class="solar-quote-space__share" style="--share: {{ number_format(min($space['share'], 100), 1, '.', '') }}%">
+                                    {{ number_format($space['share'], 0) }} %
+                                </span>
+                            </summary>
 
                             <ul class="solar-quote-appliances">
                                 @foreach ($space['items'] as $item)
@@ -148,11 +170,11 @@
                                             @endif
                                         </span>
                                         <span class="solar-quote-appliance__usage">{{ $item['usageText'] }}</span>
-                                        <span class="solar-quote-appliance__kwh">{{ $kwh($item['kwh']) }} kWh/mes</span>
+                                        <span class="solar-quote-appliance__kwh">{{ $kwh($item['kwh']) }}<small> kWh/mes</small></span>
                                     </li>
                                 @endforeach
                             </ul>
-                        </div>
+                        </details>
                     @endforeach
                 </div>
             @else
@@ -189,11 +211,38 @@
             {{-- The sections of a real quote (ADR-0027): price, system, what it covers, warranties
                  and terms. Only the total and the validity are required; the rest is what lets the
                  client compare it with another. --}}
+            {{-- Real links to each step: without JavaScript the form is one long page, as it was. --}}
+            <nav class="solar-steps" data-quote-steps aria-label="Pasos de la cotización">
+                <ol>
+                    @foreach ($quoteSteps as $key => $step)
+                        <li>
+                            <a
+                                href="#paso-{{ $key }}"
+                                data-quote-step="{{ $key }}"
+                                @class(['has-error' => $errors->hasAny($step['fields'])])
+                                @if ($loop->first) aria-current="step" @endif
+                            >
+                                <span class="solar-steps__number" aria-hidden="true">{{ $loop->iteration }}</span>
+                                <span class="solar-steps__label">{{ $step['label'] }}</span>
+                                <span class="solar-steps__short" aria-hidden="true">{{ $step['short'] }}</span>
+                                @if ($errors->hasAny($step['fields']))
+                                    <span class="sr-only">(con errores)</span>
+                                @endif
+                            </a>
+                        </li>
+                    @endforeach
+                </ol>
+            </nav>
+
             <form method="POST" action="{{ route('installer-inbox.quote', $quoteRequest) }}" class="solar-quote-offer__form">
                 @csrf
                 @method('PUT')
 
-                <fieldset class="solar-quote-group">
+                <fieldset
+                    @class(['solar-quote-group', 'solar-steps__panel', 'is-current' => true, 'has-error' => $errors->hasAny($quoteSteps['precio']['fields'])])
+                    id="paso-precio"
+                    data-quote-panel="precio"
+                >
                     <legend>El precio</legend>
                     <div class="solar-quote-group__fields">
                         <label class="solar-field">
@@ -236,9 +285,15 @@
                             <span class="solar-field-hint">Los equipos son importados: el precio se mueve.</span>
                         </label>
                     </div>
+
+                    <x-installers.step-nav :steps="$quoteSteps" current="precio" />
                 </fieldset>
 
-                <fieldset class="solar-quote-group">
+                <fieldset
+                    @class(['solar-quote-group', 'solar-steps__panel', 'is-current' => false, 'has-error' => $errors->hasAny($quoteSteps['sistema']['fields'])])
+                    id="paso-sistema"
+                    data-quote-panel="sistema"
+                >
                     <legend>El sistema que propones</legend>
                     <div class="solar-quote-group__fields">
                         <label class="solar-field">
@@ -325,9 +380,15 @@
                             <span class="solar-field-hint">En kWh/mes. El cliente consume {{ $kwh($monthlyKwh) }}.</span>
                         </label>
                     </div>
+
+                    <x-installers.step-nav :steps="$quoteSteps" current="sistema" />
                 </fieldset>
 
-                <fieldset class="solar-quote-group">
+                <fieldset
+                    @class(['solar-quote-group', 'solar-steps__panel', 'is-current' => false, 'has-error' => $errors->hasAny($quoteSteps['cubre']['fields'])])
+                    id="paso-cubre"
+                    data-quote-panel="cubre"
+                >
                     <legend>Qué cubre el precio</legend>
                     <p class="solar-quote-group__note">
                         El trámite y el medidor valen millones: una cotización que los deja afuera no
@@ -360,9 +421,15 @@
                         >
                         <span class="solar-field-hint">En kWh, si las incluiste.</span>
                     </label>
+
+                    <x-installers.step-nav :steps="$quoteSteps" current="cubre" />
                 </fieldset>
 
-                <fieldset class="solar-quote-group">
+                <fieldset
+                    @class(['solar-quote-group', 'solar-steps__panel', 'is-current' => false, 'has-error' => $errors->hasAny($quoteSteps['garantias']['fields'])])
+                    id="paso-garantias"
+                    data-quote-panel="garantias"
+                >
                     <legend>Garantías</legend>
                     <p class="solar-quote-group__note">
                         Es donde se separan dos ofertas del mismo precio. En Colombia lo usual son
@@ -385,9 +452,15 @@
                             <span class="solar-field-hint">Años.</span>
                         </label>
                     </div>
+
+                    <x-installers.step-nav :steps="$quoteSteps" current="garantias" />
                 </fieldset>
 
-                <fieldset class="solar-quote-group">
+                <fieldset
+                    @class(['solar-quote-group', 'solar-steps__panel', 'is-current' => false, 'has-error' => $errors->hasAny($quoteSteps['condiciones']['fields'])])
+                    id="paso-condiciones"
+                    data-quote-panel="condiciones"
+                >
                     <legend>Condiciones</legend>
                     <div class="solar-quote-group__fields">
                         <label class="solar-field">
@@ -414,10 +487,17 @@
                             <span class="solar-field-hint">Decirlo ahora evita el reclamo después.</span>
                         </label>
                     </div>
+
+                    <x-installers.step-nav :steps="$quoteSteps" current="condiciones" />
                 </fieldset>
 
+                {{-- Outside the steps: only the price and the validity are required (ADR-0027),
+                     so it can be sent from any step and completed later. --}}
                 <div class="solar-quote-offer__actions">
                     <button type="submit" class="solar-button">{{ $quote ? 'Actualizar la cotización' : 'Enviar la cotización' }}</button>
+                    <span class="solar-field-hint">
+                        Puedes enviarla con el precio y la validez, y volver a completar lo demás cuando lo tengas.
+                    </span>
                 </div>
             </form>
         </section>

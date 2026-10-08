@@ -707,33 +707,110 @@
         }
     }
 
+    /* One card per space, folded (ADR-0023). Twenty appliances in a flat list were two screens;
+       folded, the header alone compares the spaces and only the biggest one is open. */
     .solar-quote-space {
-        padding: 0.85rem 1rem;
+        align-self: start;
+        padding: 0.3rem 0.85rem 0.6rem;
         border: 1px solid var(--solar-border);
         border-radius: 0.9rem;
+        background: color-mix(in srgb, var(--solar-text) 2.5%, transparent);
+    }
+
+    .solar-quote-space[open] {
+        padding-bottom: 0.85rem;
+        background: transparent;
     }
 
     .solar-quote-space__head {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem 0.75rem;
-        align-items: baseline;
-        justify-content: space-between;
-        padding-bottom: 0.5rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto 0.8rem;
+        gap: 0.2rem 0.7rem;
+        align-items: center;
+        padding: 0.55rem 0;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .solar-quote-space__head::-webkit-details-marker {
+        display: none;
+    }
+
+    .solar-quote-space[open] .solar-quote-space__head {
         border-bottom: 1px solid var(--solar-border);
     }
 
-    .solar-quote-space__head h3 {
+    .solar-quote-space__head:focus-visible {
+        border-radius: 0.6rem;
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 2px;
+    }
+
+    .solar-quote-space__title h3 {
+        display: inline;
         color: var(--solar-text);
         font-size: 0.92rem;
         font-weight: 600;
     }
 
-    .solar-quote-space__head p {
-        margin: 0;
+    .solar-quote-space__title small {
+        display: block;
         color: var(--solar-text-muted);
+        font-size: 0.72rem;
+    }
+
+    .solar-quote-space__figure {
+        color: var(--solar-text);
+        font-family: var(--font-mono);
+        font-size: 0.86rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .solar-quote-space__figure small {
+        color: var(--solar-text-muted);
+        font-size: 0.68rem;
+        font-weight: 400;
+    }
+
+    /* The share as a number and as a length: the spaces compare at a glance, folded. */
+    .solar-quote-space__share {
+        position: relative;
+        min-width: 3.4rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.4rem;
+        background: color-mix(in srgb, var(--solar-text) 7%, transparent);
+        color: var(--solar-text);
         font-family: var(--font-mono);
         font-size: 0.72rem;
+        text-align: right;
+    }
+
+    .solar-quote-space__share::before {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--share, 0%);
+        border-radius: 0.4rem;
+        background: color-mix(in srgb, var(--solar-sun) 38%, transparent);
+        content: '';
+    }
+
+    /* The chevron turns with the card. */
+    .solar-quote-space__head::after {
+        justify-self: end;
+        width: 0.5rem;
+        height: 0.5rem;
+        margin-bottom: 0.2rem;
+        border-right: 2px solid var(--solar-text-muted);
+        border-bottom: 2px solid var(--solar-text-muted);
+        content: '';
+        transform: rotate(45deg);
+        transition: transform 0.25s ease;
+    }
+
+    .solar-quote-space[open] .solar-quote-space__head::after {
+        margin-bottom: -0.2rem;
+        transform: rotate(-135deg);
     }
 
     .solar-quote-appliances {
@@ -908,13 +985,15 @@
        Where the browser does not know them, the panel opens at once, as it did before. */
     .solar-price-card,
     .solar-price-type,
-    .solar-inbox-answer {
+    .solar-inbox-answer,
+    .solar-quote-space {
         interpolate-size: allow-keywords;
     }
 
     .solar-price-card::details-content,
     .solar-price-type::details-content,
-    .solar-inbox-answer::details-content {
+    .solar-inbox-answer::details-content,
+    .solar-quote-space::details-content {
         block-size: 0;
         overflow: hidden;
         /* Fading a touch behind the slide: the panel arrives instead of appearing at full strength. */
@@ -927,7 +1006,8 @@
 
     .solar-price-card[open]::details-content,
     .solar-price-type[open]::details-content,
-    .solar-inbox-answer[open]::details-content {
+    .solar-inbox-answer[open]::details-content,
+    .solar-quote-space[open]::details-content {
         block-size: auto;
         opacity: 1;
     }
@@ -935,11 +1015,13 @@
     @media (prefers-reduced-motion: reduce) {
         .solar-price-card::details-content,
         .solar-price-type::details-content,
-        .solar-inbox-answer::details-content {
+        .solar-inbox-answer::details-content,
+        .solar-quote-space::details-content {
             transition: none;
         }
 
-        .solar-price-card__head::after {
+        .solar-price-card__head::after,
+        .solar-quote-space__head::after {
             transition: none;
         }
     }
@@ -1440,6 +1522,164 @@
         margin: 0.3rem 0 0;
         color: var(--solar-text-muted);
         font-size: 0.78rem;
+    }
+
+    /* The quote read in steps (ADR-0026). Without JavaScript there is no .solar-js on <html>, every
+       panel stays visible and the steps are plain links to each one. */
+    /* A plain row, with no background of its own. It was sticky, and the strip of page background
+       it needed to hide what scrolled under it read as a black band across the card of the form
+       and flattened the texture of the page on the client's. With the steps the panels are short
+       enough that following the scroll was not worth that. */
+    .solar-steps {
+        margin: 0 -0.25rem;
+        padding: 0.35rem 0.25rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .solar-quote-offer .solar-steps {
+        margin-top: 1rem;
+    }
+
+    .solar-steps::-webkit-scrollbar {
+        display: none;
+    }
+
+    .solar-steps ol {
+        display: flex;
+        gap: 0.4rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    /* On the form the row sits on the card, so the pill takes the card's own surface. */
+    .solar-quote-offer .solar-steps a {
+        background: color-mix(in srgb, var(--solar-text) 4%, transparent);
+    }
+
+    .solar-steps a {
+        display: flex;
+        gap: 0.45rem;
+        align-items: center;
+        /* 44px tall: it is a control, not a line of text. */
+        min-height: 2.75rem;
+        padding: 0.4rem 0.85rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        background: var(--solar-surface);
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+        font-weight: 600;
+        white-space: nowrap;
+        transition:
+            border-color 150ms ease,
+            background 150ms ease,
+            color 150ms ease;
+    }
+
+    .solar-steps a:hover {
+        border-color: color-mix(in srgb, var(--solar-sun) 45%, transparent);
+        color: var(--solar-text);
+    }
+
+    /* Reading they are tabs, filling the form they are steps: both say "you are here". */
+    .solar-steps a[aria-selected='true'],
+    .solar-steps a[aria-current='step'] {
+        border-color: color-mix(in srgb, var(--solar-sun) 65%, transparent);
+        background: color-mix(in srgb, var(--solar-sun) 12%, var(--solar-surface));
+        color: var(--solar-text);
+    }
+
+    /* A step the server rejected: the colour is doubled by the (con errores) of the label. */
+    .solar-steps a.has-error {
+        border-color: color-mix(in srgb, var(--solar-danger) 55%, transparent);
+        background: var(--solar-danger-bg);
+        color: var(--solar-text);
+    }
+
+    .solar-steps a.has-error .solar-steps__number {
+        background: var(--solar-danger);
+        color: #fff;
+    }
+
+    .solar-steps__number {
+        display: grid;
+        place-items: center;
+        width: 1.35rem;
+        height: 1.35rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-text) 8%, transparent);
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+    }
+
+    .solar-steps a[aria-selected='true'] .solar-steps__number,
+    .solar-steps a[aria-current='step'] .solar-steps__number {
+        background: var(--solar-sun);
+        color: #fff;
+    }
+
+    /* On a phone the step is its short name; the full one stays for screen readers. */
+    .solar-steps__short {
+        display: none;
+    }
+
+    @media (max-width: 48rem) {
+        .solar-steps__label {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+
+        .solar-steps__short {
+            display: inline;
+        }
+    }
+
+    /* Only with JavaScript: one panel at a time, set before the first paint so nothing flashes. */
+    .solar-js .solar-steps__panel {
+        display: none;
+    }
+
+    .solar-js .solar-steps__panel.is-current {
+        display: block;
+    }
+
+    .solar-steps__panel:focus-visible {
+        outline: 2px solid var(--solar-sun);
+        outline-offset: 3px;
+    }
+
+    .solar-quote-group.solar-steps__panel.has-error {
+        border-color: color-mix(in srgb, var(--solar-danger) 45%, transparent);
+    }
+
+    .solar-steps__move {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--solar-border);
+    }
+
+    .solar-steps__move a {
+        display: inline-flex;
+        gap: 0.35rem;
+        align-items: center;
+    }
+
+    /* Without JavaScript the panels follow one another, so the pair of links would only repeat
+       what is already on the screen. */
+    html:not(.solar-js) .solar-steps__move {
+        display: none;
     }
 }
 

@@ -17,6 +17,13 @@
     figures of this page show their sketch after a while.
 --}}
 <script>
+    // With JavaScript, pages that read in steps (installers/quote) show one at a time instead of
+    // flashing the whole thing first. Set before the first paint and again on each wire:navigate.
+    document.documentElement.classList.add('solar-js');
+    document.addEventListener('livewire:navigating', (event) => event.detail?.onSwap?.(
+        () => document.documentElement.classList.add('solar-js'),
+    ));
+
     if ('WebGLRenderingContext' in window) {
         const can3d = () => document.documentElement.classList.add('solar-can-3d');
         can3d();

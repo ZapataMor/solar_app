@@ -64,6 +64,33 @@ class InstallerInboxTest extends TestCase
             ->assertSeeInOrder(['Cocina', 'Nevera']);
     }
 
+    public function test_the_diary_opens_on_the_space_that_decides_the_system(): void
+    {
+        [$installer, $account] = $this->installerWithAccount();
+        [, $solarProject] = $this->project();
+        // A fridge in the kitchen and an air conditioner in the bedrooms: the bedrooms win by far.
+        $solarProject->appliances()->create([
+            'space' => 'kitchen', 'appliance_key' => 'fridge', 'variant_key' => 'medium.conventional',
+            'quantity' => 1, 'hours_per_day' => 24,
+        ]);
+        $solarProject->appliances()->create([
+            'space' => 'bedrooms', 'appliance_key' => 'air_conditioner', 'variant_key' => '12000.inverter',
+            'quantity' => 2, 'hours_per_day' => 8,
+        ]);
+        $quoteRequest = $this->request($solarProject, $installer);
+
+        $response = $this->actingAs($account)
+            ->get(route('installer-inbox.show', $quoteRequest))
+            ->assertOk()
+            ->assertSee('2 equipos registrados');
+
+        // Folded cards (ADR-0023); only the biggest space comes open, so twenty appliances are not
+        // two screens of flat list.
+        $cards = preg_match_all('/<details class="solar-quote-space"\s*(open)?\s*>/', $response->getContent(), $matches);
+        $this->assertSame(2, $cards);
+        $this->assertSame(1, count(array_filter($matches[1])));
+    }
+
     public function test_the_installer_answers_and_a_closed_deal_carries_its_value(): void
     {
         [$installer, $account] = $this->installerWithAccount();

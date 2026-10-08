@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Installers\DescribeQuoteRequest;
 use App\Domain\Installers\QuoteRequestStatus;
 use App\Models\Installer;
 use App\Models\InstallerQuote;
@@ -305,6 +306,58 @@ class InstallerQuoteTest extends TestCase
             ->get(route('installers.quotes.show', $quoteRequest))
             ->assertOk()
             ->assertSee('no cubre todo lo que legaliza la instalación');
+    }
+
+    public function test_the_installer_fills_the_quote_in_steps_and_a_rejected_one_marks_where_it_failed(): void
+    {
+        [$installer, $account] = $this->installerWithAccount();
+        [, $solarProject] = $this->project();
+        $quoteRequest = $this->request($solarProject, $installer);
+
+        $this->actingAs($account)
+            ->get(route('installer-inbox.show', $quoteRequest))
+            ->assertOk()
+            ->assertSee('data-quote-panel="precio"', false)
+            ->assertSee('data-quote-panel="sistema"', false)
+            ->assertSee('data-quote-panel="cubre"', false)
+            ->assertSee('data-quote-panel="garantias"', false)
+            ->assertSee('data-quote-panel="condiciones"', false);
+
+        $this->actingAs($account)
+            ->put(route('installer-inbox.quote', $quoteRequest), [...$this->quote(), 'panel_warranty_years' => 300])
+            ->assertSessionHasErrors('panel_warranty_years');
+
+        // A warranty of 300 years belongs to the fourth step, and that is the one the page marks:
+        // with the steps folded, an error nobody can see is an error nobody fixes. The view is
+        // rendered on its own because the suite runs with the array session driver, where what a
+        // redirect flashes never reaches the next request.
+        $html = $this->actingAs($account)
+            ->withViewErrors(['panel_warranty_years' => 'La garantía de los paneles va entre 1 y 40 años.'])
+            ->view('installers.quote-request', app(DescribeQuoteRequest::class)($quoteRequest))
+            ->__toString();
+
+        $this->assertSame(1, preg_match_all('/class="[^"]*has-error[^"]*"\s+id="paso-garantias"/', $html));
+        $this->assertSame(1, preg_match_all('/class="[^"]*has-error[^"]*"\s+id="paso-/', $html));
+        $this->assertStringContainsString('(con errores)', $html);
+    }
+
+    public function test_the_client_reads_the_quote_in_steps(): void
+    {
+        [$installer, $account] = $this->installerWithAccount();
+        [$client, $solarProject] = $this->project();
+        $quoteRequest = $this->request($solarProject, $installer);
+        $this->actingAs($account)->put(route('installer-inbox.quote', $quoteRequest), $this->fullQuote());
+
+        $response = $this->actingAs($client)->get(route('installers.quotes.show', $quoteRequest))->assertOk();
+
+        // Every step is in the page: without JavaScript they are links to sections that are all shown.
+        foreach (['conviene', 'compara', 'cubre', 'garantias', 'firmar'] as $step) {
+            $response->assertSee('id="paso-'.$step.'"', false);
+            $response->assertSee('data-quote-step="'.$step.'"', false);
+        }
+
+        // The price stays out of the steps: it is the number the client never wants to lose.
+        $response->assertSee('Lo que te cuesta la instalación');
     }
 
     /**

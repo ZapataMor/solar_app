@@ -1,8 +1,9 @@
 {{--
-    One installer's quote, as the client who asked for it reads it (ADR-0026). The card of the
-    directory shows the price; here the app does what the price alone cannot: it recalculates the
-    payback with *this* number and puts it next to the reference budget and next to what the other
-    installers offered for the same roof.
+    One installer's quote, as the client who asked for it reads it (ADR-0026, ADR-0027).
+
+    It is read in steps, not scrolled: with the detail of a real quote the page became long enough
+    that the price and the verdict fell off the screen. The price stays on top, always, and the rest
+    is one step at a time. Without JavaScript every step is simply shown, one after the other.
 
     Params: App\Actions\Installers\DescribeQuoteForClient.
 --}}
@@ -18,6 +19,17 @@
     $daysLeft = $quote->daysLeft();
     $hasWarranties = $quote->panel_warranty_years || $quote->inverter_warranty_years || $quote->workmanship_warranty_years;
     $hasTerms = $quote->down_payment_percentage !== null || $quote->delivery_days || $quote->vat_included !== null;
+    $inclusions = $quote->inclusions();
+
+    // The steps, in the order the client asks the questions: ¿me conviene?, ¿contra qué lo comparo?,
+    // ¿qué me están dando?, ¿qué me garantizan?, ¿qué hago ahora?
+    $steps = [
+        'conviene' => ['label' => '¿Te conviene?', 'short' => 'Conviene'],
+        'compara' => ['label' => 'Cómo se compara', 'short' => 'Compara'],
+        'cubre' => ['label' => 'Qué cubre', 'short' => 'Cubre'],
+        'garantias' => ['label' => 'Garantías y condiciones', 'short' => 'Garantías'],
+        'firmar' => ['label' => 'Antes de firmar', 'short' => 'Firmar'],
+    ];
 @endphp
 
 <x-layouts::app :title="'Cotización de '.$installer->name">
@@ -38,7 +50,7 @@
             </div>
         </div>
 
-        {{-- The price first: it is what the client came to read. --}}
+        {{-- The price stays out of the steps: it is the one number the client never wants to lose. --}}
         <section @class(['solar-card', 'solar-client-quote__price', 'is-expired' => $expired])>
             <div class="solar-client-quote__amount">
                 <p class="solar-inbox-card__label">Lo que te cuesta la instalación</p>
@@ -70,8 +82,31 @@
             </p>
         </section>
 
-        {{-- The arithmetic the client cannot do alone: this price against the savings of their project. --}}
-        <section class="solar-card">
+        {{-- Real links to each step, so the keyboard and the back button keep working. --}}
+        <nav class="solar-steps" data-quote-steps aria-label="Pasos de la cotización">
+            <ol role="tablist">
+                @foreach ($steps as $key => $step)
+                    <li>
+                        <a
+                            href="#paso-{{ $key }}"
+                            id="tab-{{ $key }}"
+                            role="tab"
+                            data-quote-step="{{ $key }}"
+                            aria-controls="paso-{{ $key }}"
+                            aria-selected="{{ $loop->first ? 'true' : 'false' }}"
+                            tabindex="{{ $loop->first ? '0' : '-1' }}"
+                        >
+                            <span class="solar-steps__number" aria-hidden="true">{{ $loop->iteration }}</span>
+                            <span class="solar-steps__label">{{ $step['label'] }}</span>
+                            <span class="solar-steps__short" aria-hidden="true">{{ $step['short'] }}</span>
+                        </a>
+                    </li>
+                @endforeach
+            </ol>
+        </nav>
+
+        {{-- Paso 1: the arithmetic the client cannot do alone, this price against their savings. --}}
+        <section class="solar-card solar-steps__panel is-current" id="paso-conviene" role="tabpanel" aria-labelledby="tab-conviene" data-quote-panel="conviene" tabindex="-1">
             <h2 class="solar-quote-heading">¿Te conviene este precio?</h2>
 
             @if ($paybackYears !== null)
@@ -116,9 +151,12 @@
                     <a href="{{ route('solar-projects.show', $project) }}" class="solar-button" wire:navigate>Calcular mi proyecto</a>
                 </div>
             @endif
+
+            <x-installers.step-nav :steps="$steps" current="conviene" />
         </section>
 
-        <section class="solar-card">
+        {{-- Paso 2 --}}
+        <section class="solar-card solar-steps__panel" id="paso-compara" role="tabpanel" aria-labelledby="tab-compara" data-quote-panel="compara" tabindex="-1">
             <h2 class="solar-quote-heading">Cómo se compara</h2>
 
             @if ($referenceCop !== null)
@@ -209,14 +247,21 @@
                     que en el total.
                 </p>
             @endif
+
+            <x-installers.step-nav :steps="$steps" current="compara" />
         </section>
 
-        {{-- Lo que cubre el precio (ADR-0027): la mitad de las veces la cotización más barata es
-             la que deja afuera el trámite y el medidor. --}}
-        <section class="solar-card">
+        {{-- Paso 3: lo que cubre el precio (ADR-0027). La cotización más barata suele ser la que
+             deja afuera el trámite y el medidor. --}}
+        <section class="solar-card solar-steps__panel" id="paso-cubre" role="tabpanel" aria-labelledby="tab-cubre" data-quote-panel="cubre" tabindex="-1">
             <h2 class="solar-quote-heading">Qué cubre el precio</h2>
 
-            @php($inclusions = $quote->inclusions())
+            @if ($quote->missesLegalization())
+                <p class="solar-client-quote__warning">
+                    Esta cotización no cubre todo lo que legaliza la instalación. Antes de compararla con
+                    otra, pregunta cuánto cuesta aparte: puede ser la diferencia entre las dos.
+                </p>
+            @endif
 
             @if ($inclusions['included'] || $inclusions['excluded'])
                 <ul class="solar-client-quote__inclusions">
@@ -241,13 +286,6 @@
                 </ul>
             @endif
 
-            @if ($quote->missesLegalization())
-                <p class="solar-client-quote__warning">
-                    Esta cotización no cubre todo lo que legaliza la instalación. Antes de compararla con
-                    otra, pregunta cuánto cuesta aparte: puede ser la diferencia entre las dos.
-                </p>
-            @endif
-
             @if ($quote->scope)
                 <h3 class="solar-client-quote__others-title">En palabras del instalador</h3>
                 <p class="solar-client-quote__scope">{{ $quote->scope }}</p>
@@ -263,13 +301,15 @@
                     {{ $installer->name }} no escribió el detalle del alcance. Pídeselo antes de decidir.
                 </p>
             @endunless
+
+            <x-installers.step-nav :steps="$steps" current="cubre" />
         </section>
 
-        {{-- Las garantías y las condiciones: donde se separan dos ofertas del mismo precio. --}}
-        @if ($hasWarranties || $hasTerms)
-            <section class="solar-card">
-                <h2 class="solar-quote-heading">Garantías y condiciones</h2>
+        {{-- Paso 4: donde se separan dos ofertas del mismo precio. --}}
+        <section class="solar-card solar-steps__panel" id="paso-garantias" role="tabpanel" aria-labelledby="tab-garantias" data-quote-panel="garantias" tabindex="-1">
+            <h2 class="solar-quote-heading">Garantías y condiciones</h2>
 
+            @if ($hasWarranties || $hasTerms)
                 <dl class="solar-inbox-figures mt-3">
                     @if ($quote->panel_warranty_years)
                         <div>
@@ -311,17 +351,20 @@
                         </div>
                     @endif
                 </dl>
+            @endif
 
-                @unless ($hasWarranties)
-                    <p class="solar-inbox-note mt-3">
-                        No dice cuántos años garantiza nada. Es la pregunta que más vale la pena hacer:
-                        lo usual son 25 años en paneles, 5 a 10 en el inversor y 1 a 2 en la obra.
-                    </p>
-                @endunless
-            </section>
-        @endif
+            @unless ($hasWarranties)
+                <p class="solar-inbox-note mt-3">
+                    No dice cuántos años garantiza nada. Es la pregunta que más vale la pena hacer:
+                    lo usual son 25 años en paneles, 5 a 10 en el inversor y 1 a 2 en la obra.
+                </p>
+            @endunless
 
-        <section class="solar-card">
+            <x-installers.step-nav :steps="$steps" current="garantias" />
+        </section>
+
+        {{-- Paso 5: las preguntas que faltan, y con quién hacerlas. --}}
+        <section class="solar-card solar-steps__panel" id="paso-firmar" role="tabpanel" aria-labelledby="tab-firmar" data-quote-panel="firmar" tabindex="-1">
             <h2 class="solar-quote-heading">Qué preguntar antes de firmar</h2>
             <ul class="solar-client-quote__checklist">
                 @unless ($quote->panel_warranty_years && $quote->inverter_warranty_years)
@@ -341,33 +384,35 @@
                 @endunless
                 <li>¿El precio incluye la estructura del techo, el cableado y la mano de obra?</li>
             </ul>
-        </section>
 
-        <section class="solar-card solar-client-quote__contact">
-            <div>
-                <h2 class="solar-quote-heading">Habla con {{ $installer->name }}</h2>
-                <p class="solar-subtitle mt-2">
-                    @if ($installer->years_experience)
-                        {{ $installer->years_experience }} años instalando en La Guajira ·
+            <div class="solar-client-quote__contact">
+                <div>
+                    <h3 class="solar-client-quote__others-title">Habla con {{ $installer->name }}</h3>
+                    <p class="solar-subtitle mt-2">
+                        @if ($installer->years_experience)
+                            {{ $installer->years_experience }} años instalando en La Guajira ·
+                        @endif
+                        {{ $coverage }}
+                    </p>
+                    @if ($installer->contact_name)
+                        <p class="solar-quote-client__name mt-2">{{ $installer->contact_name }}</p>
                     @endif
-                    {{ $coverage }}
-                </p>
-                @if ($installer->contact_name)
-                    <p class="solar-quote-client__name mt-2">{{ $installer->contact_name }}</p>
-                @endif
+                </div>
+
+                <div class="solar-installer-card__links">
+                    @if ($installer->whatsappNumber())
+                        <a href="https://wa.me/{{ $installer->whatsappNumber() }}" target="_blank" rel="noopener">WhatsApp</a>
+                    @endif
+                    @if ($installer->phone)
+                        <a href="tel:{{ preg_replace('/\s+/', '', $installer->phone) }}">{{ $installer->phone }}</a>
+                    @endif
+                    @if ($installer->email)
+                        <a href="mailto:{{ $installer->email }}">{{ $installer->email }}</a>
+                    @endif
+                </div>
             </div>
 
-            <div class="solar-installer-card__links">
-                @if ($installer->whatsappNumber())
-                    <a href="https://wa.me/{{ $installer->whatsappNumber() }}" target="_blank" rel="noopener">WhatsApp</a>
-                @endif
-                @if ($installer->phone)
-                    <a href="tel:{{ preg_replace('/\s+/', '', $installer->phone) }}">{{ $installer->phone }}</a>
-                @endif
-                @if ($installer->email)
-                    <a href="mailto:{{ $installer->email }}">{{ $installer->email }}</a>
-                @endif
-            </div>
+            <x-installers.step-nav :steps="$steps" current="firmar" />
         </section>
     </div>
 </x-layouts::app>

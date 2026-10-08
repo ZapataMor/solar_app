@@ -2042,3 +2042,138 @@ document.addEventListener('livewire:navigated', initApplianceScenes);
 // The system animation of the 3D designer, development only (resources/js/system-scene).
 document.addEventListener('DOMContentLoaded', initSystemScenes);
 document.addEventListener('livewire:navigated', initSystemScenes);
+
+// A quote in steps: the one the client reads (installers/quote.blade.php, ADR-0026) and the one
+// the installer fills in (installers/quote-request.blade.php, ADR-0027). The steps are real links
+// to each panel, so without JavaScript both pages work as one long page; here they fold.
+//
+// The panel is shown with a class and never with [hidden], which Tailwind's preflight hides for
+// good; the .solar-js class of <html> is what hides the rest before the first paint.
+//
+// Reading, the steps are tabs (role=tab, one stop in the tab order, arrows to move). Filling a
+// form they are steps: every one stays tabbable and the current one is aria-current.
+const showQuoteStep = (key, { focus = false, updateHash = true } = {}) => {
+    const steps = Array.from(document.querySelectorAll('[data-quote-step]'));
+    const target = steps.find((step) => step.dataset.quoteStep === key);
+
+    if (!target) {
+        return;
+    }
+
+    steps.forEach((step) => {
+        const selected = step === target;
+        const isTab = step.getAttribute('role') === 'tab';
+
+        if (isTab) {
+            step.setAttribute('aria-selected', String(selected));
+            step.tabIndex = selected ? 0 : -1;
+        } else if (selected) {
+            step.setAttribute('aria-current', 'step');
+        } else {
+            step.removeAttribute('aria-current');
+        }
+    });
+
+    document.querySelectorAll('[data-quote-panel]').forEach((panel) => {
+        panel.classList.toggle('is-current', panel.dataset.quotePanel === key);
+    });
+
+    if (focus) {
+        target.focus();
+    }
+
+    if (updateHash) {
+        // replaceState, not the hash itself: setting it would jump the page to the panel.
+        window.history.replaceState(window.history.state, '', `#paso-${key}`);
+    }
+};
+
+const initQuoteSteps = () => {
+    const tablist = document.querySelector('[data-quote-steps]');
+
+    if (!tablist || tablist.dataset.quoteStepsBound) {
+        return;
+    }
+
+    tablist.dataset.quoteStepsBound = 'true';
+
+    const steps = () => Array.from(tablist.querySelectorAll('[data-quote-step]'));
+
+    tablist.addEventListener('click', (event) => {
+        const step = event.target.closest('[data-quote-step]');
+
+        if (!step || event.metaKey || event.ctrlKey || event.shiftKey) {
+            return;
+        }
+
+        event.preventDefault();
+        showQuoteStep(step.dataset.quoteStep);
+    });
+
+    tablist.addEventListener('keydown', (event) => {
+        const list = steps();
+        const index = list.indexOf(document.activeElement);
+
+        // Arrows move between tabs; in a wizard each step is its own tab stop and the arrows belong
+        // to the page.
+        if (index === -1 || list[index].getAttribute('role') !== 'tab') {
+            return;
+        }
+
+        const next = {
+            ArrowRight: (index + 1) % list.length,
+            ArrowLeft: (index - 1 + list.length) % list.length,
+            Home: 0,
+            End: list.length - 1,
+        }[event.key];
+
+        if (next === undefined) {
+            return;
+        }
+
+        event.preventDefault();
+        showQuoteStep(list[next].dataset.quoteStep, { focus: true });
+    });
+
+    // A required field inside a folded step cannot be focused, and the browser would refuse to
+    // submit without saying why. Open its step first, and the native message lands on the field.
+    tablist.closest('.solar-card')?.querySelector('form')?.addEventListener(
+        'invalid',
+        (event) => {
+            const panel = event.target.closest('[data-quote-panel]');
+
+            if (panel && !panel.classList.contains('is-current')) {
+                showQuoteStep(panel.dataset.quotePanel);
+            }
+        },
+        true,
+    );
+
+    // "Siguiente" and "Anterior" at the foot of each panel. The new panel takes the focus, or the
+    // keyboard would stay at the bottom of a panel nobody is reading any more.
+    document.querySelectorAll('[data-quote-go]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            if (event.metaKey || event.ctrlKey || event.shiftKey) {
+                return;
+            }
+
+            event.preventDefault();
+            const key = link.dataset.quoteGo;
+            showQuoteStep(key);
+            document.querySelector(`[data-quote-panel="${key}"]`)?.focus();
+            tablist.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+    });
+
+    // After a rejected form, the step that holds the first error wins: the message is there.
+    // Otherwise, opening the page on #paso-… lands on that step, which is what a shared link means.
+    const withError = document.querySelector('[data-quote-panel].has-error');
+    const fromHash = window.location.hash.replace('#paso-', '');
+    const start = withError?.dataset.quotePanel
+        ?? (steps().some((step) => step.dataset.quoteStep === fromHash) ? fromHash : steps()[0]?.dataset.quoteStep);
+
+    showQuoteStep(start, { updateHash: false });
+};
+
+document.addEventListener('DOMContentLoaded', initQuoteSteps);
+document.addEventListener('livewire:navigated', initQuoteSteps);
