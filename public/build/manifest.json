@@ -309,7 +309,7 @@
     "name": "three.module"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BoWf7lVX.css",
+    "file": "assets/app-BMBEbKPN.css",
     "name": "app",
     "names": [
       "app.css"
@@ -318,7 +318,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-DXr47Jzx.js",
+    "file": "assets/app-DmOMBiwE.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
