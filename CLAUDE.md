@@ -161,6 +161,17 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   (`Profitability::paybackYearsFor()` + el ahorro anual del `calculation_results`; sin cálculo lo
   dice en vez de inventarlo) y lo compara con el presupuesto congelado, con el $/kW y con lo que
   ofrecieron los demás instaladores del mismo proyecto. Compara, pero no recomienda.
+- **Datos de una cotización real (ADR-0027):** el formulario del instalador tiene las cinco secciones
+  de una cotización de verdad (precio con IVA, el sistema con marca y referencia, qué cubre el precio,
+  garantías y condiciones). **Solo el total y la validez son obligatorios** y un campo vacío borra lo
+  que había. La lista de inclusiones vive en `App\Domain\Installers\QuoteInclusions` —con su etiqueta,
+  por qué importa y qué significa que falte— y la comparten el formulario y la página del cliente: no
+  la dupliques. `QuoteSystem::powerKw` completa los kW con paneles × W cuando el instalador no los
+  escribió (lo que él escribió gana). Sin RETIE o sin trámite del operador de red, la página del
+  cliente lo advierte antes de comparar totales (`missesLegalization`): en Colombia ese trámite y el
+  medidor bidireccional son millones, y la cotización más barata suele ser la que los deja afuera.
+- **Comparador de cotizaciones (ADR-0028):** decidido y **sin construir**. Antes de empezarlo, lee el
+  ADR: la app marca lo mejor de cada fila, nunca la mejor cotización.
 - **Precios por municipio (ADR-0024):** pantalla de admin *Precios por municipio*; el precio final es
   `base × factor logístico` y hay **uno solo por municipio y tipo de ubicación** (índice único; antes se
   podían duplicar y el costo dependía del orden de inserción). **Guardar no toca lo ya cotizado:** el
