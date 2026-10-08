@@ -31,6 +31,12 @@ construyó. Hoy solo existen `user` y `admin`.
 - **Cada solicitud muestra la estimación**, no un formulario en blanco: municipio, tipo de inmueble,
   consumo al mes, área de techo, paneles que pide el consumo y presupuesto de referencia. Es lo que
   el ADR-0022 le prometió al cliente: *llegas con todo calculado*.
+- **El diario de equipos va plegado, un espacio por tarjeta** y en dos columnas. Una casa con veinte
+  equipos era una lista plana de dos pantallas. El encabezado de cada tarjeta dice sus kWh, cuántos
+  equipos tiene y su porcentaje —con una barra, para compararlos sin abrir ninguno— y **solo se abre
+  el espacio más grande** (`biggestSpace` de `BuildConsumptionDiary`), que es el que decide el
+  sistema. Se pliega con `<details>`, como los *Precios por municipio* del
+  [[adr-0024-precios-por-municipio-administrables]]: sin JavaScript también funciona.
 - **Los datos de contacto del cliente** (nombre y correo de su cuenta) se muestran junto a la
   solicitud. El cliente ya decidió contactarlo al pedir la cotización.
 - **El instalador mueve el estado:** contactada, ganada o perdida (`QuoteRequestStatus`, que ya

@@ -49,6 +49,10 @@ Se revisaron dos fuentes para no inventar los campos:
     mantenimiento del primer año.
   - *Garantías:* años de paneles, de inversor y de obra.
   - *Condiciones:* anticipo en %, plazo hasta energizar, qué incluye y **qué no incluye**.
+- **Se llena por pasos**, en las mismas cinco secciones y con el mismo mecanismo con el que el
+  cliente la lee ([[adr-0026-cotizacion-del-instalador]]): veinte campos en una sola pantalla son
+  un muro. Cada paso declara sus campos, así que una cotización rechazada abre en el paso que falló
+  y lo marca. El botón de enviar queda **fuera** de los pasos: se manda desde cualquiera.
 - **Solo el total y la validez son obligatorios.** Todo lo demás es opcional: el instalador contesta
   desde el celular y debe poder mandar el precio ya y completar después. Un campo vacío **borra** lo
   que había, porque corregir una cotización también es quitar algo.

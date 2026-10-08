@@ -142,7 +142,8 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   `users.role` + `users.installer_id`; la crea el admin desde la ficha, no hay registro público) y cae en
   `/solicitudes` (`LoginResponse` en `FortifyServiceProvider`). La lista dice cuál abrir y cada solicitud
   tiene su página (`installer-inbox.show`), con la estimación y **el diario de equipos del cliente**
-  (`BuildConsumptionDiary`; con recibo no hay diario, ADR-0020). Responde con `QuoteRequestStatus`:
+  (`BuildConsumptionDiary`; con recibo no hay diario, ADR-0020; va **plegado**, una tarjeta por
+  espacio en dos columnas, y solo se abre el más grande: `biggestSpace`). Responde con `QuoteRequestStatus`:
   contactada, ganada o perdida, y **ganada exige el valor del contrato** (`QuoteNotPossible`); no se
   calcula comisión porque el ADR-0005 no tiene porcentaje. *Precios de referencia* le muestra el $/kW por
   municipio del que sale el presupuesto que ya vio el cliente. Gate `answer-quote-requests`; el sidebar le
@@ -160,7 +161,22 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   app **rehace el retorno con ese precio**, no con el de referencia
   (`Profitability::paybackYearsFor()` + el ahorro anual del `calculation_results`; sin cálculo lo
   dice en vez de inventarlo) y lo compara con el presupuesto congelado, con el $/kW y con lo que
-  ofrecieron los demás instaladores del mismo proyecto. Compara, pero no recomienda.
+  ofrecieron los demás instaladores del mismo proyecto. Compara, pero no recomienda. La página **se
+  lee por pasos** (`[data-quote-steps]` en `app.js`, `<x-installers.step-nav>`): el precio fijo
+  arriba y un paso a la vez. El panel se muestra con la clase `is-current`, **nunca con `[hidden]`**,
+  y quien esconde los demás es `.solar-js` de `<html>` (se pone en `partials/head` antes del primer
+  pintado, como `solar-can-3d`). Sin JavaScript no hay `.solar-js` y la página se lee de arriba abajo:
+  si agregas un paso, agrégalo al arreglo `$steps` de la vista y nada más.
+- **El formulario del instalador también va por pasos** (mismo controlador, `$quoteSteps` en
+  `quote-request.blade.php`). Dos cosas que no hay que deshacer: cada paso declara **sus campos**, y
+  con eso la página se abre en el paso que el servidor rechazó (`has-error`); y el formulario escucha
+  `invalid` en captura, porque **un `required` dentro de un paso plegado no se puede enfocar** y el
+  navegador se negaría a enviar sin decir por qué. El botón de enviar vive fuera de los pasos: solo
+  el precio y la validez son obligatorios, así que se manda desde cualquiera.
+- **Probar errores pintados en la página:** la suite corre con `SESSION_DRIVER=array`, así que lo que
+  un redirect *flashea* **nunca llega a la petición siguiente**. Renderiza la vista sola
+  (`$this->withViewErrors([...])->view('…', app(DescribeQuoteRequest::class)($quoteRequest))`), no
+  intentes `followRedirects`.
 - **Datos de una cotización real (ADR-0027):** el formulario del instalador tiene las cinco secciones
   de una cotización de verdad (precio con IVA, el sistema con marca y referencia, qué cubre el precio,
   garantías y condiciones). **Solo el total y la validez son obligatorios** y un campo vacío borra lo

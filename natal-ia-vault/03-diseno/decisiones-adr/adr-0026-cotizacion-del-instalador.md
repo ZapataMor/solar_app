@@ -50,6 +50,12 @@ una oferta de nadie.
   cotizaciones solo se comparan si llevan lo mismo (baterías, kW) y deja la decisión al cliente.
 - **Quien puede ver la cotización es quien puede manejar el proyecto** (`SolarProjectPolicy::manage`).
   Una solicitud sin precio todavía no tiene página: responde 404.
+- **Se lee por pasos, no en scroll.** Con el detalle del [[adr-0027-datos-de-una-cotizacion-real]] la
+  página pasó a siete tarjetas y el precio se perdía de vista. El precio queda fijo arriba y lo demás
+  es un paso a la vez: *¿te conviene?*, *cómo se compara*, *qué cubre*, *garantías*, *antes de firmar*.
+  Los pasos son enlaces de verdad (`#paso-…`), así que el teclado, el botón atrás y un enlace
+  compartido siguen funcionando, y **sin JavaScript la página simplemente se lee de arriba abajo**
+  (la clase `solar-js` de `<html>`, puesta antes del primer pintado, es la que esconde los demás).
 
 ## Consecuencias
 - ➕ El círculo cierra dentro de la app: pedir cotización sirve para recibir una cotización.
