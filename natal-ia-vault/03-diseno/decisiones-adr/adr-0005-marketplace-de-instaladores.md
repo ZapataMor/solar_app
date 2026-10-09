@@ -28,6 +28,9 @@ Para cobrar, el software debe poder atribuir el cliente al instalador.
 - **Negocio cerrado:** el instalador marca el lead como ganado con el valor del contrato, y se calcula la comisión.
 - **Fuera de alcance por ahora:** cobros en línea (se facturan manualmente) y alternar entre la red y el sistema fotovoltaico ([[ideas-aplazadas-asesoria]]).
 
+> **Riesgo de desintermediación:** que el instalador use los datos del cliente para cerrar por
+> fuera. La propuesta para acotarlo es [[adr-0030-anonimato-por-etapas-y-cupos]].
+
 ## Consecuencias
 - ➕ Hace real el modelo de ingresos y le da valor al instalador.
 - ➖ Depende de que el instalador reporte el cierre honestamente.

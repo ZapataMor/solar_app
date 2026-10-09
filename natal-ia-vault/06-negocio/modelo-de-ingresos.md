@@ -14,7 +14,14 @@ Lo propuso el asesor. La plataforma recomienda instaladores aliados al cliente:
 
 ⚠️ Hay que actualizar los precios constantemente: los equipos son importados y dependen del dólar.
 
+## Riesgo: que el negocio se cierre por fuera
+El instalador puede tomar los datos del cliente y cerrar sin pagar comisión. La propuesta para
+acotarlo está en [[adr-0030-anonimato-por-etapas-y-cupos]]: el contacto se revela recién cuando el
+cliente elige una cotización, y la suscripción pasa a tener **planes con cupos** para abrir
+solicitudes. La comisión se mantiene mientras tanto.
+
 ## Por decidir
 - [ ] Definir el esquema de cobro y los porcentajes
+- [ ] Cuántos planes, a qué precio y con cuántos cupos cada uno ([[adr-0030-anonimato-por-etapas-y-cupos]])
 
 Fuente: [[asesoria-felix-bada]]
