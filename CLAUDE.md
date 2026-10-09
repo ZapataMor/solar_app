@@ -147,7 +147,15 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   contactada, ganada o perdida, y **ganada exige el valor del contrato** (`QuoteNotPossible`); no se
   calcula comisión porque el ADR-0005 no tiene porcentaje. *Precios de referencia* le muestra el $/kW por
   municipio del que sale el presupuesto que ya vio el cliente. Gate `answer-quote-requests`; el sidebar le
-  oculta *Centro solar* y los *Recursos* del cliente. Cuentas de prueba en `InstallerAccountSeeder`.
+  oculta *Centro solar* y los *Recursos* del cliente. **Cada instalador tiene su cuenta**
+  (`InstallerAccountSeeder` recorre la tabla, no una lista fija, así que el aliado que agregue un
+  administrador también la tendrá al volver a sembrar): `instalador` sigue siendo Energía Wayúu, y
+  las demás son `solriohacha`, `caribesolar`, `fvdelsur` y `guajirarenovable`, todas con `12345`.
+  Las solicitudes y los precios ya respondidos están en `InstallerQuoteSeeder`: la casa de Riohacha
+  llega con tres cotizaciones —una barata sin legalizar, una completa con baterías y una vencida—
+  porque es lo que el comparador necesita para tener algo que decir, y la institución con una sola,
+  porque ese caso también hay que verlo. Los precios salen del presupuesto de referencia del
+  proyecto por un factor, no son cifras sueltas: si cambias el proyecto, siguen teniendo sentido.
 - **Cotización del instalador (ADR-0026):** desde la página de la solicitud manda su precio, qué
   incluye, si lleva baterías y hasta cuándo vale (`SendInstallerQuote` → tabla `installer_quotes`,
   una por solicitud: reenviarla corrige la anterior). Va en su propia tabla y **no** en columnas de
@@ -256,7 +264,7 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 
 ## Trampas conocidas
 
-- **La suite pasa entera (437 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
+- **La suite pasa entera (441 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
   tolerados. Los 22 que había eran tests que afirmaban pantallas y mensajes que ya no existían.
 - `Designer3dTest` falla con *Unable to locate file in Vite manifest* cuando el manifiesto está viejo:
   corre `npm run build` (o ten `composer dev` levantado) y pasa. No es un fallo del código.
