@@ -186,8 +186,21 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   escribió (lo que él escribió gana). Sin RETIE o sin trámite del operador de red, la página del
   cliente lo advierte antes de comparar totales (`missesLegalization`): en Colombia ese trámite y el
   medidor bidireccional son millones, y la cotización más barata suele ser la que los deja afuera.
-- **Comparador de cotizaciones (ADR-0028):** decidido y **sin construir**. Antes de empezarlo, lee el
-  ADR: la app marca lo mejor de cada fila, nunca la mejor cotización.
+- **Comparador de cotizaciones (ADR-0028):** con dos o más precios, el cliente los lee lado a lado en
+  `/instaladores/comparar/{proyecto}` (`CompareProjectQuotes` → `installers/comparison.blade.php`);
+  con uno solo la Action devuelve `null`, el controlador responde 404 y el enlace no aparece
+  (`QuoteComparison::MINIMUM`). Quien decide qué gana cada fila es `App\Domain\Installers\QuoteComparison`,
+  PHP puro: **marca lo mejor de cada fila, nunca la mejor cotización**, y no marca nada si solo hay una
+  candidata o si todas dicen lo mismo. Una **vencida se muestra pero no compite** y va al final. Las filas
+  salen de los campos del ADR-0027 —las inclusiones se leen de `QuoteInclusions`, no se duplican— y el
+  dominio **no formatea**: entrega el valor y su formato, y `<x-installers.compare-cell>` escribe los
+  pesos y el *No lo dice* de lo que falta. Sin cálculo del proyecto, la fila del retorno desaparece con
+  su aviso (`QuoteComparison::of($quotes, payback: false)`): ahí quien no sabe es la app, no el instalador.
+  Tres cosas que no hay que deshacer: la tabla es **una tabla de verdad** con `<th scope="row">` pegados a
+  la izquierda (en celular las columnas se desplazan; apilar tarjetas vuelve a obligar a comparar de
+  memoria), **el `<td>` del pie no lleva `display:flex`** —saca la celda de la tabla y las columnas se
+  apilan en una—, y el título de cada grupo va en un `<span>` pegado aparte de su nota, porque un
+  elemento más ancho que el contenedor no se queda pegado.
 - **Precios por municipio (ADR-0024):** pantalla de admin *Precios por municipio*; el precio final es
   `base × factor logístico` y hay **uno solo por municipio y tipo de ubicación** (índice único; antes se
   podían duplicar y el costo dependía del orden de inserción). **Guardar no toca lo ya cotizado:** el
@@ -215,7 +228,7 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 
 ## Trampas conocidas
 
-- **La suite pasa entera (362 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
+- **La suite pasa entera (417 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
   tolerados. Los 22 que había eran tests que afirmaban pantallas y mensajes que ya no existían.
 - `Designer3dTest` falla con *Unable to locate file in Vite manifest* cuando el manifiesto está viejo:
   corre `npm run build` (o ten `composer dev` levantado) y pasa. No es un fallo del código.

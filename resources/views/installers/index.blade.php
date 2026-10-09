@@ -96,6 +96,17 @@
                         @endif
                     </dl>
 
+                    @if ($comparable)
+                        {{-- Con dos o más precios, comparar es el siguiente paso del cliente (ADR-0028).
+                             Va en su propio div: como hijo directo de la rejilla, el botón se estira
+                             de lado a lado. --}}
+                        <div class="mt-3">
+                            <a href="{{ route('installers.quotes.compare', $project) }}" class="solar-button" wire:navigate>
+                                Comparar tus {{ $quoteCount }} cotizaciones
+                            </a>
+                        </div>
+                    @endif
+
                     @unless ($quotable)
                         <p class="solar-installers-warning">
                             Este proyecto todavía no tiene consumo, así que no hay nada que cotizar.

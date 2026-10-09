@@ -3,6 +3,7 @@
 namespace App\Actions\Installers;
 
 use App\Domain\Installers\InstallerCoverage;
+use App\Domain\Installers\QuoteComparison;
 use App\Domain\Installers\QuoteRequestStatus;
 use App\Domain\Solar\Profitability;
 use App\Models\Municipality;
@@ -45,6 +46,7 @@ final class DescribeQuoteForClient
 
         // What the app said it should cost around here, frozen the day they asked (ADR-0024).
         $reference = $quoteRequest->quoted_cost_cop !== null ? (float) $quoteRequest->quoted_cost_cop : null;
+        $others = $this->others($quoteRequest);
         $powerKw = $quote?->power_kw !== null ? (float) $quote->power_kw : null;
 
         return [
@@ -84,7 +86,9 @@ final class DescribeQuoteForClient
             'requiredPowerKw' => $project->required_power_kw !== null ? (float) $project->required_power_kw : null,
             'coveragePercentage' => $result?->coverage_percentage !== null ? (float) $result->coverage_percentage : null,
 
-            'others' => $this->others($quoteRequest),
+            'others' => $others,
+            // With this one plus the others there is a table worth opening (ADR-0028).
+            'comparable' => count($others) + 1 >= QuoteComparison::MINIMUM,
         ];
     }
 

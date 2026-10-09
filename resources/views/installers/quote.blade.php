@@ -248,6 +248,16 @@
                 </p>
             @endif
 
+            @if ($comparable)
+                {{-- Una lista de enlaces obliga a comparar de memoria: la tabla del ADR-0028 pone los
+                     mismos campos de todas, uno al lado del otro. --}}
+                <div class="mt-4">
+                    <a href="{{ route('installers.quotes.compare', $project) }}" class="solar-button" wire:navigate>
+                        Comparar las {{ count($others) + 1 }} cotizaciones lado a lado
+                    </a>
+                </div>
+            @endif
+
             <x-installers.step-nav :steps="$steps" current="compara" />
         </section>
 

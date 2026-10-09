@@ -4,9 +4,11 @@ namespace App\Actions\Installers;
 
 use App\Actions\SolarProjects\SizeProjectSystem;
 use App\Domain\Installers\InstallerCoverage;
+use App\Domain\Installers\QuoteComparison;
 use App\Domain\Installers\QuoteRequestStatus;
 use App\Models\Installer;
 use App\Models\Municipality;
+use App\Models\QuoteRequest;
 use App\Models\SolarProject;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,6 +33,8 @@ final class DescribeInstallerDirectory
      *     projects: Collection<int, SolarProject>,
      *     project: SolarProject|null,
      *     quotable: bool,
+     *     quoteCount: int,
+     *     comparable: bool,
      *     municipalityName: string|null,
      *     scene: array{panels: int, panelsFit: int, roofArea: float, panelArea: float}|null,
      *     installers: list<array<string, mixed>>,
@@ -54,12 +58,17 @@ final class DescribeInstallerDirectory
             ->get();
 
         $activeMunicipalities = Municipality::query()->active()->count();
+        // The ones that already answered with a price: what there is to compare (ADR-0028).
+        $quotes = $requests->filter(fn (QuoteRequest $request): bool => $request->installerQuote !== null)->count();
 
         return [
             'projects' => $projects,
             'project' => $project,
             // Without consumption there is no estimate to quote (ADR-0013, ADR-0020).
             'quotable' => $project !== null && $project->monthlyConsumption() > 0,
+            'quoteCount' => $quotes,
+            // With a single quote there is nothing to compare, so the link does not appear (ADR-0028).
+            'comparable' => $quotes >= QuoteComparison::MINIMUM,
             'municipalityName' => $project?->municipality?->name,
             'scene' => $this->scene($project),
             'installers' => $installers->map(function (Installer $installer) use ($requests, $activeMunicipalities): array {

@@ -1,16 +1,18 @@
 ---
 tipo: adr
 descripcion: ADR-0028 — El cliente compara sus cotizaciones lado a lado
-estado: 🟡 Propuesta
+estado: 🟢 Aceptada
 actualizado: 2026-10-07
 ---
 
 # ADR-0028 · Comparador de cotizaciones
 
-- **Estado:** 🟡 Propuesta — decidida, **sin construir**
+- **Estado:** 🟢 Aceptada
 - **Fecha:** 2026-10-07
-- **Contexto del repo (previsto):** `App\Actions\Installers\CompareProjectQuotes`,
-  `installers/comparison.blade.php`, ruta `installers.quotes.compare`
+- **Contexto del repo:** `App\Domain\Installers\QuoteComparison`,
+  `App\Actions\Installers\CompareProjectQuotes`, `InstallerController::compare`,
+  `installers/comparison.blade.php`, `components/installers/compare-cell.blade.php`,
+  `resources/css/quote-comparison.css`, ruta `installers.quotes.compare`
 
 ## Contexto
 Hoy el cliente pide cotización a varios instaladores, y cada una se lee **por separado**: la tarjeta
@@ -44,6 +46,29 @@ operador de red y el medidor bidireccional, que juntos son varios millones.
   en su página de detalle.
 - **Nada de esto crea un estado nuevo.** Comparar no es aceptar: aceptar sigue siendo hablar con el
   instalador, y el cierre lo marca él desde su bandeja ([[adr-0023-bandeja-de-solicitudes-del-instalador]]).
+
+## Lo que se decidió al construirlo
+Preguntas que la decisión no respondía y que el código tuvo que responder. Todas salen de la misma
+regla: la app marca lo mejor de cada fila y no inclina la balanza.
+
+- **No se marca nada si no hay con qué comparar.** Con una sola candidata en la fila —porque las
+  demás no lo dicen o están vencidas— la insignia significaría *la única que lo dice*, no *la mejor*.
+  Y cuando todas dicen lo mismo tampoco se marca: una insignia en cada celda no informa.
+- **La fila que nadie declara sale de la tabla**, pero su ausencia no se pierde: se nombra una vez
+  en *Lo que ninguna dice*. Una fila con tres *no lo dice* es ruido; la pregunta que falta, no.
+- **El retorno no es un silencio del instalador.** Sin cálculo del proyecto la fila desaparece con
+  su propio aviso y el enlace para calcular, porque ahí quien no sabe es la app
+  (`QuoteComparison::of($quotes, payback: false)`).
+- **Las columnas van de la más barata a la más cara, y las vencidas al final**, porque un precio
+  vencido ya no es un precio. Es el único orden que la app impone, y es el del total.
+- **El sistema que propone cada uno cierra la tabla sin marcas** (potencia, paneles, inversor,
+  baterías, producción): más kW no es mejor, es distinto, y es lo que explica las diferencias de
+  precio de las filas de arriba.
+- **En celular son columnas desplazables, no tarjetas apiladas.** Las etiquetas de fila quedan
+  pegadas a la izquierda mientras las columnas se mueven: un valor sin su etiqueta no compara nada,
+  y apilar tarjetas devuelve al cliente justo a lo que vino a evitar, comparar de memoria. El
+  encabezado no se queda fijo —un contenedor que se desplaza de lado no puede además fijar su
+  cabecera—, así que el nombre del instalador vuelve al pie, junto a la forma de escribirle.
 
 ## Consecuencias
 - ➕ El cliente decide con el mismo criterio con que la app dimensionó su sistema, en lugar de elegir

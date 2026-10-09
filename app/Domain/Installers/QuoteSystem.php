@@ -29,6 +29,22 @@ final class QuoteSystem
     }
 
     /**
+     * The batteries of a quote, as a comparison reads them (ADR-0028): "9,6 kWh", "No lleva", or
+     * null when they said there are batteries without saying how big.
+     *
+     * A quote without batteries did say something, so its cell must not read *No lo dice*: that
+     * would turn an answer into a silence.
+     */
+    public static function batteryText(bool $includesBattery, ?float $kwh): ?string
+    {
+        if (! $includesBattery) {
+            return 'No lleva';
+        }
+
+        return $kwh !== null && $kwh > 0 ? number_format($kwh, $kwh < 10 ? 1 : 0, ',', '.').' kWh' : null;
+    }
+
+    /**
      * "16 paneles de 550 W · Jinko Tiger Neo", with whatever part of it is known.
      */
     public static function panelText(?int $panelCount, ?int $panelWatts, ?string $panelModel): ?string

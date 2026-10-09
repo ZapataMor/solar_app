@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Installers\CompareProjectQuotes;
 use App\Actions\Installers\DescribeInstallerDirectory;
 use App\Actions\Installers\DescribeQuoteForClient;
 use App\Actions\Installers\RequestInstallerQuote;
@@ -64,6 +65,20 @@ class InstallerController extends Controller
         abort_if($quoteRequest->installerQuote === null, 404);
 
         return view('installers.quote', $describeQuoteForClient($quoteRequest));
+    }
+
+    /**
+     * Every quote of one project, side by side (ADR-0028). Without two of them there is nothing to
+     * compare, and the client stays on the detail page: that is the 404.
+     */
+    public function compare(Request $request, SolarProject $solarProject, CompareProjectQuotes $compareProjectQuotes): View
+    {
+        abort_unless($request->user()->can('manage', $solarProject), 403);
+
+        $comparison = $compareProjectQuotes($solarProject);
+        abort_if($comparison === null, 404);
+
+        return view('installers.comparison', $comparison);
     }
 
     public function create(): View

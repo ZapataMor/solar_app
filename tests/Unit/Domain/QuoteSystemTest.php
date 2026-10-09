@@ -39,6 +39,18 @@ class QuoteSystemTest extends TestCase
         $this->assertNull(QuoteSystem::panelText(null, null, null));
     }
 
+    public function test_a_quote_without_batteries_says_so_instead_of_saying_nothing(): void
+    {
+        // In the comparison (ADR-0028) an empty cell reads "No lo dice", and a quote without
+        // batteries did say something: turning that answer into a silence would blame it unfairly.
+        $this->assertSame('No lleva', QuoteSystem::batteryText(false, null));
+        $this->assertSame('No lleva', QuoteSystem::batteryText(false, 9.6));
+        $this->assertSame('9,6 kWh', QuoteSystem::batteryText(true, 9.6));
+        $this->assertSame('15 kWh', QuoteSystem::batteryText(true, 15.0));
+        // With batteries and no capacity there is nothing to show: that one is a real silence.
+        $this->assertNull(QuoteSystem::batteryText(true, null));
+    }
+
     public function test_the_inclusions_split_into_what_is_in_and_what_is_out(): void
     {
         $split = QuoteInclusions::split([

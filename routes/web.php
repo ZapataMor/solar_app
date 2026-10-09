@@ -86,6 +86,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // The quote the installer sent, read in detail by the client who asked for it (ADR-0026).
     Route::get('instaladores/cotizaciones/{quoteRequest}', [InstallerController::class, 'quote'])
         ->name('installers.quotes.show');
+    // Every quote of one project, side by side (ADR-0028). It hangs from the project, not from one
+    // quote: comparing is a question about the roof, not about an installer.
+    Route::get('instaladores/comparar/{solarProject}', [InstallerController::class, 'compare'])
+        ->name('installers.quotes.compare');
 
     Route::get('api-data', ApiDataController::class)
         ->middleware('can:administer-platform')
