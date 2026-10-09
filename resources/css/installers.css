@@ -1428,6 +1428,9 @@
         display: grid;
         gap: 1rem;
         margin-top: 1rem;
+        /* Sin esto la rejilla estira las dos columnas a la misma altura, y el campo sin pista de
+           ayuda se la queda toda: su recuadro queda más alto que el de al lado. */
+        align-items: start;
     }
 
     .solar-quote-group__battery {
@@ -1438,6 +1441,12 @@
     @media (min-width: 48rem) {
         .solar-quote-group__fields {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        /* Un paso con dos campos en una rejilla de tres los deja a dos tercios, y sus bordes no
+           coinciden con los de los textos largos de abajo, que van a mitades. */
+        .solar-quote-group__fields.is-pair {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .solar-quote-group__toggles {

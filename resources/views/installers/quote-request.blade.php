@@ -462,7 +462,9 @@
                     data-quote-panel="condiciones"
                 >
                     <legend>Condiciones</legend>
-                    <div class="solar-quote-group__fields">
+                    {{-- A mitades, no en la rejilla de tres de los otros pasos: aquí solo hay dos
+                         campos y así caen justo sobre los dos textos de abajo. --}}
+                    <div class="solar-quote-group__fields is-pair">
                         <label class="solar-field">
                             <span class="solar-field-label">Anticipo <span class="solar-field-optional">· opcional</span></span>
                             <input type="number" name="down_payment_percentage" value="{{ old('down_payment_percentage', $quote?->down_payment_percentage) }}" min="0" max="100" step="5" class="solar-input" inputmode="numeric" placeholder="40">
