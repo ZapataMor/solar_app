@@ -783,4 +783,30 @@
         padding-top: 0.9rem;
         border-bottom: 0;
     }
+
+    /* El acceso a la comparación desde cualquier pestaña del proyecto (ADR-0028). No va dentro de
+       la cápsula de pestañas: no es una sección del proyecto, es otra pantalla. */
+    .solar-project-nav__quotes {
+        display: inline-flex;
+        gap: 0.4rem;
+        align-items: center;
+        min-height: 2.4rem;
+        padding: 0.4rem 0.9rem;
+        border: 1px solid color-mix(in srgb, var(--solar-gold) 42%, transparent);
+        border-radius: 0.8rem;
+        background: color-mix(in srgb, var(--solar-gold) 12%, transparent);
+        color: var(--solar-text);
+        font-size: 0.82rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .solar-project-nav__quotes:hover {
+        border-color: color-mix(in srgb, var(--solar-gold) 70%, transparent);
+        background: color-mix(in srgb, var(--solar-gold) 20%, transparent);
+    }
+
+    .solar-project-nav__quotes svg {
+        color: var(--solar-gold);
+    }
 }

@@ -4,8 +4,12 @@
     $backUrl (optional: portfolio URL that keeps search/page).
 --}}
 @php
+    use App\Domain\Installers\QuoteComparison;
+
     $backLabel = auth()->user()?->isAdmin() ? 'Todos los proyectos' : 'Mis proyectos';
     $backUrl = $backUrl ?? route('solar-projects.index');
+    // Con dos precios o más hay algo que comparar, y se llega desde cualquier pestaña (ADR-0028).
+    $quotes = $solarProject->receivedQuotes();
     $tabs = [
         'panel' => ['label' => 'Técnico', 'url' => route('solar-projects.show', $solarProject)],
         // ADR-0014: "Mi sistema" (client view) is compared with "Técnico" (the original panel) before choosing.
@@ -39,4 +43,12 @@
             >{{ $tab['label'] }}</a>
         @endforeach
     </div>
+
+    @if ($quotes >= QuoteComparison::MINIMUM)
+        {{-- Fuera de la cápsula de pestañas: no es una sección del proyecto, es otra pantalla. --}}
+        <a href="{{ route('installers.quotes.compare', $solarProject) }}" class="solar-project-nav__quotes" wire:navigate>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+            Comparar {{ $quotes }} cotizaciones
+        </a>
+    @endif
 </nav>

@@ -142,6 +142,15 @@ class SolarProject extends Model
         return $this->hasMany(QuoteRequest::class);
     }
 
+    /**
+     * Cuántos instaladores ya respondieron con un precio. Con dos o más hay algo que comparar
+     * (ADR-0028), y por eso lo pregunta la navegación del proyecto.
+     */
+    public function receivedQuotes(): int
+    {
+        return $this->quoteRequests()->whereHas('installerQuote')->count();
+    }
+
     public function syncConsumptionScales(): void
     {
         $monthlyConsumption = $this->numericConsumption($this->monthly_consumption_kwh);

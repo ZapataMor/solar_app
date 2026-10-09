@@ -336,6 +336,30 @@ class CompareQuotesTest extends TestCase
         $response->assertDontSee('data-face-off-row', false);
     }
 
+    public function test_the_project_itself_offers_to_compare_its_quotes(): void
+    {
+        [$client, $solarProject] = $this->project();
+        $this->quoted($solarProject, 'Energía Wayúu', 'wayuu', ['amount_cop' => 22_300_000]);
+
+        // Con una sola no hay comparación, así que la navegación del proyecto no la ofrece.
+        $this->actingAs($client)
+            ->get(route('solar-projects.show', $solarProject))
+            ->assertOk()
+            ->assertDontSee('Comparar 1 cotizaciones')
+            ->assertDontSee(route('installers.quotes.compare', $solarProject), false);
+
+        $this->quoted($solarProject, 'Sol de Riohacha', 'sol', ['amount_cop' => 18_400_000]);
+
+        // Con dos, el acceso aparece y está en todas las pestañas, porque vive en su navegación.
+        foreach (['solar-projects.show', 'solar-projects.system', 'solar-projects.notes'] as $tab) {
+            $this->actingAs($client)
+                ->get(route($tab, $solarProject))
+                ->assertOk()
+                ->assertSee('Comparar 2 cotizaciones')
+                ->assertSee(route('installers.quotes.compare', $solarProject), false);
+        }
+    }
+
     public function test_the_client_chooses_which_quotes_go_side_by_side(): void
     {
         [$client, $solarProject] = $this->project();

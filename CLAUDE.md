@@ -216,8 +216,9 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   la estimación de la app (presupuesto de referencia, $/kW de referencia, potencia que pide el
   consumo) y de ahí sale el acceso a `/instaladores/comparar`. Son dos preguntas distintas —*¿este
   precio es razonable?* y *¿cuál me conviene?*— y mezclarlas alargaba la página sin responder mejor
-  ninguna. El otro acceso está en la tarjeta del proyecto del directorio; los dos aparecen solo con
-  dos cotizaciones o más.
+  ninguna. Hay **tres accesos** a la comparación, todos condicionados a tener dos cotizaciones o
+  más: la navegación del proyecto (`partials/project-nav`, con `SolarProject::receivedQuotes()`, así
+  que está en todas sus pestañas), la tarjeta del proyecto en el directorio, y ese paso 2.
 - **Comparador de cotizaciones (ADR-0028):** con dos o más precios, el cliente los lee lado a lado en
   `/instaladores/comparar/{proyecto}` (`CompareProjectQuotes` → `installers/comparison.blade.php`);
   con uno solo la Action devuelve `null`, el controlador responde 404 y el enlace no aparece
@@ -268,7 +269,7 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 
 ## Trampas conocidas
 
-- **La suite pasa entera (441 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
+- **La suite pasa entera (442 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
   tolerados. Los 22 que había eran tests que afirmaban pantallas y mensajes que ya no existían.
 - `Designer3dTest` falla con *Unable to locate file in Vite manifest* cuando el manifiesto está viejo:
   corre `npm run build` (o ten `composer dev` levantado) y pasa. No es un fallo del código.
