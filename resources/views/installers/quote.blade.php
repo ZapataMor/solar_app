@@ -225,37 +225,18 @@
                 @endif
             </dl>
 
-            {{-- El cara a cara del ADR-0029: esta cotización contra otra, campo por campo. Va antes
-                 de la lista, que ahora sirve para abrir otra, no para comparar de memoria. --}}
-            @if ($faceOff)
-                <x-installers.face-off :face-off="$faceOff" :project="$project" />
-            @endif
-
-            @if ($others)
-                <h3 class="solar-client-quote__others-title">Lo que te ofrecieron los demás</h3>
-                <ul class="solar-client-quote__others">
-                    @foreach ($others as $other)
-                        <li>
-                            <a href="{{ route('installers.quotes.show', $other['id']) }}" wire:navigate>
-                                <span class="solar-client-quote__others-name">{{ $other['name'] }}</span>
-                                <span class="solar-client-quote__others-meta">
-                                    {{ $other['includesBattery'] ? 'con baterías' : 'sin baterías' }}
-                                    @if ($other['powerKw']) · {{ $kw($other['powerKw']) }} kW @endif
-                                    @if ($other['expired']) · precio vencido @endif
-                                </span>
-                                <span class="solar-client-quote__others-amount">{{ $money($other['amountCop']) }}</span>
-                            </a>
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
-
+            {{-- Esta cotización contra lo que estimó la app, y nada más: compararla con las otras
+                 es otra pregunta y tiene su propia pantalla (ADR-0028). --}}
             @if ($comparable)
-                {{-- Una lista de enlaces obliga a comparar de memoria: la tabla del ADR-0028 pone los
-                     mismos campos de todas, uno al lado del otro. --}}
-                <div class="mt-4">
+                <div class="solar-quote-compare-link">
+                    <div>
+                        <p class="solar-quote-compare-link__title">Tienes {{ count($others) + 1 }} cotizaciones para este proyecto</p>
+                        <p class="solar-quote-compare-link__text">
+                            Míralas lado a lado, con lo que cubre cada una y cuál te recomendamos.
+                        </p>
+                    </div>
                     <a href="{{ route('installers.quotes.compare', $project) }}" class="solar-button" wire:navigate>
-                        Comparar las {{ count($others) + 1 }} cotizaciones lado a lado
+                        Comparar las {{ count($others) + 1 }}
                     </a>
                 </div>
             @endif

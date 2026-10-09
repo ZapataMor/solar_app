@@ -22,7 +22,7 @@ final class DescribeQuoteForClient
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(QuoteRequest $quoteRequest, ?int $rivalId = null): array
+    public function __invoke(QuoteRequest $quoteRequest): array
     {
         $quoteRequest->loadMissing([
             'installerQuote',
@@ -89,80 +89,6 @@ final class DescribeQuoteForClient
             'others' => $others,
             // With this one plus the others there is a table worth opening (ADR-0028).
             'comparable' => count($others) + 1 >= QuoteComparison::MINIMUM,
-            // This quote against one of the others, field by field (ADR-0029).
-            'faceOff' => $this->faceOff($quoteRequest, $others, $annualSavings, $rivalId),
-        ];
-    }
-
-    /**
-     * This quote against another one, the way the client reads two offers: the price, what that
-     * price covers, and nothing else. The whole table is one click away (ADR-0028).
-     *
-     * The rival is the one the client picked, or the cheapest of the rest by default. With two
-     * quotes in the whole project the recommendation travels too, because then the head to head
-     * and the full comparison are looking at exactly the same offers; with more, it would
-     * contradict the table and it is left for the table.
-     *
-     * @param  list<array<string, mixed>>  $others
-     * @return array<string, mixed>|null
-     */
-    private function faceOff(QuoteRequest $quoteRequest, array $others, ?float $annualSavings, ?int $rivalId): ?array
-    {
-        if ($others === []) {
-            return null;
-        }
-
-        $chosen = null;
-
-        foreach ($others as $other) {
-            if ($other['id'] === $rivalId) {
-                $chosen = $other;
-            }
-        }
-
-        $chosen ??= $others[0];
-        $rival = QuoteRequest::query()->with(['installer:id,name', 'installerQuote'])->find($chosen['id']);
-
-        if ($rival?->installerQuote === null) {
-            return null;
-        }
-
-        $mine = $quoteRequest->installerQuote;
-        $comparison = QuoteComparison::faceOff(
-            [
-                $mine->comparisonValues($annualSavings),
-                $rival->installerQuote->comparisonValues($annualSavings),
-            ],
-            $annualSavings !== null && $annualSavings > 0,
-        );
-
-        return [
-            'rows' => $comparison['rows'],
-            'verdict' => $comparison['verdict'],
-            // Only when these two are every quote of the project does the head to head get to
-            // recommend: otherwise it would name a winner the full table does not.
-            'recommendation' => count($others) === 1 ? $comparison['recommendation'] : null,
-            'mine' => [
-                'name' => $quoteRequest->installer->name,
-                'amountCop' => (float) $mine->amount_cop,
-                'powerKw' => $mine->power_kw !== null ? (float) $mine->power_kw : null,
-                'includesBattery' => (bool) $mine->includes_battery,
-                'expired' => $mine->hasExpired(),
-            ],
-            'rival' => [
-                'id' => $rival->id,
-                'name' => $rival->installer->name,
-                'amountCop' => (float) $rival->installerQuote->amount_cop,
-                'powerKw' => $rival->installerQuote->power_kw !== null ? (float) $rival->installerQuote->power_kw : null,
-                'includesBattery' => (bool) $rival->installerQuote->includes_battery,
-                'expired' => $rival->installerQuote->hasExpired(),
-            ],
-            // The others to switch to, so the client can face this quote against each one in turn.
-            'rivals' => array_map(fn (array $other): array => [
-                'id' => $other['id'],
-                'name' => $other['name'],
-                'current' => $other['id'] === $chosen['id'],
-            ], $others),
         ];
     }
 

@@ -696,4 +696,91 @@
         font-size: 0.86rem;
         line-height: 1.55;
     }
+
+    /* El acceso a la comparación desde el paso 2 de una cotización: ahí el cliente acaba de ver
+       cómo se compara con la estimación, y lo siguiente que quiere es verla contra las otras. */
+    .solar-quote-compare-link {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 1.1rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid color-mix(in srgb, var(--solar-gold) 35%, transparent);
+        border-radius: 0.95rem;
+        background: color-mix(in srgb, var(--solar-gold) 10%, transparent);
+    }
+
+    .solar-quote-compare-link__title {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    .solar-quote-compare-link__text {
+        margin: 0.15rem 0 0;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+    }
+
+    /* Los bloques de filas del cara a cara, con el mismo ritmo que los de la tabla. */
+    .solar-face-off__group th {
+        padding: 1rem 0.3rem 0.5rem;
+        border-bottom: 1px solid var(--solar-border-strong);
+        background: color-mix(in srgb, var(--solar-text) 4%, transparent);
+        color: var(--solar-text);
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .solar-face-off__group th small {
+        display: block;
+        margin: 0.25rem auto 0;
+        max-width: 44rem;
+        color: var(--solar-text-muted);
+        font-size: 0.72rem;
+        font-weight: 400;
+        letter-spacing: 0;
+        line-height: 1.5;
+        text-transform: none;
+    }
+
+    .solar-face-off__label small {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--solar-text-muted);
+        font-size: 0.68rem;
+        font-weight: 400;
+        line-height: 1.4;
+    }
+
+    .solar-face-off__side.is-recommended {
+        background: color-mix(in srgb, var(--solar-success) 12%, transparent);
+    }
+
+    .solar-face-off__actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        align-items: center;
+    }
+
+    .solar-face-off__actions a {
+        color: var(--solar-gold);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .solar-face-off tfoot td,
+    .solar-face-off tfoot th {
+        padding-top: 0.9rem;
+        border-bottom: 0;
+    }
 }

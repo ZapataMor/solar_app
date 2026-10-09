@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Actions\Installers\CompareProjectQuotes;
-use App\Actions\Installers\DescribeQuoteForClient;
 use App\Domain\Installers\QuoteRequestStatus;
 use App\Models\Installer;
 use App\Models\Municipality;
@@ -121,7 +120,7 @@ class CompareQuotesTest extends TestCase
         $this->actingAs($client)
             ->get(route('installers.quotes.show', $request))
             ->assertOk()
-            ->assertSee('Comparar las 2 cotizaciones lado a lado');
+            ->assertSee('Comparar las 2');
     }
 
     public function test_only_whoever_may_manage_the_project_compares_it(): void
@@ -285,6 +284,58 @@ class CompareQuotesTest extends TestCase
             ->assertSee('IVA aparte');
     }
 
+    public function test_two_quotes_are_read_face_to_face_and_three_in_columns(): void
+    {
+        [$client, $solarProject] = $this->project();
+        $this->quoted($solarProject, 'Energía Wayúu', 'wayuu', [
+            'amount_cop' => 22_300_000,
+            'panel_warranty_years' => 25,
+        ]);
+        $this->quoted($solarProject, 'Sol de Riohacha', 'sol', [
+            'amount_cop' => 18_400_000,
+            'panel_warranty_years' => 12,
+        ]);
+
+        // Con dos, la pantalla toma la forma del cara a cara: la etiqueta en el medio.
+        $this->actingAs($client)
+            ->get(route('installers.quotes.compare', $solarProject))
+            ->assertOk()
+            ->assertSee('data-face-off-row="amountCop"', false)
+            ->assertDontSee('data-compare-row="amountCop"', false)
+            // Y con todas sus filas: enfrentar no es resumir.
+            ->assertSee('data-face-off-row="deliveryDays"', false)
+            // La ventaja de cada lado, como en el diseño.
+            ->assertSee('+13 años')
+            ->assertSee('−3,9 M');
+
+        // Con una tercera ya no se puede enfrentar: vuelven las columnas.
+        $this->quoted($solarProject, 'Guajira Solar', 'guajira', ['amount_cop' => 21_000_000]);
+
+        $this->actingAs($client)
+            ->get(route('installers.quotes.compare', $solarProject))
+            ->assertOk()
+            ->assertSee('data-compare-row="amountCop"', false)
+            ->assertDontSee('data-face-off-row="amountCop"', false);
+    }
+
+    public function test_the_quote_page_compares_against_the_estimate_not_against_the_others(): void
+    {
+        [$client, $solarProject] = $this->project();
+        $mine = $this->quoted($solarProject, 'Energía Wayúu', 'wayuu', ['amount_cop' => 22_300_000]);
+        $this->quoted($solarProject, 'Sol de Riohacha', 'sol', ['amount_cop' => 18_400_000]);
+
+        $response = $this->actingAs($client)
+            ->get(route('installers.quotes.show', $mine))
+            ->assertOk()
+            // El paso 2 mide esta cotización contra lo que estimó la app.
+            ->assertSee('Cómo se compara')
+            ->assertSee('Tu consumo')
+            // Comparar con las demás es otra pregunta, y tiene su propia pantalla.
+            ->assertSee('Comparar las 2');
+
+        $response->assertDontSee('data-face-off-row', false);
+    }
+
     public function test_the_client_chooses_which_quotes_go_side_by_side(): void
     {
         [$client, $solarProject] = $this->project();
@@ -344,48 +395,6 @@ class CompareQuotesTest extends TestCase
             ->assertSee('$8.300.000 menos', false)
             ->assertSee('no cubre lo que legaliza la instalación')
             ->assertSee('no la última palabra');
-    }
-
-    public function test_the_quote_page_faces_this_one_against_another_of_the_client(): void
-    {
-        [$client, $solarProject] = $this->project();
-        $mine = $this->quoted($solarProject, 'Energía Wayúu', 'wayuu', [
-            'amount_cop' => 22_300_000,
-            'panel_warranty_years' => 25,
-        ]);
-        $this->quoted($solarProject, 'Sol de Riohacha', 'sol', [
-            'amount_cop' => 18_400_000,
-            'panel_warranty_years' => 12,
-        ]);
-
-        $this->actingAs($client)
-            ->get(route('installers.quotes.show', $mine))
-            ->assertOk()
-            // Enfrentada con la más barata por defecto, campo por campo.
-            ->assertSee('Sol de Riohacha')
-            ->assertSee('data-face-off-row="amountCop"', false)
-            ->assertSee('data-face-off-row="includes_retie"', false)
-            // La ventaja de cada lado, como el cara a cara del diseño.
-            ->assertSee('+13 años')
-            ->assertSee('−3,9 M')
-            // Y con dos cotizaciones en el proyecto, el cara a cara también recomienda.
-            ->assertSee('Te recomendamos');
-    }
-
-    public function test_the_client_picks_which_quote_to_face_this_one_against(): void
-    {
-        [$client, $solarProject] = $this->project();
-        $mine = $this->quoted($solarProject, 'Energía Wayúu', 'wayuu', ['amount_cop' => 22_300_000]);
-        $this->quoted($solarProject, 'Sol de Riohacha', 'sol', ['amount_cop' => 18_400_000]);
-        $third = $this->quoted($solarProject, 'Guajira Solar', 'guajira', ['amount_cop' => 21_000_000]);
-
-        $data = app(DescribeQuoteForClient::class)($mine->fresh(), $third->id);
-
-        $this->assertSame('Guajira Solar', $data['faceOff']['rival']['name']);
-        $this->assertCount(2, $data['faceOff']['rivals']);
-        // Con tres cotizaciones, el cara a cara no recomienda: lo haría sobre dos de las tres y
-        // contradiría a la tabla, que las mira todas.
-        $this->assertNull($data['faceOff']['recommendation']);
     }
 
     /**

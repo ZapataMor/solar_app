@@ -27,22 +27,6 @@ final class QuoteComparison
     /** Without two quotes there is no screen: the client stays on the detail page (ADR-0028). */
     public const MINIMUM = 2;
 
-    /**
-     * The rows of the head to head, in the order it reads them: what it costs, and what that price
-     * covers. The warranties and the terms stay for the full table.
-     */
-    public const FACE_OFF = [
-        'amountCop',
-        'pricePerKwCop',
-        self::PAYBACK_ROW,
-        QuoteInclusions::RETIE,
-        QuoteInclusions::GRID_PAPERWORK,
-        QuoteInclusions::BIDIRECTIONAL_METER,
-        QuoteInclusions::BATTERY,
-        QuoteInclusions::MAINTENANCE,
-        'panelWarrantyYears',
-    ];
-
     /** The one row the app answers instead of the installer, so it leaves without a calculation. */
     public const PAYBACK_ROW = 'paybackYears';
 
@@ -320,46 +304,6 @@ final class QuoteComparison
             QuoteInclusions::MAINTENANCE => 'es la única con mantenimiento del primer año',
             default => null,
         };
-    }
-
-    /**
-     * The head to head of two quotes (ADR-0029): the rows that decide and what the price covers,
-     * and nothing else.
-     *
-     * It is the same comparison, cut down. On the detail page the client is reading *one* quote and
-     * wants to know how it stands against another, not to audit sixteen rows: the whole table is one
-     * click away.
-     *
-     * @param  list<array<string, mixed>>  $quotes
-     * @return array{rows: list<array<string, mixed>>, verdict: list<array<string, mixed>>, recommendation: array<string, mixed>|null, caveats: array<string, mixed>}
-     */
-    public static function faceOff(array $quotes, bool $payback = true): array
-    {
-        $full = self::of($quotes, $payback);
-        $byKey = [];
-
-        foreach ($full['groups'] as $group) {
-            foreach ($group['rows'] as $row) {
-                $byKey[$row['key']] = $row;
-            }
-        }
-
-        $rows = [];
-
-        // The order is the one of FACE_OFF, not the one of the table: here the price comes first
-        // and what it covers right after, because that is the pair that decides.
-        foreach (self::FACE_OFF as $key) {
-            if (isset($byKey[$key])) {
-                $rows[] = $byKey[$key];
-            }
-        }
-
-        return [
-            'rows' => $rows,
-            'verdict' => $full['verdict'],
-            'recommendation' => $full['recommendation'],
-            'caveats' => $full['caveats'],
-        ];
     }
 
     /**

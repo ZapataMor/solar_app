@@ -175,6 +175,15 @@
         @endif
 
         <section class="solar-card solar-compare-card">
+            @if ($faceOff)
+                {{-- Dos cotizaciones se leen enfrentadas, con la etiqueta en el medio (ADR-0029). --}}
+                <x-installers.face-off
+                    :groups="$groups"
+                    :columns="$columns"
+                    :verdict="$verdict"
+                    :recommendation="$recommendation"
+                />
+            @else
             {{-- El teclado tiene que poder llegar al desplazamiento, así que el contenedor se enfoca. --}}
             <div class="solar-compare__scroll" tabindex="0" role="region" aria-label="Tabla comparativa de cotizaciones; se desplaza de lado">
                 <table class="solar-compare" data-quote-comparison>
@@ -303,6 +312,7 @@
                     </tfoot>
                 </table>
             </div>
+            @endif
 
             @if ($referenceCop !== null)
                 <p class="solar-inbox-note mt-3">

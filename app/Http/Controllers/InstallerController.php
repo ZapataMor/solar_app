@@ -64,8 +64,7 @@ class InstallerController extends Controller
         // Without a price there is nothing to read: the request is still waiting for an answer.
         abort_if($quoteRequest->installerQuote === null, 404);
 
-        // Contra cuál se compara en el paso 2; sin el parámetro, contra la más barata (ADR-0029).
-        return view('installers.quote', $describeQuoteForClient($quoteRequest, $request->integer('vs') ?: null));
+        return view('installers.quote', $describeQuoteForClient($quoteRequest));
     }
 
     /**

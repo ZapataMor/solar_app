@@ -74,6 +74,9 @@ final class CompareProjectQuotes
             // calculated with no savings cannot answer the payback either.
             'calculated' => $payback,
             'columns' => $columns->all(),
+            // Con dos, la pantalla se lee enfrentada en vez de en columnas (ADR-0029): es el mismo
+            // contenido, con la etiqueta en el medio, que es como se lee un cara a cara.
+            'faceOff' => $columns->count() === 2,
             // Everything the client could put side by side, to tick or untick (ADR-0029).
             'available' => $this->available($solarProject, $columns->pluck('quoteRequestId')->all()),
             'groups' => $comparison['groups'],

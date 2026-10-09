@@ -9,10 +9,10 @@ actualizado: 2026-10-08
 
 - **Estado:** 🟢 Aceptada — **cambia una decisión del [[adr-0028-comparador-de-cotizaciones]]**
 - **Fecha:** 2026-10-08
-- **Contexto del repo:** `QuoteComparison::faceOff()`, `::verdict()` y `::recommendation()`,
-  `InstallerQuote::comparisonValues()`, `DescribeQuoteForClient::faceOff()`,
+- **Contexto del repo:** `QuoteComparison::verdict()` y `::recommendation()`,
+  `InstallerQuote::comparisonValues()`, `CompareProjectQuotes`,
   `components/installers/face-off.blade.php`, `components/installers/compare-delta.blade.php`,
-  `installers/comparison.blade.php`
+  `installers/comparison.blade.php`, `installers/quote.blade.php`
 
 ## Contexto
 El [[adr-0028-comparador-de-cotizaciones]] puso las cotizaciones en columnas y marcó lo mejor de
@@ -50,11 +50,14 @@ deportivas: dos columnas, el atributo en el medio y cuánto le saca cada uno al 
 - **El cliente elige cuáles entran.** Casillas en la pantalla y una ✕ por columna; la elección viaja
   en la URL, así que el enlace se puede compartir y el botón de atrás funciona. Con menos de dos
   marcadas se comparan todas, porque una columna no compara nada.
-- **La página de una cotización trae el cara a cara** (`faceOff`): esta cotización contra otra del
-  mismo proyecto, con el precio, el precio por kW, el retorno y los cinco checks de lo que cubre.
-  Solo eso: la tabla entera está a un clic.
-- **El cara a cara recomienda únicamente cuando esas dos son todas las cotizaciones del proyecto.**
-  Con tres o más, recomendar sobre dos nombraría un ganador que la tabla no respalda.
+- **Con dos cotizaciones, la pantalla de comparación se lee enfrentada**: la etiqueta al centro y un
+  valor a cada lado, con todas sus filas. Con tres o más vuelve a columnas, porque enfrentar solo
+  funciona de a dos. Es el mismo contenido en las dos formas; no es un resumen.
+- **La página de una cotización no compara con las otras.** Su paso *Cómo se compara* la mide contra
+  la estimación de la app —el presupuesto de referencia, el precio por kW de referencia, la potencia
+  que pide el consumo—, y de ahí sale un acceso a la pantalla de comparación. Son dos preguntas
+  distintas: *¿este precio es razonable?* y *¿cuál de todas me conviene?*, y mezclarlas hacía la
+  página de una cotización el doble de larga sin responder mejor ninguna de las dos.
 
 ## Consecuencias
 - ➕ El cliente obtiene una respuesta, no solo datos, y puede discutirla: cada razón está en su fila.
@@ -67,8 +70,8 @@ deportivas: dos columnas, el atributo en el medio y cuánto le saca cada uno al 
   varía por instalador, hay que volver a este ADR.
 - ⚠️ La recomendación depende de lo que cada instalador **declare**, no de lo que haga. Quien llena
   bien el formulario sale favorecido frente a quien instala mejor pero escribe menos.
-- ⚠️ El cara a cara solo existe para dos. Con tres o más el diseño vuelve a columnas: son dos
-  pantallas con el mismo lenguaje visual que hay que mantener a la par.
+- ⚠️ La misma pantalla tiene dos formas, enfrentada y en columnas, y hay que mantenerlas a la par:
+  una fila nueva tiene que verse bien en las dos.
 
 ## Alternativas consideradas
 - **Un puntaje global por cotización, tipo 91 vs 94** — es lo más legible y lo que inspiró el

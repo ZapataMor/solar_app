@@ -209,7 +209,7 @@ class InstallerQuoteTest extends TestCase
             ->assertDontSee('Rentable');
     }
 
-    public function test_the_page_puts_the_other_offers_next_to_this_one(): void
+    public function test_the_page_sends_to_the_comparison_instead_of_listing_the_others(): void
     {
         [$installer, $account] = $this->installerWithAccount();
         [$other, $otherAccount] = $this->installerWithAccount('Sol de Riohacha', 'sol');
@@ -219,11 +219,14 @@ class InstallerQuoteTest extends TestCase
         $this->actingAs($account)->put(route('installer-inbox.quote', $quoteRequest), $this->quote());
         $this->actingAs($otherAccount)->put(route('installer-inbox.quote', $otherRequest), [...$this->quote(), 'amount_cop' => 22_300_000]);
 
+        // Esta página mide la cotización contra la estimación de la app; compararla con las otras
+        // es otra pregunta y tiene su propia pantalla (ADR-0028, ADR-0029).
         $this->actingAs($client)
             ->get(route('installers.quotes.show', $quoteRequest))
             ->assertOk()
-            ->assertSee('Sol de Riohacha')
-            ->assertSee('$22.300.000');
+            ->assertSee('Tienes 2 cotizaciones para este proyecto')
+            ->assertSee(route('installers.quotes.compare', $solarProject), false)
+            ->assertDontSee('$22.300.000');
     }
 
     public function test_only_the_owner_of_the_project_reads_the_quote(): void

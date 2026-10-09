@@ -205,15 +205,19 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   frase. Cada columna lleva además dos recuentos (`verdict()`): filas ganadas y datos declarados.
   **No lo conviertas en un puntaje**: el ADR-0029 explica por qué una cifra inventada por quien
   cobra comisión no se puede discutir.
-- **Cara a cara (ADR-0029):** el paso *Cómo se compara* de la cotización enfrenta esa cotización con
-  otra del proyecto (`DescribeQuoteForClient::faceOff()` + `<x-installers.face-off>`), con el precio,
-  el precio por kW, el retorno y los cinco checks: las filas de `QuoteComparison::FACE_OFF`, no todas.
-  El rival va en `?vs=`, los enlaces llevan `#paso-compara` para que la página vuelva a abrirse ahí,
-  y **solo recomienda cuando esas dos son todas las cotizaciones del proyecto**, o nombraría un
-  ganador que la tabla no respalda. Cada celda dice cuánto le saca a la mejor de las demás
-  (`advantage`, `<x-installers.compare-delta>`): con dos es el `+13 / −13` del diseño.
-  El mapa de una cotización a sus celdas es `InstallerQuote::comparisonValues()`, compartido por la
-  tabla y el cara a cara: no lo dupliques en la Action.
+- **Dos formas de la misma pantalla (ADR-0029):** con **dos** cotizaciones, la comparación se lee
+  enfrentada (`<x-installers.face-off>`: etiqueta al centro, un valor a cada lado) y con tres o más,
+  en columnas. Lo decide `faceOff` en `CompareProjectQuotes`, y las dos pintan **las mismas filas**:
+  enfrentar no es resumir. Si agregas una fila, míralas en las dos formas. Cada celda dice cuánto le
+  saca a la mejor de las demás (`advantage`, `<x-installers.compare-delta>`): con dos es el
+  `+13 / −13` del diseño. El mapa de una cotización a sus celdas es
+  `InstallerQuote::comparisonValues()`, compartido por las dos: no lo dupliques en la Action.
+- **La página de una cotización no compara con las otras.** Su paso *Cómo se compara* la mide contra
+  la estimación de la app (presupuesto de referencia, $/kW de referencia, potencia que pide el
+  consumo) y de ahí sale el acceso a `/instaladores/comparar`. Son dos preguntas distintas —*¿este
+  precio es razonable?* y *¿cuál me conviene?*— y mezclarlas alargaba la página sin responder mejor
+  ninguna. El otro acceso está en la tarjeta del proyecto del directorio; los dos aparecen solo con
+  dos cotizaciones o más.
 - **Comparador de cotizaciones (ADR-0028):** con dos o más precios, el cliente los lee lado a lado en
   `/instaladores/comparar/{proyecto}` (`CompareProjectQuotes` → `installers/comparison.blade.php`);
   con uno solo la Action devuelve `null`, el controlador responde 404 y el enlace no aparece
