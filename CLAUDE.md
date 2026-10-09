@@ -125,6 +125,13 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   El instalador es un registro, no un usuario: lo crea el admin desde la misma pantalla
   (`can:administer-platform`); el rol `installer` del ADR-0003 todavía no existe. Los de
   `InstallerSeeder` son de ejemplo y la página lo advierte: quita el aviso cuando entren reales.
+  Las tarjetas **comparten las filas del grid** (`grid-template-rows: subgrid`), para que el precio,
+  el enlace y los datos de contacto queden a la misma altura en todas: como columna flex, una
+  descripción con un renglón más desalineaba todo lo de abajo. Cada parte dice en qué fila va
+  (`grid-row`), así que la que falta deja su fila vacía en vez de subir la siguiente; si agregas una,
+  súbele el `span` a `.solar-installer-card` y acuérdate de `has-admin`, que es la fila de más que
+  ve el administrador. El hueco de la fila del precio, cuando el instalador todavía no lo manda, lo
+  llena `.solar-installer-waiting`: decirlo vale más que dejar el vacío.
 - **Mapa de cobertura (ADR-0022):** el formulario de instalador elige municipios en el mismo mapa del
   formulario de proyecto (`resources/js/coverage-map.js`, Leaflet desde el CDN y solo en esa página).
   Usa `public/maps/la_guajira_municipios_simple.geojson` (26 KB): el original del IGAC (4 MB) congela la

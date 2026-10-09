@@ -131,7 +131,8 @@
             </section>
         @endif
 
-        <div class="solar-installers-grid">
+        {{-- has-admin: with the administration row the cards share six rows, not five. --}}
+        <div class="solar-installers-grid @can('administer-platform') has-admin @endcan">
             @forelse ($installers as $installer)
             <article @class(['solar-card', 'solar-installer-card', 'is-requested' => $installer['requested'], 'is-hidden' => ! $installer['active']]) data-test="installer-{{ $installer['id'] }}">
                         <header class="solar-installer-card__head">
@@ -187,6 +188,12 @@
                                         <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                                     </a>
                                 </div>
+                            @else
+                                {{-- The slot of the price, which the cards share: saying that it has not
+                                     arrived is worth more than leaving the hole empty. --}}
+                                <p class="solar-installer-waiting">
+                                    Todavía no te manda su precio. Si tienes prisa, escríbele con sus datos de aquí abajo.
+                                </p>
                             @endif
 
                             <div class="solar-installer-card__contact">

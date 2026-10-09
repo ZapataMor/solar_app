@@ -87,10 +87,46 @@
         gap: 1rem;
     }
 
+    /* The cards share the rows of the grid (subgrid), so the same thing is at the same height in
+       all of them: the price, the link, the contact. As a flex column each block started where the
+       one above it ended, and a description one line longer pushed everything below out of line.
+       Each part says which row it belongs to, so one that is missing leaves its row empty instead
+       of pulling the next one up. Where subgrid is unknown, the card falls back to stacking them. */
     .solar-installer-card {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-row: span 5;
+        grid-template-rows: subgrid;
         gap: 0.75rem;
+    }
+
+    /* The administrator sees one row more, the one with the number of requests and Editar. */
+    .solar-installers-grid.has-admin .solar-installer-card {
+        grid-row: span 6;
+    }
+
+    .solar-installer-card__head {
+        grid-row: 1;
+    }
+
+    .solar-installer-card__text {
+        grid-row: 2;
+    }
+
+    .solar-installer-card__coverage {
+        grid-row: 3;
+    }
+
+    .solar-installer-offer {
+        grid-row: 4;
+    }
+
+    .solar-installer-card__contact,
+    .solar-installer-card__action {
+        grid-row: 5;
+    }
+
+    .solar-installer-card__admin {
+        grid-row: 6;
     }
 
     .solar-installer-card.is-requested {
@@ -156,11 +192,31 @@
 
     /* The contact data appears only once the quote was requested (ADR-0021). */
     /* What the installer offered (ADR-0026): the number the client came for. */
+    /* Four rows of its own, so the validity and the link land at the same height in every card
+       however long the scope is. The scope takes the slack (1fr) and is placed by hand, because
+       a quote that did not write one must not pull the rest up. */
     .solar-installer-offer {
+        display: grid;
+        grid-template-rows: auto 1fr auto auto;
+        gap: 0.4rem;
         padding: 0.7rem 0.85rem;
         border: 1px solid color-mix(in srgb, var(--solar-success) 42%, transparent);
         border-radius: 0.85rem;
         background: var(--solar-success-bg);
+    }
+
+    /* The same slot as the price, when it has not arrived yet. */
+    .solar-installer-waiting {
+        display: grid;
+        grid-row: 4;
+        align-content: center;
+        margin: 0;
+        padding: 0.7rem 0.85rem;
+        border: 1px dashed var(--solar-border-strong);
+        border-radius: 0.85rem;
+        color: var(--solar-text-muted);
+        font-size: 0.82rem;
+        line-height: 1.5;
     }
 
     .solar-installer-offer.is-expired {
@@ -169,6 +225,7 @@
     }
 
     .solar-installer-offer__amount {
+        grid-row: 1;
         margin: 0;
         color: var(--solar-text);
         font-size: 1.15rem;
@@ -183,14 +240,16 @@
     }
 
     .solar-installer-offer__scope {
-        margin: 0.4rem 0 0;
+        grid-row: 2;
+        margin: 0;
         color: var(--solar-text);
         font-size: 0.82rem;
         line-height: 1.45;
     }
 
     .solar-installer-offer__valid {
-        margin: 0.35rem 0 0;
+        grid-row: 3;
+        margin: 0;
         color: var(--solar-text-muted);
         font-size: 0.76rem;
     }
@@ -216,7 +275,7 @@
     .solar-installer-card__contact {
         display: grid;
         gap: 0.4rem;
-        margin-top: auto;
+        align-content: start;
         padding-top: 0.75rem;
         border-top: 1px solid var(--solar-border);
     }
@@ -259,7 +318,7 @@
     .solar-installer-card__action {
         display: grid;
         gap: 0.4rem;
-        margin-top: auto;
+        align-content: start;
         padding-top: 0.75rem;
         border-top: 1px solid var(--solar-border);
     }
@@ -1198,9 +1257,11 @@
     /* The quote one installer sent, read in detail by the client (ADR-0026). */
     .solar-installer-offer__link {
         display: inline-flex;
+        grid-row: 4;
         gap: 0.3rem;
         align-items: center;
-        margin-top: 0.5rem;
+        justify-self: start;
+        margin-top: 0.1rem;
         color: var(--solar-gold);
         font-size: 0.78rem;
         font-weight: 600;
