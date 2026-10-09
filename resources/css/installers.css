@@ -23,9 +23,38 @@
         align-items: center;
     }
 
+    /* The data in a narrow column and the scene across the rest. The other way round the data was
+       wide and short, the scene set the height with its 4/3 inside 22rem, and the card spent most
+       of its width on air. Now the width goes to the illustration, which is what there is to look
+       at, and the height stays what it was.
+
+       The rules hang off the card and not off the class passed to <x-solar-scene>, which never
+       lands: the component writes its own class attribute and prints {{ $attributes }} after it,
+       so the browser keeps the first one. */
     @media (min-width: 64rem) {
         .solar-installers-project {
-            grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+            grid-template-columns: minmax(0, 27rem) minmax(0, 1fr);
+        }
+
+        /* A project with no technical parameters draws no scene: then the data take the card. */
+        .solar-installers-project:not(:has(figure)) {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .solar-installers-project__data {
+            align-self: center;
+        }
+
+        /* Two by two: in the narrow column the four figures wrapped three and one. */
+        .solar-installers-project .solar-installers-figures {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .solar-installers-project .solar-scene__stage {
+            /* A settled height instead of 4/3 over whatever width is left: tall enough for the
+               roof to read, wide enough to use the room the card already took. */
+            height: clamp(16rem, 24vw, 22rem);
+            aspect-ratio: auto;
         }
     }
 
@@ -36,7 +65,7 @@
 
     .solar-installers-figures {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
         gap: 0.6rem;
         margin: 0;
     }
