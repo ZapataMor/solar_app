@@ -42,6 +42,7 @@
 
     $chosenIds = collect($columns)->pluck('quoteRequestId')->all();
     $recommended = $recommendation !== null ? $columns[$recommendation['index']] : null;
+
 @endphp
 
 <x-layouts::app :title="'Comparar cotizaciones de '.$project->name">
@@ -91,60 +92,18 @@
                     @endif
 
                     <p class="solar-compare-pick__note">
-                        Es una recomendación, no la última palabra: cada razón está en su fila de la tabla, y si
-                        lo que más te pesa es otra cosa, la decisión sigue siendo tuya.
+                        Es una recomendación, no la última palabra: cada razón está en su fila.
                     </p>
                 </div>
             </section>
         @endif
 
-        {{-- Qué hace incomparables dos totales. Va antes de los números, no después. --}}
-        @if ($caveats['mixedLegalization'] || $caveats['mixedBattery'] || $caveats['mixedVat'] || $caveats['expired'] > 0 || ($caveats['powerSpreadKw'] ?? 0) >= 1)
-            <div class="solar-compare-caveats" role="note">
-                @if ($caveats['mixedLegalization'])
-                    <p>
-                        <strong>No todas legalizan la instalación.</strong> Unas cubren el RETIE y el trámite con el
-                        operador de red, y otras los dejan afuera. Ese trámite y el medidor bidireccional son varios
-                        millones de pesos: la más barata puede terminar costando más.
-                    </p>
-                @endif
-                @if ($caveats['mixedBattery'])
-                    <p>
-                        <strong>Unas llevan baterías y otras no.</strong> Las baterías pueden ser buena parte del
-                        precio. Compara primero el precio por kW.
-                    </p>
-                @endif
-                @if ($caveats['mixedVat'])
-                    <p>
-                        <strong>No todos los totales llevan IVA.</strong> Unas lo incluyen en el precio y otras lo
-                        suman aparte, así que el total más bajo de la tabla puede no ser el más barato de pagar.
-                    </p>
-                @endif
-                @if (($caveats['powerSpreadKw'] ?? 0) >= 1)
-                    <p>
-                        <strong>Te proponen sistemas de distinto tamaño</strong>, con hasta
-                        {{ $kw($caveats['powerSpreadKw']) }} kW de diferencia. El total no se compara solo: mira el
-                        precio por kW y la producción.
-                    </p>
-                @endif
-                @if ($caveats['expired'] > 0)
-                    <p>
-                        {{ $caveats['expired'] === 1 ? 'Una cotización ya venció' : $caveats['expired'].' cotizaciones ya vencieron' }}.
-                        {{ $caveats['expired'] === 1 ? 'Sigue' : 'Siguen' }} en la tabla porque
-                        {{ $caveats['expired'] === 1 ? 'la pediste' : 'las pediste' }}, pero su precio ya no es un
-                        precio: no {{ $caveats['expired'] === 1 ? 'entra' : 'entran' }} en lo mejor de cada fila ni se
-                        {{ $caveats['expired'] === 1 ? 'recomienda' : 'recomiendan' }}.
-                    </p>
-                @endif
-            </div>
-        @endif
-
         @unless ($calculated)
-            <p class="solar-compare-caveats" role="note">
-                <strong>Todavía no sabemos en cuánto se paga.</strong> Tu proyecto no tiene un ahorro anual
-                calculado con datos climáticos, y sin él no hay con qué medir estos precios: es la fila que
-                más decide.
-                <a href="{{ route('solar-projects.show', $project) }}" wire:navigate>Calcular mi proyecto</a>.
+            {{-- Lo único que no está en ninguna fila: sin ahorro calculado, la del retorno
+                 desaparece, y una fila que falta sin explicación se lee como un error. --}}
+            <p class="solar-compare-missing">
+                Falta calcular tu proyecto: sin su ahorro no sabemos en cuánto se paga cada precio.
+                <a href="{{ route('solar-projects.show', $project) }}" wire:navigate>Calcular</a>
             </p>
         @endunless
 
@@ -167,9 +126,7 @@
                         </label>
                     @endforeach
                 </div>
-                <p class="solar-compare-picker__hint">
-                    Con menos de dos marcadas se comparan todas: una sola columna no compara nada.
-                </p>
+                <p class="solar-compare-picker__hint">Con menos de dos marcadas se comparan todas.</p>
                 <noscript><button type="submit" class="solar-button-ghost">Actualizar la comparación</button></noscript>
             </form>
         @endif
@@ -316,8 +273,8 @@
 
             @if ($referenceCop !== null)
                 <p class="solar-inbox-note mt-3">
-                    Nuestro presupuesto de referencia para este proyecto es {{ $money($referenceCop) }}. Es una regla
-                    de medida, no una cotización: una más alta puede incluir trabajos que la referencia no contempla.
+                    Nuestro presupuesto de referencia es {{ $money($referenceCop) }}: una regla de medida, no una
+                    cotización.
                 </p>
             @endif
         </section>
@@ -328,8 +285,7 @@
             <section class="solar-card solar-compare-silent">
                 <h2 class="solar-quote-heading">Lo que ninguna dice</h2>
                 <p class="solar-subtitle mt-2">
-                    Ninguna de las {{ count($columns) }} cotizaciones declara esto. No está en la tabla porque no hay
-                    nada que comparar, pero sí hay qué preguntar.
+                    Ninguna lo declara: no hay nada que comparar, pero sí qué preguntar.
                 </p>
                 <ul class="solar-compare-silent__list">
                     @foreach ($silent as $label)
@@ -340,7 +296,7 @@
         @endif
 
         <p class="solar-compare-footer">
-            Comparar no es aceptar. Cuando decidas, escríbele al instalador: el acuerdo se cierra con él, no aquí.
+            Comparar no es aceptar: el acuerdo lo cierras con el instalador.
         </p>
     </div>
 </x-layouts::app>

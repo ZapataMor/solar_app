@@ -229,10 +229,11 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   dominio **no formatea**: entrega el valor y su formato, y `<x-installers.compare-cell>` escribe los
   pesos y el *No lo dice* de lo que falta. Sin cálculo del proyecto, la fila del retorno desaparece con
   su aviso (`QuoteComparison::of($quotes, payback: false)`): ahí quien no sabe es la app, no el instalador.
-  Antes de los números van los avisos de lo que hace incomparables dos totales (`QuoteComparison::caveats`):
-  legalización, baterías, tamaño del sistema y **IVA** —16 millones sin IVA son más que 18 con él, así que
-  la columna lo repite junto al nombre— y solo miran las **vigentes**: alarmar por una cotización vencida
-  es alarmar por una opción que el cliente ya no tiene. Ojo con el ahorro anual en **cero**: cuenta como
+  Lo que hace incomparables dos totales **no va en un bloque de avisos**: se probó y era demasiada letra
+  encima de la tabla. Vive donde se usa —la legalización en la recomendación ("te cuesta X menos, pero
+  no cubre lo que legaliza"), el IVA junto al nombre de la columna, la vencida en su propia columna, las
+  baterías en su fila—, y la única nota que queda es la del cálculo que falta, porque explica una fila
+  ausente. `QuoteComparison::caveats()` sigue ahí y hoy **no lo pinta nadie**. Ojo con el ahorro anual en **cero**: cuenta como
   *sin cálculo* (`$payback`), porque si no la fila del retorno se vacía y acaba en *Lo que ninguna dice*,
   culpando a los instaladores de un número de la app.
   El cliente elige **cuáles** entran, con casillas y una ✕ por columna, y la elección viaja en
@@ -269,7 +270,7 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 
 ## Trampas conocidas
 
-- **La suite pasa entera (442 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
+- **La suite pasa entera (441 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
   tolerados. Los 22 que había eran tests que afirmaban pantallas y mensajes que ya no existían.
 - `Designer3dTest` falla con *Unable to locate file in Vite manifest* cuando el manifiesto está viejo:
   corre `npm run build` (o ten `composer dev` levantado) y pasa. No es un fallo del código.

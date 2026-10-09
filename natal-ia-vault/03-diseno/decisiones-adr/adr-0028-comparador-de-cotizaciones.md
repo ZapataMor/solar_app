@@ -45,6 +45,11 @@ operador de red y el medidor bidireccional, que juntos son varios millones.
   como un cero ni como un guion discreto: una cotización que no declara garantías es información.
 - **El total se compara con una advertencia**, no a secas: si una cubre la legalización y otra no,
   la pantalla lo dice encima de los números.
+  > **Ajustado el 8 de octubre de 2026:** la advertencia dejó de ser un bloque propio —cinco avisos
+  > encima de la tabla eran más letra de la que nadie lee— y se dice donde se usa: la legalización,
+  > dentro de la recomendación del [[adr-0029-recomendacion-y-cara-a-cara]]; el IVA, junto al nombre
+  > de la columna; la vencida, en la suya. Advertir sigue siendo obligatorio; hacerlo en un párrafo
+  > aparte, no.
 - **Sin dos cotizaciones no hay pantalla.** Con una sola, el enlace no aparece y el cliente se queda
   en su página de detalle.
 - **Nada de esto crea un estado nuevo.** Comparar no es aceptar: aceptar sigue siendo hablar con el

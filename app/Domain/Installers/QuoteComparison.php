@@ -398,7 +398,7 @@ final class QuoteComparison
             ],
             [
                 'title' => 'Qué cubre el precio',
-                'note' => 'En Colombia el trámite ante el operador de red y el medidor bidireccional son millones de pesos: la cotización más barata suele ser la que los deja afuera.',
+                'note' => 'Lo que no cubra el precio lo pagas aparte.',
                 'rows' => self::inclusionRows(),
             ],
             [
@@ -466,7 +466,7 @@ final class QuoteComparison
             ],
             [
                 'title' => 'El sistema que te propone',
-                'note' => 'Aquí no hay mejor ni peor: hay distinto. Dos cotizaciones solo se comparan si llevan lo mismo.',
+                'note' => 'Aquí no hay mejor ni peor: hay distinto.',
                 'rows' => [
                     [
                         'key' => 'powerKw',

@@ -231,9 +231,7 @@
                 <div class="solar-quote-compare-link">
                     <div>
                         <p class="solar-quote-compare-link__title">Tienes {{ count($others) + 1 }} cotizaciones para este proyecto</p>
-                        <p class="solar-quote-compare-link__text">
-                            Míralas lado a lado, con lo que cubre cada una y cuál te recomendamos.
-                        </p>
+                        <p class="solar-quote-compare-link__text">Míralas lado a lado, con lo que cubre cada una.</p>
                     </div>
                     <a href="{{ route('installers.quotes.compare', $project) }}" class="solar-button" wire:navigate>
                         Comparar las {{ count($others) + 1 }}

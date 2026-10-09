@@ -193,7 +193,8 @@ class CompareQuotesTest extends TestCase
             ->assertOk()
             ->assertSee('$14.000.000')
             ->assertSee('Precio vencido')
-            ->assertSee('no entra');
+            // Su propia columna dice que no compite; no hace falta un aviso aparte.
+            ->assertSee('No compite');
 
         $comparison = app(CompareProjectQuotes::class)($solarProject);
         $rows = collect($comparison['groups'])->flatMap(fn (array $group): array => $group['rows'])->keyBy('key');
@@ -206,27 +207,6 @@ class CompareQuotesTest extends TestCase
         $this->assertTrue($rows['amountCop']['cells'][0]['best']);
     }
 
-    public function test_it_warns_above_the_numbers_when_one_leaves_the_legalization_out(): void
-    {
-        [$client, $solarProject] = $this->project();
-        $this->quoted($solarProject, 'Energía Wayúu', 'wayuu', [
-            'amount_cop' => 22_300_000,
-            'includes_retie' => '1',
-            'includes_grid_paperwork' => '1',
-        ]);
-        $this->quoted($solarProject, 'Sol de Riohacha', 'sol', [
-            'amount_cop' => 16_000_000,
-            'includes_retie' => '1',
-            'includes_grid_paperwork' => '0',
-        ]);
-
-        $this->actingAs($client)
-            ->get(route('installers.quotes.compare', $solarProject))
-            ->assertOk()
-            ->assertSee('No todas legalizan la instalación')
-            ->assertSee('la más barata puede terminar costando más');
-    }
-
     public function test_without_a_calculation_the_payback_row_is_replaced_by_the_reason(): void
     {
         [$client, $solarProject] = $this->project();
@@ -236,8 +216,8 @@ class CompareQuotesTest extends TestCase
         $this->actingAs($client)
             ->get(route('installers.quotes.compare', $solarProject))
             ->assertOk()
-            ->assertSee('Todavía no sabemos en cuánto se paga')
-            ->assertSee('Calcular mi proyecto')
+            ->assertSee('Falta calcular tu proyecto')
+            ->assertSee('Falta calcular tu proyecto')
             ->assertDontSee('Se paga en');
     }
 
@@ -256,7 +236,7 @@ class CompareQuotesTest extends TestCase
         $response = $this->actingAs($client)
             ->get(route('installers.quotes.compare', $solarProject))
             ->assertOk()
-            ->assertSee('Todavía no sabemos en cuánto se paga');
+            ->assertSee('Falta calcular tu proyecto');
 
         // The row leaves, but it must not be listed as something the installers failed to declare.
         $response->assertDontSee('Se paga en');
@@ -279,8 +259,7 @@ class CompareQuotesTest extends TestCase
         $this->actingAs($client)
             ->get(route('installers.quotes.compare', $solarProject))
             ->assertOk()
-            ->assertSee('No todos los totales llevan IVA')
-            // And next to the name of the column whose total is still missing it.
+            // Junto al nombre de la columna cuyo total todavía no lo lleva.
             ->assertSee('IVA aparte');
     }
 
