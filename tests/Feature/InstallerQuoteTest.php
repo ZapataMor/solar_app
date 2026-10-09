@@ -11,6 +11,7 @@ use App\Models\QuoteRequest;
 use App\Models\SolarProject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Date;
 use Tests\TestCase;
 
 /**
@@ -142,6 +143,30 @@ class InstallerQuoteTest extends TestCase
             ->get(route('installer-inbox.show', $quoteRequest))
             ->assertOk()
             ->assertSee('Vencida');
+    }
+
+    public function test_a_price_lasts_until_the_end_of_its_day_in_bogota(): void
+    {
+        [$installer, $account] = $this->installerWithAccount();
+        [, $solarProject] = $this->project();
+        $quoteRequest = $this->request($solarProject, $installer);
+        $this->actingAs($account)->put(route('installer-inbox.quote', $quoteRequest), [
+            ...$this->quote(),
+            'valid_until' => '2026-11-20',
+        ]);
+
+        // 19:00 in Bogotá of the last valid day: in UTC the day already rolled over. Reading the
+        // clock there would retire the offer —and grey out its column in the comparison— a whole
+        // day before the date the client was given.
+        $this->travelTo(Date::parse('2026-11-21 00:30', 'UTC'));
+
+        $quote = $quoteRequest->fresh()->installerQuote;
+        $this->assertFalse($quote->hasExpired());
+        $this->assertSame(0, $quote->daysLeft());
+
+        // The next day in Bogotá it really is over.
+        $this->travelTo(Date::parse('2026-11-21 14:00', 'UTC'));
+        $this->assertTrue($quoteRequest->fresh()->installerQuote->hasExpired());
     }
 
     public function test_the_client_opens_the_quote_and_the_app_recalculates_the_payback(): void

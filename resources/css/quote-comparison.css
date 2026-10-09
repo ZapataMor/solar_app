@@ -54,6 +54,8 @@
         overflow-x: auto;
         border-radius: 0.9rem;
         scroll-snap-type: x proximity;
+        /* As wide as the labels stuck on the left, or a snapped column lands behind them. */
+        scroll-padding-left: 10.5rem;
         -webkit-overflow-scrolling: touch;
     }
 
@@ -97,6 +99,10 @@
             min-width: 13rem;
             max-width: 16rem;
         }
+
+        .solar-compare__scroll {
+            scroll-padding-left: 13rem;
+        }
     }
 
     .solar-compare__label small {
@@ -138,6 +144,17 @@
         color: var(--solar-text-muted);
         font-size: 0.72rem;
         font-weight: 500;
+    }
+
+    .solar-compare__vat {
+        display: inline-block;
+        margin-top: 0.3rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-text) 8%, transparent);
+        color: var(--solar-text-muted);
+        font-size: 0.68rem;
+        font-weight: 700;
     }
 
     .solar-compare__expired {

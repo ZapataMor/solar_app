@@ -72,7 +72,7 @@ final class QuoteComparison
      * @return array{
      *     groups: list<array{title: string, note: string|null, rows: list<array{key: string, label: string, hint: string|null, format: string, direction: string, cells: list<array{value: mixed, missing: bool, best: bool}>}>}>,
      *     silent: list<string>,
-     *     caveats: array{mixedLegalization: bool, mixedBattery: bool, powerSpreadKw: float|null, expired: int},
+     *     caveats: array{mixedLegalization: bool, mixedBattery: bool, mixedVat: bool, powerSpreadKw: float|null, expired: int},
      * }
      */
     public static function of(array $quotes, bool $payback = true): array
@@ -117,27 +117,41 @@ final class QuoteComparison
      * What has to be said above the numbers: comparing quotes with a different scope is comparing
      * apples to oranges, and the screen cannot stop it, only warn about it.
      *
+     * Only the quotes that can still be bought are scanned, for the same reason an expired price
+     * wins nothing: warning that "not all of them legalize the installation" because of an offer
+     * that expired last month is a false alarm about a choice the client no longer has. The expired
+     * ones are counted apart, which is the warning they do deserve.
+     *
      * @param  list<array<string, mixed>>  $quotes
-     * @return array{mixedLegalization: bool, mixedBattery: bool, powerSpreadKw: float|null, expired: int}
+     * @return array{mixedLegalization: bool, mixedBattery: bool, mixedVat: bool, powerSpreadKw: float|null, expired: int}
      */
     public static function caveats(array $quotes): array
     {
         $legalization = [];
         $batteries = [];
+        $vat = [];
         $powers = [];
         $expired = 0;
 
         foreach ($quotes as $quote) {
+            if ($quote['expired'] ?? false) {
+                $expired++;
+
+                continue;
+            }
+
             $legalization[] = QuoteInclusions::missesLegalization(self::flags($quote));
             $batteries[] = (bool) ($quote[QuoteInclusions::BATTERY] ?? false);
+
+            // Null is "they did not say", which is not the same as saying VAT goes on top.
+            if (($quote['vatIncluded'] ?? null) !== null) {
+                $vat[] = (bool) $quote['vatIncluded'];
+            }
+
             $power = self::numeric($quote['powerKw'] ?? null);
 
             if ($power !== null && $power > 0) {
                 $powers[] = $power;
-            }
-
-            if ($quote['expired'] ?? false) {
-                $expired++;
             }
         }
 
@@ -145,6 +159,8 @@ final class QuoteComparison
             // One legalizes the installation and another does not: their totals are not the same thing.
             'mixedLegalization' => count(array_unique($legalization, SORT_REGULAR)) > 1,
             'mixedBattery' => count(array_unique($batteries, SORT_REGULAR)) > 1,
+            // One total carries VAT and another does not: 16 millones + IVA is more than 18 with it.
+            'mixedVat' => count(array_unique($vat, SORT_REGULAR)) > 1,
             'powerSpreadKw' => $powers === [] ? null : round(max($powers) - min($powers), 2),
             'expired' => $expired,
         ];

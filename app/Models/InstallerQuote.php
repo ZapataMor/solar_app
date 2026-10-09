@@ -6,7 +6,7 @@ use App\Domain\Installers\QuoteInclusions;
 use App\Domain\Installers\QuoteSystem;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 
 /**
  * What an installer offers for a quote request (ADR-0026), with the detail a real quote carries
@@ -69,15 +69,28 @@ class InstallerQuote extends Model
         return $this->belongsTo(QuoteRequest::class);
     }
 
-    /** The price moves with the dollar, so an offer stops being one (ADR-0026). */
+    /**
+     * The price moves with the dollar, so an offer stops being one (ADR-0026).
+     *
+     * The validity is a day, not an instant, and the day that counts is the client's: comparing
+     * against `now()` in UTC retires the quote at 19:00 in Bogotá, a whole day early, with the
+     * comparison greying out its column and taking it out of the best of each row (ADR-0028).
+     */
     public function hasExpired(): bool
     {
-        return $this->valid_until->endOfDay()->isPast();
+        return $this->today() > $this->valid_until->toDateString();
     }
 
     public function daysLeft(): int
     {
-        return (int) Carbon::now()->startOfDay()->diffInDays($this->valid_until->startOfDay(), false);
+        return (int) Date::parse($this->today())
+            ->diffInDays(Date::parse($this->valid_until->toDateString()), false);
+    }
+
+    /** Today in the timezone the app shows its dates in, as a plain day. */
+    private function today(): string
+    {
+        return Date::now(config('app.display_timezone'))->toDateString();
     }
 
     /**

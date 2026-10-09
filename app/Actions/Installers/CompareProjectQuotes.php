@@ -47,9 +47,13 @@ final class CompareProjectQuotes
             ? (float) $result->estimated_annual_savings_cop
             : null;
 
-        $columns = $this->columns($requests, $annualSavings);
-        // Without a calculation there is no payback row: the screen says why, with the way to fix it.
-        $comparison = QuoteComparison::of($columns->pluck('values')->all(), $annualSavings !== null);
+        // Savings of zero are as useless as no savings at all: `paybackYearsFor` answers null for
+        // both, and a payback row full of "no lo dice" would blame the installers for a number only
+        // the app works out. The screen says why itself, with the way to fix it.
+        $payback = $annualSavings !== null && $annualSavings > 0;
+
+        $columns = $this->columns($requests, $payback ? $annualSavings : null);
+        $comparison = QuoteComparison::of($columns->pluck('values')->all(), $payback);
 
         return [
             'project' => $solarProject,
@@ -62,9 +66,10 @@ final class CompareProjectQuotes
             'referenceCop' => $solarProject->estimated_installation_cost > 0
                 ? (float) $solarProject->estimated_installation_cost
                 : null,
-            'annualSavingsCop' => $annualSavings,
-            // Without a calculation there are no savings, so the payback row has nothing to say.
-            'calculated' => $annualSavings !== null,
+            'annualSavingsCop' => $payback ? $annualSavings : null,
+            // Not "has a calculation" but "has savings to measure this price against": a project
+            // calculated with no savings cannot answer the payback either.
+            'calculated' => $payback,
             'columns' => $columns->all(),
             'groups' => $comparison['groups'],
             'silent' => $comparison['silent'],
@@ -108,6 +113,8 @@ final class CompareProjectQuotes
             'whatsapp' => $installer->whatsappNumber(),
             'phone' => $installer->phone,
             'statusLabel' => $request->statusLabel(),
+            // On the header, next to the name: a total without VAT is not comparable to one with it.
+            'vatIncluded' => $quote->vat_included,
             'amountCop' => $amount,
             'expired' => $expired,
             'validUntil' => $quote->valid_until,

@@ -197,12 +197,48 @@ class QuoteComparisonTest extends TestCase
     {
         $caveats = QuoteComparison::of([
             $this->quote(['powerKw' => 4.0]),
-            $this->quote([QuoteInclusions::BATTERY => true, 'powerKw' => 6.5, 'expired' => true]),
+            $this->quote([QuoteInclusions::BATTERY => true, 'powerKw' => 6.5]),
         ])['caveats'];
 
         $this->assertTrue($caveats['mixedBattery']);
         $this->assertSame(2.5, $caveats['powerSpreadKw']);
+        $this->assertSame(0, $caveats['expired']);
+    }
+
+    public function test_an_expired_quote_does_not_raise_a_warning_about_a_choice_that_is_gone(): void
+    {
+        $caveats = QuoteComparison::of([
+            $this->quote(),
+            $this->quote(),
+            // The only one that leaves the paperwork out expired last month: warning that "not all
+            // of them legalize the installation" would be false of everything still buyable.
+            $this->quote([QuoteInclusions::GRID_PAPERWORK => false, 'expired' => true]),
+        ])['caveats'];
+
+        $this->assertFalse($caveats['mixedLegalization']);
         $this->assertSame(1, $caveats['expired']);
+    }
+
+    public function test_it_warns_when_one_total_carries_vat_and_another_does_not(): void
+    {
+        $caveats = QuoteComparison::of([
+            $this->quote(['amountCop' => 16_000_000.0, 'vatIncluded' => false]),
+            $this->quote(['amountCop' => 18_000_000.0, 'vatIncluded' => true]),
+        ])['caveats'];
+
+        // 16 millones + IVA is more than 18 with it: the lowest total is not the cheapest to pay.
+        $this->assertTrue($caveats['mixedVat']);
+    }
+
+    public function test_a_quote_that_does_not_mention_vat_is_not_a_quote_without_vat(): void
+    {
+        $caveats = QuoteComparison::of([
+            $this->quote(['vatIncluded' => true]),
+            $this->quote(['vatIncluded' => null]),
+        ])['caveats'];
+
+        // Not saying is not the same as saying VAT goes on top; the cell already reads "no lo dice".
+        $this->assertFalse($caveats['mixedVat']);
     }
 
     public function test_quotes_with_the_same_scope_raise_no_warning(): void
@@ -211,6 +247,7 @@ class QuoteComparisonTest extends TestCase
 
         $this->assertFalse($caveats['mixedLegalization']);
         $this->assertFalse($caveats['mixedBattery']);
+        $this->assertFalse($caveats['mixedVat']);
         $this->assertSame(0.0, $caveats['powerSpreadKw']);
         $this->assertSame(0, $caveats['expired']);
     }

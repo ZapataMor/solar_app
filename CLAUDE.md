@@ -196,6 +196,12 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   dominio **no formatea**: entrega el valor y su formato, y `<x-installers.compare-cell>` escribe los
   pesos y el *No lo dice* de lo que falta. Sin cálculo del proyecto, la fila del retorno desaparece con
   su aviso (`QuoteComparison::of($quotes, payback: false)`): ahí quien no sabe es la app, no el instalador.
+  Antes de los números van los avisos de lo que hace incomparables dos totales (`QuoteComparison::caveats`):
+  legalización, baterías, tamaño del sistema y **IVA** —16 millones sin IVA son más que 18 con él, así que
+  la columna lo repite junto al nombre— y solo miran las **vigentes**: alarmar por una cotización vencida
+  es alarmar por una opción que el cliente ya no tiene. Ojo con el ahorro anual en **cero**: cuenta como
+  *sin cálculo* (`$payback`), porque si no la fila del retorno se vacía y acaba en *Lo que ninguna dice*,
+  culpando a los instaladores de un número de la app.
   Tres cosas que no hay que deshacer: la tabla es **una tabla de verdad** con `<th scope="row">` pegados a
   la izquierda (en celular las columnas se desplazan; apilar tarjetas vuelve a obligar a comparar de
   memoria), **el `<td>` del pie no lleva `display:flex`** —saca la celda de la tabla y las columnas se
@@ -228,7 +234,7 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 
 ## Trampas conocidas
 
-- **La suite pasa entera (417 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
+- **La suite pasa entera (423 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
   tolerados. Los 22 que había eran tests que afirmaban pantallas y mensajes que ya no existían.
 - `Designer3dTest` falla con *Unable to locate file in Vite manifest* cuando el manifiesto está viejo:
   corre `npm run build` (o ten `composer dev` levantado) y pasa. No es un fallo del código.
@@ -261,6 +267,9 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   aparecen bajo otra hora al sincronizar. **NASA es la excepción:** su fila es un día marcado a
   medianoche (ADR-0009), así que usa `displayDay()` / `$formatDay`, o la convertirás al día anterior
   a las 19:00.
+- **La validez de una cotización es un día, no un instante:** `InstallerQuote::hasExpired()` y `daysLeft()`
+  comparan contra hoy en `app.display_timezone`. Con `now()` en UTC, el precio se vence a las 19:00 de
+  Bogotá del último día válido y el comparador apaga esa columna un día antes.
 - Radiación: se guarda como **W/m² promedio de 24 h**. HSP (kWh/m²/día) = W/m² × 24 / 1000.
 - **NASA POWER se pide por día, nunca por hora** (ADR-0009): la radiación horaria llega en `-999`
   durante meses. `nasa-power:fetch` reconsulta 45 días para confirmar estimaciones y nunca cambia

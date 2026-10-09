@@ -52,7 +52,7 @@
 
         {{-- What has to be read before the totals: two quotes with different scope are not two
              prices for the same thing. --}}
-        @if ($caveats['mixedLegalization'] || $caveats['mixedBattery'] || $caveats['expired'] > 0 || ($caveats['powerSpreadKw'] ?? 0) >= 1)
+        @if ($caveats['mixedLegalization'] || $caveats['mixedBattery'] || $caveats['mixedVat'] || $caveats['expired'] > 0 || ($caveats['powerSpreadKw'] ?? 0) >= 1)
             <div class="solar-compare-caveats" role="note">
                 @if ($caveats['mixedLegalization'])
                     <p>
@@ -65,6 +65,12 @@
                     <p>
                         <strong>Unas llevan baterías y otras no.</strong> Las baterías pueden ser buena parte del
                         precio. Compara primero el precio por kW.
+                    </p>
+                @endif
+                @if ($caveats['mixedVat'])
+                    <p>
+                        <strong>No todos los totales llevan IVA.</strong> Unas lo incluyen en el precio y otras lo
+                        suman aparte, así que el total más bajo de la tabla puede no ser el más barato de pagar.
                     </p>
                 @endif
                 @if (($caveats['powerSpreadKw'] ?? 0) >= 1)
@@ -87,8 +93,9 @@
 
         @unless ($calculated)
             <p class="solar-compare-caveats" role="note">
-                <strong>Falta el cálculo de tu proyecto.</strong> Sin él no sabemos en cuánto tiempo se paga cada
-                precio, y esa es la fila que más decide.
+                <strong>Todavía no sabemos en cuánto se paga.</strong> Tu proyecto no tiene un ahorro anual
+                calculado con datos climáticos, y sin él no hay con qué medir estos precios: es la fila que
+                más decide.
                 <a href="{{ route('solar-projects.show', $project) }}" wire:navigate>Calcular mi proyecto</a>.
             </p>
         @endunless
@@ -110,6 +117,11 @@
                                         @if ($column['yearsExperience']) {{ $column['yearsExperience'] }} años · @endif
                                         {{ $column['statusLabel'] }}
                                     </span>
+                                    {{-- Pegado al nombre, encima del precio: con el dato tres grupos más
+                                         abajo, el total de esta columna se compara como si fuera final. --}}
+                                    @if ($column['vatIncluded'] === false)
+                                        <span class="solar-compare__vat">IVA aparte</span>
+                                    @endif
                                     @if ($column['expired'])
                                         <span class="solar-compare__expired">Precio vencido el {{ $date($column['validUntil']) }}</span>
                                     @endif

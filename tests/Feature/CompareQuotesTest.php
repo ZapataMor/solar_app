@@ -232,9 +232,52 @@ class CompareQuotesTest extends TestCase
         $this->actingAs($client)
             ->get(route('installers.quotes.compare', $solarProject))
             ->assertOk()
-            ->assertSee('Falta el cálculo de tu proyecto')
+            ->assertSee('Todavía no sabemos en cuánto se paga')
             ->assertSee('Calcular mi proyecto')
             ->assertDontSee('Se paga en');
+    }
+
+    public function test_savings_of_zero_do_not_turn_the_payback_into_a_silence_of_the_installers(): void
+    {
+        [$client, $solarProject] = $this->project();
+        // Calculated, but with nothing saved: the payback cannot be worked out either.
+        $solarProject->calculationResult()->create([
+            'estimated_annual_savings_cop' => 0,
+            'coverage_percentage' => 0,
+            'installed_capacity_kwp' => 0,
+        ]);
+        $this->quoted($solarProject, 'Energía Wayúu', 'wayuu', ['amount_cop' => 22_300_000]);
+        $this->quoted($solarProject, 'Sol de Riohacha', 'sol', ['amount_cop' => 18_400_000]);
+
+        $response = $this->actingAs($client)
+            ->get(route('installers.quotes.compare', $solarProject))
+            ->assertOk()
+            ->assertSee('Todavía no sabemos en cuánto se paga');
+
+        // The row leaves, but it must not be listed as something the installers failed to declare.
+        $response->assertDontSee('Se paga en');
+        $this->assertNotContains('Se paga en', app(CompareProjectQuotes::class)($solarProject)['silent']);
+    }
+
+    public function test_a_total_without_vat_is_flagged_before_comparing_it_with_one_that_has_it(): void
+    {
+        [$client, $solarProject] = $this->project();
+        $this->quoted($solarProject, 'Energía Wayúu', 'wayuu', [
+            'amount_cop' => 18_000_000,
+            'vat_included' => '1',
+        ]);
+        // Cheaper on paper, 19 millones once IVA lands on top.
+        $this->quoted($solarProject, 'Sol de Riohacha', 'sol', [
+            'amount_cop' => 16_000_000,
+            'vat_included' => '0',
+        ]);
+
+        $this->actingAs($client)
+            ->get(route('installers.quotes.compare', $solarProject))
+            ->assertOk()
+            ->assertSee('No todos los totales llevan IVA')
+            // And next to the name of the column whose total is still missing it.
+            ->assertSee('IVA aparte');
     }
 
     /**
