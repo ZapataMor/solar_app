@@ -186,6 +186,26 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   escribió (lo que él escribió gana). Sin RETIE o sin trámite del operador de red, la página del
   cliente lo advierte antes de comparar totales (`missesLegalization`): en Colombia ese trámite y el
   medidor bidireccional son millones, y la cotización más barata suele ser la que los deja afuera.
+- **La app recomienda (ADR-0029):** encima de la tabla hay **una** cotización recomendada, con su
+  precio y el porqué. Cambia el punto del ADR-0028 que lo prohibía; lo demás de ese ADR sigue.
+  `QuoteComparison::recommendation()` tiene la regla escrita, no pesos escondidos: fuera las
+  vencidas, fuera las que no legalizan mientras otra lo cubra, y entre las que quedan la que más
+  filas gana, luego la que más declara, luego la más barata. **Si la recomendada no es la más
+  barata, la pantalla lo dice primero**, con la diferencia y con qué deja afuera la otra: quitarlo
+  convierte la recomendación en publicidad. Las razones son frases de filas que esa cotización gana
+  **sola** (`headline()`), para que el cliente pueda bajar a comprobarlas; si gana empatada, no hay
+  frase. Cada columna lleva además dos recuentos (`verdict()`): filas ganadas y datos declarados.
+  **No lo conviertas en un puntaje**: el ADR-0029 explica por qué una cifra inventada por quien
+  cobra comisión no se puede discutir.
+- **Cara a cara (ADR-0029):** el paso *Cómo se compara* de la cotización enfrenta esa cotización con
+  otra del proyecto (`DescribeQuoteForClient::faceOff()` + `<x-installers.face-off>`), con el precio,
+  el precio por kW, el retorno y los cinco checks: las filas de `QuoteComparison::FACE_OFF`, no todas.
+  El rival va en `?vs=`, los enlaces llevan `#paso-compara` para que la página vuelva a abrirse ahí,
+  y **solo recomienda cuando esas dos son todas las cotizaciones del proyecto**, o nombraría un
+  ganador que la tabla no respalda. Cada celda dice cuánto le saca a la mejor de las demás
+  (`advantage`, `<x-installers.compare-delta>`): con dos es el `+13 / −13` del diseño.
+  El mapa de una cotización a sus celdas es `InstallerQuote::comparisonValues()`, compartido por la
+  tabla y el cara a cara: no lo dupliques en la Action.
 - **Comparador de cotizaciones (ADR-0028):** con dos o más precios, el cliente los lee lado a lado en
   `/instaladores/comparar/{proyecto}` (`CompareProjectQuotes` → `installers/comparison.blade.php`);
   con uno solo la Action devuelve `null`, el controlador responde 404 y el enlace no aparece
@@ -202,6 +222,8 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
   es alarmar por una opción que el cliente ya no tiene. Ojo con el ahorro anual en **cero**: cuenta como
   *sin cálculo* (`$payback`), porque si no la fila del retorno se vacía y acaba en *Lo que ninguna dice*,
   culpando a los instaladores de un número de la app.
+  El cliente elige **cuáles** entran, con casillas y una ✕ por columna, y la elección viaja en
+  `?cotizaciones[]` para poder compartir el enlace; con menos de dos marcadas se comparan todas.
   Tres cosas que no hay que deshacer: la tabla es **una tabla de verdad** con `<th scope="row">` pegados a
   la izquierda (en celular las columnas se desplazan; apilar tarjetas vuelve a obligar a comparar de
   memoria), **el `<td>` del pie no lleva `display:flex`** —saca la celda de la tabla y las columnas se
@@ -234,7 +256,7 @@ Dependencias en una sola dirección: `Http` → `Actions` → `Domain` ← `Infr
 
 ## Trampas conocidas
 
-- **La suite pasa entera (423 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
+- **La suite pasa entera (437 tests).** Si algo falla, lo rompiste tú: no hay línea base de fallos
   tolerados. Los 22 que había eran tests que afirmaban pantallas y mensajes que ya no existían.
 - `Designer3dTest` falla con *Unable to locate file in Vite manifest* cuando el manifiesto está viejo:
   corre `npm run build` (o ten `composer dev` levantado) y pasa. No es un fallo del código.

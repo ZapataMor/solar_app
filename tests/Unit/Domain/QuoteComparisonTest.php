@@ -252,6 +252,136 @@ class QuoteComparisonTest extends TestCase
         $this->assertSame(0, $caveats['expired']);
     }
 
+    public function test_each_cell_says_how_much_it_wins_or_loses_against_the_best_of_the_others(): void
+    {
+        $comparison = QuoteComparison::of([
+            $this->quote(['panelWarrantyYears' => 25]),
+            $this->quote(['panelWarrantyYears' => 12]),
+        ]);
+
+        $cells = $this->row($comparison, 'panelWarrantyYears')['cells'];
+        // The head to head of the design: +13 on one side, -13 on the other.
+        $this->assertSame(13.0, $cells[0]['advantage']);
+        $this->assertSame(-13.0, $cells[1]['advantage']);
+    }
+
+    public function test_the_winner_of_a_row_shows_what_it_takes_off_the_runner_up(): void
+    {
+        $comparison = QuoteComparison::of([
+            $this->quote(['amountCop' => 16_000_000.0]),
+            $this->quote(['amountCop' => 18_000_000.0]),
+            $this->quote(['amountCop' => 25_000_000.0]),
+        ]);
+
+        $cells = $this->row($comparison, 'amountCop')['cells'];
+        // Cheaper is better, so being 2 millones under the runner-up is an advantage of 2 millones.
+        $this->assertSame(2_000_000.0, $cells[0]['advantage']);
+        $this->assertSame(-2_000_000.0, $cells[1]['advantage']);
+        $this->assertSame(-9_000_000.0, $cells[2]['advantage']);
+    }
+
+    public function test_the_verdict_counts_rows_won_and_how_much_each_one_declares(): void
+    {
+        $comparison = QuoteComparison::of([
+            $this->quote(['amountCop' => 16_000_000.0, 'panelWarrantyYears' => null, 'deliveryDays' => null]),
+            $this->quote(['amountCop' => 25_000_000.0, 'panelWarrantyYears' => 25, 'deliveryDays' => 30]),
+        ]);
+
+        [$cheap, $complete] = $comparison['verdict'];
+
+        $this->assertGreaterThan(0, $cheap['rowsWon']);
+        $this->assertSame($cheap['rowsCompared'], $complete['rowsCompared']);
+        // What it leaves blank is counted too: that is the other half of the verdict.
+        $this->assertSame(2, $complete['declared'] - $cheap['declared']);
+        $this->assertContains('es la más barata', $cheap['highlights']);
+    }
+
+    public function test_a_row_won_by_two_quotes_is_nobody_headline(): void
+    {
+        $comparison = QuoteComparison::of([
+            $this->quote([QuoteInclusions::BATTERY => true]),
+            $this->quote([QuoteInclusions::BATTERY => true]),
+            $this->quote([QuoteInclusions::BATTERY => false]),
+        ]);
+
+        // Two of them carry batteries, so "la única con baterías" would be false of both.
+        foreach ($comparison['verdict'] as $verdict) {
+            $this->assertNotContains('es la única con baterías', $verdict['highlights']);
+        }
+    }
+
+    public function test_it_recommends_the_one_that_wins_more_rows_and_says_why(): void
+    {
+        $comparison = QuoteComparison::of([
+            $this->quote(['amountCop' => 25_000_000.0, 'panelWarrantyYears' => 25, 'deliveryDays' => 30]),
+            $this->quote(['amountCop' => 24_000_000.0, 'panelWarrantyYears' => 12, 'deliveryDays' => 60]),
+        ]);
+
+        $recommendation = $comparison['recommendation'];
+
+        $this->assertSame(0, $recommendation['index']);
+        $this->assertNotEmpty($recommendation['reasons']);
+        // It is not the cheapest, so the app says so with the difference in hand.
+        $this->assertSame(1, $recommendation['cheaperIndex']);
+        $this->assertSame(1_000_000.0, $recommendation['cheaperByCop']);
+        $this->assertNotNull($recommendation['tradeoff']);
+    }
+
+    public function test_it_does_not_recommend_a_cheaper_quote_that_skips_the_legalization(): void
+    {
+        $comparison = QuoteComparison::of([
+            // Much cheaper, and without RETIE or grid paperwork: the client pays those anyway.
+            $this->quote([
+                'amountCop' => 14_000_000.0,
+                QuoteInclusions::RETIE => false,
+                QuoteInclusions::GRID_PAPERWORK => false,
+            ]),
+            $this->quote(['amountCop' => 22_000_000.0]),
+        ]);
+
+        $recommendation = $comparison['recommendation'];
+
+        $this->assertSame(1, $recommendation['index']);
+        $this->assertContains('cubre el RETIE y el trámite con el operador de red', $recommendation['reasons']);
+        $this->assertSame(0, $recommendation['cheaperIndex']);
+        $this->assertSame('no cubre lo que legaliza la instalación, y eso lo terminas pagando aparte', $recommendation['tradeoff']);
+    }
+
+    public function test_an_expired_quote_is_never_the_recommended_one(): void
+    {
+        $comparison = QuoteComparison::of([
+            // The best on paper, but its price is no longer a price (ADR-0026).
+            $this->quote(['amountCop' => 15_000_000.0, 'panelWarrantyYears' => 30, 'expired' => true]),
+            $this->quote(['amountCop' => 22_000_000.0]),
+        ]);
+
+        $this->assertSame(1, $comparison['recommendation']['index']);
+    }
+
+    public function test_with_every_price_expired_the_app_recommends_nobody(): void
+    {
+        $comparison = QuoteComparison::of([
+            $this->quote(['expired' => true]),
+            $this->quote(['amountCop' => 15_000_000.0, 'expired' => true]),
+        ]);
+
+        $this->assertNull($comparison['recommendation']);
+    }
+
+    public function test_the_cheapest_one_recommended_has_nothing_to_warn_about(): void
+    {
+        $comparison = QuoteComparison::of([
+            $this->quote(['amountCop' => 16_000_000.0, 'panelWarrantyYears' => 25]),
+            $this->quote(['amountCop' => 22_000_000.0, 'panelWarrantyYears' => 12]),
+        ]);
+
+        $recommendation = $comparison['recommendation'];
+
+        $this->assertSame(0, $recommendation['index']);
+        $this->assertNull($recommendation['cheaperIndex']);
+        $this->assertNull($recommendation['tradeoff']);
+    }
+
     /**
      * One quote with everything filled in, so each test changes only what it is about.
      *

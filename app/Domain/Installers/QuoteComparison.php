@@ -27,6 +27,22 @@ final class QuoteComparison
     /** Without two quotes there is no screen: the client stays on the detail page (ADR-0028). */
     public const MINIMUM = 2;
 
+    /**
+     * The rows of the head to head, in the order it reads them: what it costs, and what that price
+     * covers. The warranties and the terms stay for the full table.
+     */
+    public const FACE_OFF = [
+        'amountCop',
+        'pricePerKwCop',
+        self::PAYBACK_ROW,
+        QuoteInclusions::RETIE,
+        QuoteInclusions::GRID_PAPERWORK,
+        QuoteInclusions::BIDIRECTIONAL_METER,
+        QuoteInclusions::BATTERY,
+        QuoteInclusions::MAINTENANCE,
+        'panelWarrantyYears',
+    ];
+
     /** The one row the app answers instead of the installer, so it leaves without a calculation. */
     public const PAYBACK_ROW = 'paybackYears';
 
@@ -73,6 +89,8 @@ final class QuoteComparison
      *     groups: list<array{title: string, note: string|null, rows: list<array{key: string, label: string, hint: string|null, format: string, direction: string, cells: list<array{value: mixed, missing: bool, best: bool}>}>}>,
      *     silent: list<string>,
      *     caveats: array{mixedLegalization: bool, mixedBattery: bool, mixedVat: bool, powerSpreadKw: float|null, expired: int},
+     *     verdict: list<array{rowsWon: int, rowsCompared: int, declared: int, declarable: int, highlights: list<string>, expired: bool}>,
+     *     recommendation: array{index: int, reasons: list<string>, cheaperIndex: int|null, cheaperByCop: float|null, tradeoff: string|null}|null,
      * }
      */
     public static function of(array $quotes, bool $payback = true): array
@@ -106,10 +124,241 @@ final class QuoteComparison
             }
         }
 
+        $verdict = self::verdict($groups, $quotes);
+
         return [
             'groups' => $groups,
             'silent' => $silent,
             'caveats' => self::caveats($quotes),
+            'verdict' => $verdict,
+            'recommendation' => self::recommendation($quotes, $verdict),
+        ];
+    }
+
+    /**
+     * What each quote is worth, said in two figures anybody can check: how many of the rows that
+     * compare it wins, and how much of what it could declare it actually declared.
+     *
+     * They are counts, not a score: no weights nobody agreed on, and every claim traces back to the
+     * row it came from. `highlights` only names the rows this quote wins **alone**, so "la única
+     * con RETIE" is never written about something two of them cover.
+     *
+     * @param  list<array{title: string, note: string|null, rows: list<array<string, mixed>>}>  $groups
+     * @param  list<array<string, mixed>>  $quotes
+     * @return list<array{rowsWon: int, rowsCompared: int, declared: int, declarable: int, highlights: list<string>, expired: bool}>
+     */
+    private static function verdict(array $groups, array $quotes): array
+    {
+        $verdict = array_map(fn (array $quote): array => [
+            'rowsWon' => 0,
+            'rowsCompared' => 0,
+            'declared' => 0,
+            'declarable' => 0,
+            'highlights' => [],
+            'expired' => (bool) ($quote['expired'] ?? false),
+        ], $quotes);
+
+        foreach ($groups as $group) {
+            foreach ($group['rows'] as $row) {
+                $compares = $row['direction'] !== self::NEUTRAL;
+                $winners = [];
+
+                foreach ($row['cells'] as $index => $cell) {
+                    $verdict[$index]['declarable']++;
+
+                    if (! $cell['missing']) {
+                        $verdict[$index]['declared']++;
+                    }
+
+                    if ($compares) {
+                        $verdict[$index]['rowsCompared']++;
+
+                        if ($cell['best']) {
+                            $verdict[$index]['rowsWon']++;
+                            $winners[] = $index;
+                        }
+                    }
+                }
+
+                // Only a row won alone earns a headline: "la única con RETIE" has to be true.
+                $headline = count($winners) === 1 ? self::headline($row['key']) : null;
+
+                if ($headline !== null) {
+                    $verdict[$winners[0]]['highlights'][] = $headline;
+                }
+            }
+        }
+
+        return $verdict;
+    }
+
+    /**
+     * Who the app recommends, and why (ADR-0029).
+     *
+     * The rule is written here instead of hidden inside a weighting, so the client can disagree with
+     * it: an expired price is not an offer; a quote that leaves the legalization out is not
+     * recommended while another one covers it, because the client pays that paperwork either way;
+     * and among the ones left, the one that wins the most rows, then the most complete, then the
+     * cheapest. When the recommended one is not the cheapest, that is said first.
+     *
+     * @param  list<array<string, mixed>>  $quotes
+     * @param  list<array{rowsWon: int, rowsCompared: int, declared: int, declarable: int, highlights: list<string>, expired: bool}>  $verdict
+     * @return array{index: int, reasons: list<string>, cheaperIndex: int|null, cheaperByCop: float|null, tradeoff: string|null}|null
+     */
+    private static function recommendation(array $quotes, array $verdict): ?array
+    {
+        $live = [];
+
+        foreach ($quotes as $index => $quote) {
+            if (! ($quote['expired'] ?? false)) {
+                $live[] = $index;
+            }
+        }
+
+        if ($live === []) {
+            return null;
+        }
+
+        // Legalizing is not one more row: without RETIE and the grid paperwork the client pays
+        // millions on their own, so one that skips them is not recommended while another covers them.
+        $legal = array_values(array_filter(
+            $live,
+            fn (int $index): bool => ! QuoteInclusions::missesLegalization(self::flags($quotes[$index])),
+        ));
+        $skippedForLegalization = $legal !== [] && count($legal) < count($live);
+        $candidates = $legal !== [] ? $legal : $live;
+
+        usort(
+            $candidates,
+            fn (int $a, int $b): int => [$verdict[$b]['rowsWon'], $verdict[$b]['declared'], -self::price($quotes[$b])]
+                <=> [$verdict[$a]['rowsWon'], $verdict[$a]['declared'], -self::price($quotes[$a])],
+        );
+
+        $chosen = $candidates[0];
+        $reasons = $verdict[$chosen]['highlights'];
+
+        if ($skippedForLegalization) {
+            // Dicho una vez: sus dos filas ya ganadas repetirían la misma razón con otras palabras.
+            $covered = [self::headline(QuoteInclusions::RETIE), self::headline(QuoteInclusions::GRID_PAPERWORK)];
+            $reasons = array_values(array_diff($reasons, $covered));
+            array_unshift($reasons, 'cubre el RETIE y el trámite con el operador de red');
+        }
+
+        if ($reasons === []) {
+            $reasons[] = 'gana '.$verdict[$chosen]['rowsWon'].' de '.$verdict[$chosen]['rowsCompared'].' filas';
+        }
+
+        $cheaper = null;
+
+        foreach ($live as $index) {
+            $cheaperThanChosen = self::price($quotes[$index]) < self::price($quotes[$chosen]);
+            $cheapestSoFar = $cheaper === null || self::price($quotes[$index]) < self::price($quotes[$cheaper]);
+
+            if ($index !== $chosen && $cheaperThanChosen && $cheapestSoFar) {
+                $cheaper = $index;
+            }
+        }
+
+        return [
+            'index' => $chosen,
+            'reasons' => array_slice($reasons, 0, 3),
+            'cheaperIndex' => $cheaper,
+            'cheaperByCop' => $cheaper === null
+                ? null
+                : round(self::price($quotes[$chosen]) - self::price($quotes[$cheaper]), 2),
+            'tradeoff' => $cheaper === null ? null : self::tradeoff($quotes[$cheaper], $verdict[$cheaper]),
+        ];
+    }
+
+    /**
+     * Why the cheaper one is not the recommended one, in one line.
+     *
+     * @param  array<string, mixed>  $quote
+     * @param  array{rowsWon: int, rowsCompared: int, declared: int, declarable: int, highlights: list<string>, expired: bool}  $verdict
+     */
+    private static function tradeoff(array $quote, array $verdict): string
+    {
+        if (QuoteInclusions::missesLegalization(self::flags($quote))) {
+            return 'no cubre lo que legaliza la instalación, y eso lo terminas pagando aparte';
+        }
+
+        if ($verdict['declared'] < $verdict['declarable']) {
+            return 'deja sin decir '.($verdict['declarable'] - $verdict['declared']).' de los datos de la tabla';
+        }
+
+        return 'gana menos filas de la tabla';
+    }
+
+    /**
+     * @param  array<string, mixed>  $quote
+     */
+    private static function price(array $quote): float
+    {
+        return self::numeric($quote['amountCop'] ?? null) ?? INF;
+    }
+
+    /**
+     * What winning a row alone is worth saying as, for the reasons of a recommendation. A row with
+     * no headline explains nothing on its own and adds nothing to them.
+     */
+    private static function headline(string $rowKey): ?string
+    {
+        return match ($rowKey) {
+            'amountCop' => 'es la más barata',
+            'pricePerKwCop' => 'cobra menos por cada kW instalado',
+            self::PAYBACK_ROW => 'se paga en menos tiempo',
+            'panelWarrantyYears' => 'garantiza los paneles por más años',
+            'inverterWarrantyYears' => 'garantiza el inversor por más años',
+            'workmanshipWarrantyYears' => 'responde por la obra por más tiempo',
+            'downPaymentPercentage' => 'pide el anticipo más bajo',
+            'deliveryDays' => 'es la que menos se demora',
+            'vatIncluded' => 'es la única con el IVA incluido',
+            QuoteInclusions::RETIE => 'es la única que trae el RETIE',
+            QuoteInclusions::GRID_PAPERWORK => 'es la única que hace el trámite con el operador de red',
+            QuoteInclusions::BIDIRECTIONAL_METER => 'es la única que pone el medidor bidireccional',
+            QuoteInclusions::BATTERY => 'es la única con baterías',
+            QuoteInclusions::MAINTENANCE => 'es la única con mantenimiento del primer año',
+            default => null,
+        };
+    }
+
+    /**
+     * The head to head of two quotes (ADR-0029): the rows that decide and what the price covers,
+     * and nothing else.
+     *
+     * It is the same comparison, cut down. On the detail page the client is reading *one* quote and
+     * wants to know how it stands against another, not to audit sixteen rows: the whole table is one
+     * click away.
+     *
+     * @param  list<array<string, mixed>>  $quotes
+     * @return array{rows: list<array<string, mixed>>, verdict: list<array<string, mixed>>, recommendation: array<string, mixed>|null, caveats: array<string, mixed>}
+     */
+    public static function faceOff(array $quotes, bool $payback = true): array
+    {
+        $full = self::of($quotes, $payback);
+        $byKey = [];
+
+        foreach ($full['groups'] as $group) {
+            foreach ($group['rows'] as $row) {
+                $byKey[$row['key']] = $row;
+            }
+        }
+
+        $rows = [];
+
+        // The order is the one of FACE_OFF, not the one of the table: here the price comes first
+        // and what it covers right after, because that is the pair that decides.
+        foreach (self::FACE_OFF as $key) {
+            if (isset($byKey[$key])) {
+                $rows[] = $byKey[$key];
+            }
+        }
+
+        return [
+            'rows' => $rows,
+            'verdict' => $full['verdict'],
+            'recommendation' => $full['recommendation'],
+            'caveats' => $full['caveats'],
         ];
     }
 
@@ -351,7 +600,7 @@ final class QuoteComparison
             $value = $quote[$row['key']] ?? null;
             $value = is_string($value) && trim($value) === '' ? null : $value;
 
-            $cells[] = ['value' => $value, 'missing' => $value === null, 'best' => false];
+            $cells[] = ['value' => $value, 'missing' => $value === null, 'best' => false, 'advantage' => null];
         }
 
         return self::markBest($row, $quotes, $cells);
@@ -397,6 +646,20 @@ final class QuoteComparison
         foreach ($candidates as $index => $value) {
             if (abs($value - $best) < 1e-9) {
                 $cells[$index]['best'] = true;
+            }
+
+            // How much this cell wins or loses against the best of the others, positive when it is
+            // ahead. With two quotes it reads as the +13 / -13 of a head to head; with five, the
+            // winner shows what it takes off the runner-up and the rest what they give away.
+            $others = $candidates;
+            unset($others[$index]);
+
+            if ($others !== []) {
+                $rival = $row['direction'] === self::LOWER ? min($others) : max($others);
+                $cells[$index]['advantage'] = round(
+                    $row['direction'] === self::LOWER ? $rival - $value : $value - $rival,
+                    2,
+                );
             }
         }
 

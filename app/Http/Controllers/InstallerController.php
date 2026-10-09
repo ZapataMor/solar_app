@@ -64,7 +64,8 @@ class InstallerController extends Controller
         // Without a price there is nothing to read: the request is still waiting for an answer.
         abort_if($quoteRequest->installerQuote === null, 404);
 
-        return view('installers.quote', $describeQuoteForClient($quoteRequest));
+        // Contra cuál se compara en el paso 2; sin el parámetro, contra la más barata (ADR-0029).
+        return view('installers.quote', $describeQuoteForClient($quoteRequest, $request->integer('vs') ?: null));
     }
 
     /**
@@ -75,7 +76,13 @@ class InstallerController extends Controller
     {
         abort_unless($request->user()->can('manage', $solarProject), 403);
 
-        $comparison = $compareProjectQuotes($solarProject);
+        // Which ones the client put side by side; without the parameter, all of them (ADR-0029).
+        $chosen = array_values(array_filter(array_map(
+            'intval',
+            (array) $request->query('cotizaciones', []),
+        )));
+
+        $comparison = $compareProjectQuotes($solarProject, $chosen);
         abort_if($comparison === null, 404);
 
         return view('installers.comparison', $comparison);

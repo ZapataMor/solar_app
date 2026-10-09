@@ -319,4 +319,381 @@
         color: var(--solar-text-muted);
         font-size: 0.85rem;
     }
+
+    /* La recomendación (ADR-0029): un nombre, su precio y el porqué. Va arriba de todo porque es
+       lo que el cliente vino a preguntar, y lleva su propia nota diciendo que no es la última
+       palabra. */
+    .solar-compare-pick {
+        display: grid;
+        gap: 1rem;
+        border-color: color-mix(in srgb, var(--solar-success) 45%, var(--solar-border));
+        background:
+            linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--solar-success) 10%, transparent),
+                transparent 60%
+            ),
+            var(--solar-surface);
+    }
+
+    @media (min-width: 48rem) {
+        .solar-compare-pick {
+            grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+            gap: 1.6rem;
+            align-items: start;
+        }
+    }
+
+    .solar-compare-pick__label {
+        margin: 0;
+        color: var(--solar-success);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .solar-compare-pick__name {
+        margin: 0.25rem 0 0;
+        color: var(--solar-text);
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .solar-compare-pick__price {
+        margin: 0.3rem 0 0;
+        color: var(--solar-text);
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .solar-compare-pick__vat {
+        color: var(--solar-text-muted);
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .solar-compare-pick__body {
+        display: grid;
+        gap: 0.6rem;
+    }
+
+    .solar-compare-pick__why {
+        margin: 0;
+        color: var(--solar-text);
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .solar-compare-pick__against {
+        margin: 0;
+        padding: 0.6rem 0.8rem;
+        border-left: 3px solid var(--solar-warning);
+        border-radius: 0 0.8rem 0.8rem 0;
+        background: var(--solar-warning-bg);
+        color: var(--solar-text);
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .solar-compare-pick__note {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.8rem;
+        line-height: 1.5;
+    }
+
+    /* Cuáles entran en la comparación. */
+    .solar-compare-picker {
+        display: grid;
+        gap: 0.6rem;
+        padding: 0.9rem 1rem;
+    }
+
+    .solar-compare-picker__label {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.66rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .solar-compare-picker__options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .solar-compare-picker__option {
+        display: inline-flex;
+        gap: 0.45rem;
+        align-items: center;
+        /* 44 px de alto: en el celular se marca con el dedo. */
+        min-height: 2.75rem;
+        padding: 0.35rem 0.75rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        background: var(--solar-surface-muted);
+        color: var(--solar-text);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .solar-compare-picker__option:has(input:checked) {
+        border-color: color-mix(in srgb, var(--solar-gold) 55%, transparent);
+        background: color-mix(in srgb, var(--solar-gold) 14%, transparent);
+    }
+
+    .solar-compare-picker__option:has(input:focus-visible) {
+        outline: 2px solid var(--solar-gold);
+        outline-offset: 2px;
+    }
+
+    .solar-compare-picker__option small {
+        display: block;
+        color: var(--solar-text-muted);
+        font-size: 0.72rem;
+        font-weight: 500;
+    }
+
+    .solar-compare-picker__hint {
+        margin: 0;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    /* La columna recomendada, marcada sin tapar su contenido. */
+    .solar-compare__installer.is-recommended {
+        background: color-mix(in srgb, var(--solar-success) 12%, transparent);
+    }
+
+    .solar-compare__recommended {
+        display: inline-block;
+        margin-bottom: 0.3rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-success) 25%, transparent);
+        color: var(--solar-success);
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    /* Las dos cuentas del veredicto, debajo del nombre. */
+    .solar-compare__score {
+        display: grid;
+        gap: 0.1rem;
+        margin-top: 0.45rem;
+        color: var(--solar-text-muted);
+        font-size: 0.72rem;
+        font-weight: 500;
+    }
+
+    .solar-compare__score strong {
+        color: var(--solar-text);
+        font-weight: 700;
+    }
+
+    /* Sacar una columna de la comparación: es un enlace, así que funciona sin JavaScript. */
+    .solar-compare__drop {
+        display: inline-flex;
+        gap: 0.25rem;
+        align-items: center;
+        justify-content: center;
+        width: 1.6rem;
+        height: 1.6rem;
+        margin-top: 0.45rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        color: var(--solar-text-muted);
+    }
+
+    .solar-compare__drop svg {
+        width: 0.75rem;
+        height: 0.75rem;
+    }
+
+    .solar-compare__drop:hover {
+        border-color: color-mix(in srgb, var(--solar-danger) 50%, transparent);
+        color: var(--solar-danger);
+    }
+
+    /* Cuánto le saca esta celda a la mejor de las demás. */
+    .solar-compare__delta {
+        display: block;
+        margin-top: 0.1rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+
+    .solar-compare__delta.is-up {
+        color: var(--solar-success);
+    }
+
+    .solar-compare__delta.is-down {
+        color: var(--solar-danger);
+    }
+
+    /* El cara a cara (ADR-0029): dos cotizaciones enfrentadas con la etiqueta en el medio. Es el
+       único sitio donde la comparación cabe sin desplazarse, porque son exactamente dos. */
+    .solar-face-off {
+        margin-top: 1.1rem;
+        padding: 0.9rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 1rem;
+        background: color-mix(in srgb, var(--solar-text) 2.5%, transparent);
+    }
+
+    .solar-face-off__table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+    }
+
+    .solar-face-off__side {
+        width: 40%;
+        padding: 0 0.5rem 0.8rem;
+        border-bottom: 2px solid var(--solar-border-strong);
+        text-align: center;
+        vertical-align: bottom;
+    }
+
+    .solar-face-off__side.is-expired {
+        opacity: 0.72;
+    }
+
+    .solar-face-off__name {
+        display: block;
+        color: var(--solar-text);
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .solar-face-off__price {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--solar-text);
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+
+    .solar-face-off__meta {
+        display: block;
+        color: var(--solar-text-muted);
+        font-size: 0.74rem;
+        font-weight: 500;
+    }
+
+    .solar-face-off__score {
+        display: block;
+        margin-top: 0.3rem;
+        color: var(--solar-text-muted);
+        font-size: 0.72rem;
+    }
+
+    .solar-face-off__score strong {
+        color: var(--solar-text);
+    }
+
+    /* La columna del medio: estrecha, porque los valores son los que mandan. */
+    .solar-face-off__vs {
+        width: 20%;
+        padding-bottom: 0.8rem;
+        border-bottom: 2px solid var(--solar-border-strong);
+        text-align: center;
+        vertical-align: bottom;
+    }
+
+    .solar-face-off__vs span {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solar-text) 8%, transparent);
+        color: var(--solar-text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .solar-face-off__label {
+        padding: 0.55rem 0.3rem;
+        border-bottom: 1px solid var(--solar-border);
+        color: var(--solar-text-muted);
+        font-size: 0.74rem;
+        font-weight: 600;
+        line-height: 1.3;
+        text-align: center;
+    }
+
+    .solar-face-off__cell {
+        padding: 0.55rem 0.5rem;
+        border-bottom: 1px solid var(--solar-border);
+        color: var(--solar-text);
+        font-size: 0.92rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .solar-face-off__cell.is-expired {
+        color: var(--solar-text-muted);
+        font-weight: 500;
+    }
+
+    /* El que gana la fila: fondo y barra, nunca solo color (la celda ya trae su marca de texto). */
+    .solar-face-off__cell.is-best {
+        background: var(--solar-success-bg);
+        box-shadow: inset 0 -2px 0 var(--solar-success);
+    }
+
+    .solar-face-off__cell .solar-compare__flag {
+        justify-content: center;
+    }
+
+    .solar-face-off__rivals {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+        margin-top: 0.9rem;
+        color: var(--solar-text-muted);
+        font-size: 0.78rem;
+    }
+
+    .solar-face-off__rivals a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2rem;
+        padding: 0.2rem 0.7rem;
+        border: 1px solid var(--solar-border);
+        border-radius: 999px;
+        color: var(--solar-text);
+        font-weight: 600;
+    }
+
+    .solar-face-off__rivals a.is-current {
+        border-color: color-mix(in srgb, var(--solar-gold) 55%, transparent);
+        background: color-mix(in srgb, var(--solar-gold) 14%, transparent);
+    }
+
+    .solar-face-off__pick {
+        margin: 0.9rem 0 0;
+        padding: 0.7rem 0.85rem;
+        border-left: 3px solid var(--solar-success);
+        border-radius: 0 0.85rem 0.85rem 0;
+        background: var(--solar-success-bg);
+        color: var(--solar-text);
+        font-size: 0.86rem;
+        line-height: 1.55;
+    }
 }

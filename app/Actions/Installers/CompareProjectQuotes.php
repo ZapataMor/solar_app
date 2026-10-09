@@ -3,9 +3,6 @@
 namespace App\Actions\Installers;
 
 use App\Domain\Installers\QuoteComparison;
-use App\Domain\Installers\QuoteInclusions;
-use App\Domain\Installers\QuoteSystem;
-use App\Domain\Solar\Profitability;
 use App\Models\InstallerQuote;
 use App\Models\QuoteRequest;
 use App\Models\SolarProject;
@@ -27,9 +24,12 @@ use Illuminate\Support\Collection;
 final class CompareProjectQuotes
 {
     /**
+     * @param  list<int>  $chosen  the quote requests the client put in the comparison; empty means
+     *                             all of them, and a choice that leaves fewer than two is ignored
+     *                             because one column compares nothing.
      * @return array<string, mixed>|null
      */
-    public function __invoke(SolarProject $solarProject): ?array
+    public function __invoke(SolarProject $solarProject, array $chosen = []): ?array
     {
         $requests = QuoteRequest::query()
             ->where('solar_project_id', $solarProject->getKey())
@@ -40,6 +40,9 @@ final class CompareProjectQuotes
         if ($requests->count() < QuoteComparison::MINIMUM) {
             return null;
         }
+
+        $picked = $requests->whereIn('id', $chosen);
+        $requests = $picked->count() >= QuoteComparison::MINIMUM ? $picked->values() : $requests;
 
         $solarProject->loadMissing(['calculationResult', 'municipality']);
         $result = $solarProject->calculationResult;
@@ -71,10 +74,42 @@ final class CompareProjectQuotes
             // calculated with no savings cannot answer the payback either.
             'calculated' => $payback,
             'columns' => $columns->all(),
+            // Everything the client could put side by side, to tick or untick (ADR-0029).
+            'available' => $this->available($solarProject, $columns->pluck('quoteRequestId')->all()),
             'groups' => $comparison['groups'],
             'silent' => $comparison['silent'],
             'caveats' => $comparison['caveats'],
+            // Two counts per column and the one the app recommends, with its reasons (ADR-0029).
+            'verdict' => $comparison['verdict'],
+            'recommendation' => $comparison['recommendation'],
         ];
+    }
+
+    /**
+     * Every answered quote of the project, with whether it is in the comparison right now. It is a
+     * second query on purpose: the list of what can be compared must not shrink with the choice,
+     * or unticking one would make it disappear from the picker.
+     *
+     * @param  list<int>  $chosen
+     * @return list<array{id: int, name: string, amountCop: float, expired: bool, chosen: bool}>
+     */
+    private function available(SolarProject $solarProject, array $chosen): array
+    {
+        return QuoteRequest::query()
+            ->where('solar_project_id', $solarProject->getKey())
+            ->whereHas('installerQuote')
+            ->with(['installer:id,name', 'installerQuote'])
+            ->get()
+            ->map(fn (QuoteRequest $request): array => [
+                'id' => $request->id,
+                'name' => $request->installer->name,
+                'amountCop' => (float) $request->installerQuote->amount_cop,
+                'expired' => $request->installerQuote->hasExpired(),
+                'chosen' => in_array($request->id, $chosen, true),
+            ])
+            ->sortBy([['expired', 'asc'], ['amountCop', 'asc']])
+            ->values()
+            ->all();
     }
 
     /**
@@ -102,7 +137,6 @@ final class CompareProjectQuotes
         $installer = $request->installer;
 
         $amount = (float) $quote->amount_cop;
-        $powerKw = $quote->power_kw !== null ? (float) $quote->power_kw : null;
         $expired = $quote->hasExpired();
 
         return [
@@ -122,41 +156,9 @@ final class CompareProjectQuotes
             'missesLegalization' => $quote->missesLegalization(),
             'scope' => $quote->scope,
             'exclusions' => $quote->exclusions,
-            // The cells, as the domain compares them: primitives only, with the keys of the rows.
-            // The inclusion keys are the ones of the shared catalogue (ADR-0027), so they keep their
-            // snake_case next to the camelCase of the rest instead of being renamed here.
-            'values' => [
-                'amountCop' => $amount,
-                'powerKw' => $powerKw,
-                // Per kW two quotes are comparable even when each proposes a different system.
-                'pricePerKwCop' => $powerKw !== null && $powerKw > 0 ? $amount / $powerKw : null,
-                'paybackYears' => $annualSavings !== null
-                    ? Profitability::paybackYearsFor($amount, $annualSavings)
-                    : null,
-                QuoteInclusions::RETIE => (bool) $quote->includes_retie,
-                QuoteInclusions::GRID_PAPERWORK => (bool) $quote->includes_grid_paperwork,
-                QuoteInclusions::BIDIRECTIONAL_METER => (bool) $quote->includes_bidirectional_meter,
-                QuoteInclusions::BATTERY => (bool) $quote->includes_battery,
-                QuoteInclusions::MAINTENANCE => (bool) $quote->includes_maintenance,
-                'panelWarrantyYears' => $quote->panel_warranty_years,
-                'inverterWarrantyYears' => $quote->inverter_warranty_years,
-                'workmanshipWarrantyYears' => $quote->workmanship_warranty_years,
-                'downPaymentPercentage' => $quote->down_payment_percentage,
-                'deliveryDays' => $quote->delivery_days,
-                'vatIncluded' => $quote->vat_included,
-                'validUntil' => $quote->valid_until,
-                'daysLeft' => $quote->daysLeft(),
-                'panelText' => $quote->panelText(),
-                'inverterModel' => $quote->inverter_model,
-                'batteryText' => QuoteSystem::batteryText(
-                    (bool) $quote->includes_battery,
-                    $quote->battery_kwh !== null ? (float) $quote->battery_kwh : null,
-                ),
-                'monthlyGenerationKwh' => $quote->monthly_generation_kwh !== null
-                    ? (float) $quote->monthly_generation_kwh
-                    : null,
-                'expired' => $expired,
-            ],
+            // The cells, as the domain compares them: the map lives in the model, shared with
+            // the head to head of the detail page (ADR-0029).
+            'values' => $quote->comparisonValues($annualSavings),
         ];
     }
 }

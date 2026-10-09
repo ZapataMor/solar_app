@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Domain\Installers\QuoteInclusions;
 use App\Domain\Installers\QuoteSystem;
+use App\Domain\Solar\Profitability;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Date;
@@ -113,6 +114,55 @@ class InstallerQuote extends Model
     public function panelText(): ?string
     {
         return QuoteSystem::panelText($this->panel_count, $this->panel_watts, $this->panel_model);
+    }
+
+    /**
+     * This quote as the comparison reads it (ADR-0028): primitives only, with the keys of its rows.
+     *
+     * It lives here, and not in the use case, because the table and the head to head of the detail
+     * page both need it and two copies of this map would drift apart. The inclusion keys are the
+     * ones of the shared catalogue (ADR-0027), so they keep their snake_case next to the camelCase
+     * of the rest instead of being renamed.
+     *
+     * @return array<string, mixed>
+     */
+    public function comparisonValues(?float $annualSavingsCop = null): array
+    {
+        $amount = (float) $this->amount_cop;
+        $powerKw = $this->power_kw !== null ? (float) $this->power_kw : null;
+
+        return [
+            'amountCop' => $amount,
+            'powerKw' => $powerKw,
+            // Per kW two quotes are comparable even when each proposes a different system.
+            'pricePerKwCop' => $powerKw !== null && $powerKw > 0 ? $amount / $powerKw : null,
+            'paybackYears' => $annualSavingsCop !== null
+                ? Profitability::paybackYearsFor($amount, $annualSavingsCop)
+                : null,
+            QuoteInclusions::RETIE => (bool) $this->includes_retie,
+            QuoteInclusions::GRID_PAPERWORK => (bool) $this->includes_grid_paperwork,
+            QuoteInclusions::BIDIRECTIONAL_METER => (bool) $this->includes_bidirectional_meter,
+            QuoteInclusions::BATTERY => (bool) $this->includes_battery,
+            QuoteInclusions::MAINTENANCE => (bool) $this->includes_maintenance,
+            'panelWarrantyYears' => $this->panel_warranty_years,
+            'inverterWarrantyYears' => $this->inverter_warranty_years,
+            'workmanshipWarrantyYears' => $this->workmanship_warranty_years,
+            'downPaymentPercentage' => $this->down_payment_percentage,
+            'deliveryDays' => $this->delivery_days,
+            'vatIncluded' => $this->vat_included,
+            'validUntil' => $this->valid_until,
+            'daysLeft' => $this->daysLeft(),
+            'panelText' => $this->panelText(),
+            'inverterModel' => $this->inverter_model,
+            'batteryText' => QuoteSystem::batteryText(
+                (bool) $this->includes_battery,
+                $this->battery_kwh !== null ? (float) $this->battery_kwh : null,
+            ),
+            'monthlyGenerationKwh' => $this->monthly_generation_kwh !== null
+                ? (float) $this->monthly_generation_kwh
+                : null,
+            'expired' => $this->hasExpired(),
+        ];
     }
 
     /** Whether they wrote anything beyond the total: what makes the quote worth opening. */

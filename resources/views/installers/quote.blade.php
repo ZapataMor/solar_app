@@ -225,6 +225,12 @@
                 @endif
             </dl>
 
+            {{-- El cara a cara del ADR-0029: esta cotización contra otra, campo por campo. Va antes
+                 de la lista, que ahora sirve para abrir otra, no para comparar de memoria. --}}
+            @if ($faceOff)
+                <x-installers.face-off :face-off="$faceOff" :project="$project" />
+            @endif
+
             @if ($others)
                 <h3 class="solar-client-quote__others-title">Lo que te ofrecieron los demás</h3>
                 <ul class="solar-client-quote__others">
@@ -242,10 +248,6 @@
                         </li>
                     @endforeach
                 </ul>
-                <p class="solar-inbox-note mt-3">
-                    Dos cotizaciones solo se comparan si llevan lo mismo: fíjate en las baterías y en los kW antes
-                    que en el total.
-                </p>
             @endif
 
             @if ($comparable)

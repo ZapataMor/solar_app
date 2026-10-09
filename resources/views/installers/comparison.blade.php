@@ -1,27 +1,47 @@
 {{--
-    Every quote of one project, side by side (ADR-0028).
+    Las cotizaciones de un proyecto, lado a lado (ADR-0028, ADR-0029).
 
-    It is the first wide table of the app, and it is a real table: the rows are the fields of
-    ADR-0027 and the columns are the installers, so the same field is read across every offer at
-    once. Three things that should not be undone:
+    Es la primera tabla ancha de la app, y es una tabla de verdad: las filas son los campos del
+    ADR-0027 y las columnas los instaladores, así que el mismo campo se lee de una vez en todas las
+    ofertas. El cliente elige cuáles entran, y arriba la app recomienda una y dice por qué, con
+    razones que se pueden comprobar fila por fila.
 
-    - The row labels are `<th scope="row">` and they stay stuck to the left while the columns scroll:
-      a value without its label compares nothing. The header is not sticky on purpose — a container
-      that scrolls sideways cannot also keep its header on the page — so the installer's name comes
-      back in the footer, next to the way to write to them.
-    - The best of each row is marked with a shape and a word, never with colour alone, and it carries
-      its own text for a screen reader. The app marks the best of each row and never the best quote.
-    - An empty cell says *No lo dice* (`<x-installers.compare-cell>`), because a quote that does not
-      declare warranties is information.
+    Cosas que no hay que deshacer:
+
+    - Las etiquetas de fila son `<th scope="row">` y quedan pegadas a la izquierda mientras las
+      columnas se desplazan: un valor sin su etiqueta no compara nada. El encabezado no se queda
+      fijo a propósito —un contenedor que se desplaza de lado no puede además fijar su cabecera—,
+      así que el nombre del instalador vuelve al pie, junto a la forma de escribirle.
+    - Lo mejor de cada fila se marca con una forma y una palabra, nunca solo con color, y lleva su
+      texto para el lector de pantalla. La ventaja (`+13`, `−7,6 M`) dice cuánto le saca a la mejor
+      de las demás, como el cara a cara del diseño.
+    - Una celda vacía dice *No lo dice* (`<x-installers.compare-cell>`): una cotización que no
+      declara garantías es información.
 
     Params: App\Actions\Installers\CompareProjectQuotes.
 --}}
 @php
+    use App\Domain\Installers\QuoteComparison;
+
     $money = fn (float $cop): string => '$'.number_format(round($cop, -3), 0, ',', '.');
     $kwh = fn (float $value): string => number_format($value, $value < 10 ? 1 : 0, ',', '.');
     $kw = fn (float $value): string => number_format($value, 2, ',', '.');
     $date = fn ($value): string => \Illuminate\Support\Carbon::parse($value)->locale('es')->isoFormat('D [de] MMMM');
     $span = count($columns) + 1;
+
+    // "es la más barata, cubre el RETIE y se paga en menos tiempo".
+    $reasons = function (array $list): string {
+        if (count($list) === 1) {
+            return $list[0];
+        }
+
+        $last = array_pop($list);
+
+        return implode(', ', $list).' y '.$last;
+    };
+
+    $chosenIds = collect($columns)->pluck('quoteRequestId')->all();
+    $recommended = $recommendation !== null ? $columns[$recommendation['index']] : null;
 @endphp
 
 <x-layouts::app :title="'Comparar cotizaciones de '.$project->name">
@@ -35,7 +55,7 @@
                 <p class="solar-kicker mt-3">Centro solar</p>
                 <h1 class="solar-title mt-0">Compara tus cotizaciones</h1>
                 <p class="solar-subtitle mt-2 max-w-3xl">
-                    {{ count($columns) }} cotizaciones para {{ $project->name }}
+                    {{ count($columns) }} de {{ count($available) }} cotizaciones para {{ $project->name }}
                     @if ($municipalityName) · {{ $municipalityName }} @endif
                     · {{ $kwh($monthlyKwh) }} kWh/mes
                     @if ($requiredPowerKw) · tu consumo pide {{ $kw($requiredPowerKw) }} kW @endif
@@ -43,15 +63,42 @@
             </div>
         </div>
 
-        {{-- The app compares; it does not recommend. ADR-0005 charges for the closing, so a single
-             score ordering the quotes would be the platform tipping a decision it profits from. --}}
-        <p class="solar-compare-intro">
-            Marcamos <strong>lo mejor de cada fila</strong>, no la mejor cotización: el retorno más rápido, la
-            garantía más larga, el plazo más corto. Cuál te conviene depende de lo que valores.
-        </p>
+        {{-- La recomendación: una, con nombre, y con el porqué en frases que están en la tabla. --}}
+        @if ($recommended)
+            <section class="solar-card solar-compare-pick">
+                <div class="solar-compare-pick__head">
+                    <p class="solar-compare-pick__label">Te recomendamos</p>
+                    <h2 class="solar-compare-pick__name">{{ $recommended['installerName'] }}</h2>
+                    <p class="solar-compare-pick__price">
+                        {{ $money($recommended['amountCop']) }}
+                        @if ($recommended['vatIncluded'] === false)
+                            <span class="solar-compare-pick__vat">más IVA</span>
+                        @endif
+                    </p>
+                </div>
 
-        {{-- What has to be read before the totals: two quotes with different scope are not two
-             prices for the same thing. --}}
+                <div class="solar-compare-pick__body">
+                    <p class="solar-compare-pick__why">Porque {{ $reasons($recommendation['reasons']) }}.</p>
+
+                    @if ($recommendation['cheaperIndex'] !== null)
+                        {{-- Lo primero que el cliente va a notar es que no es la más barata: lo
+                             decimos nosotros antes, con la diferencia y el porqué. --}}
+                        <p class="solar-compare-pick__against">
+                            {{ $columns[$recommendation['cheaperIndex']]['installerName'] }} te cuesta
+                            <strong>{{ $money(abs($recommendation['cheaperByCop'])) }} menos</strong>, pero
+                            {{ $recommendation['tradeoff'] }}.
+                        </p>
+                    @endif
+
+                    <p class="solar-compare-pick__note">
+                        Es una recomendación, no la última palabra: cada razón está en su fila de la tabla, y si
+                        lo que más te pesa es otra cosa, la decisión sigue siendo tuya.
+                    </p>
+                </div>
+            </section>
+        @endif
+
+        {{-- Qué hace incomparables dos totales. Va antes de los números, no después. --}}
         @if ($caveats['mixedLegalization'] || $caveats['mixedBattery'] || $caveats['mixedVat'] || $caveats['expired'] > 0 || ($caveats['powerSpreadKw'] ?? 0) >= 1)
             <div class="solar-compare-caveats" role="note">
                 @if ($caveats['mixedLegalization'])
@@ -85,7 +132,8 @@
                         {{ $caveats['expired'] === 1 ? 'Una cotización ya venció' : $caveats['expired'].' cotizaciones ya vencieron' }}.
                         {{ $caveats['expired'] === 1 ? 'Sigue' : 'Siguen' }} en la tabla porque
                         {{ $caveats['expired'] === 1 ? 'la pediste' : 'las pediste' }}, pero su precio ya no es un
-                        precio: {{ $caveats['expired'] === 1 ? 'no entra' : 'no entran' }} en lo mejor de cada fila.
+                        precio: no {{ $caveats['expired'] === 1 ? 'entra' : 'entran' }} en lo mejor de cada fila ni se
+                        {{ $caveats['expired'] === 1 ? 'recomienda' : 'recomiendan' }}.
                     </p>
                 @endif
             </div>
@@ -100,8 +148,34 @@
             </p>
         @endunless
 
+        {{-- Cuáles entran. Son casillas de un GET normal: la comparación vive en la URL, así que se
+             puede compartir y el botón de atrás funciona. --}}
+        @if (count($available) > QuoteComparison::MINIMUM)
+            <form method="GET" action="{{ route('installers.quotes.compare', $project) }}" class="solar-card solar-compare-picker" data-autosubmit>
+                <p class="solar-compare-picker__label">Cuáles comparar</p>
+                <div class="solar-compare-picker__options">
+                    @foreach ($available as $option)
+                        <label class="solar-compare-picker__option">
+                            <input type="checkbox" name="cotizaciones[]" value="{{ $option['id'] }}" @checked($option['chosen'])>
+                            <span>
+                                {{ $option['name'] }}
+                                <small>
+                                    {{ $money($option['amountCop']) }}
+                                    @if ($option['expired']) · vencida @endif
+                                </small>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+                <p class="solar-compare-picker__hint">
+                    Con menos de dos marcadas se comparan todas: una sola columna no compara nada.
+                </p>
+                <noscript><button type="submit" class="solar-button-ghost">Actualizar la comparación</button></noscript>
+            </form>
+        @endif
+
         <section class="solar-card solar-compare-card">
-            {{-- Keyboard users need to reach the scroll, so the container is focusable and named. --}}
+            {{-- El teclado tiene que poder llegar al desplazamiento, así que el contenedor se enfoca. --}}
             <div class="solar-compare__scroll" tabindex="0" role="region" aria-label="Tabla comparativa de cotizaciones; se desplaza de lado">
                 <table class="solar-compare" data-quote-comparison>
                     <caption class="sr-only">
@@ -110,8 +184,15 @@
                     <thead>
                         <tr>
                             <th scope="col" class="solar-compare__corner">Qué comparas</th>
-                            @foreach ($columns as $column)
-                                <th scope="col" @class(['solar-compare__installer', 'is-expired' => $column['expired']])>
+                            @foreach ($columns as $index => $column)
+                                <th scope="col" @class([
+                                    'solar-compare__installer',
+                                    'is-expired' => $column['expired'],
+                                    'is-recommended' => $recommendation !== null && $recommendation['index'] === $index,
+                                ])>
+                                    @if ($recommendation !== null && $recommendation['index'] === $index)
+                                        <span class="solar-compare__recommended">Recomendada</span>
+                                    @endif
                                     <span class="solar-compare__installer-name">{{ $column['installerName'] }}</span>
                                     <span class="solar-compare__installer-meta">
                                         @if ($column['yearsExperience']) {{ $column['yearsExperience'] }} años · @endif
@@ -124,6 +205,29 @@
                                     @endif
                                     @if ($column['expired'])
                                         <span class="solar-compare__expired">Precio vencido el {{ $date($column['validUntil']) }}</span>
+                                    @endif
+
+                                    {{-- El veredicto de esta columna: dos cuentas, no un puntaje. --}}
+                                    <span class="solar-compare__score">
+                                        @if ($verdict[$index]['expired'])
+                                            {{-- "Gana 0 de 15" se leería como mala cotización, y lo
+                                                 que pasa es que su precio ya no compite. --}}
+                                            <span>No compite: el precio venció</span>
+                                        @else
+                                            <span>Gana <strong>{{ $verdict[$index]['rowsWon'] }}</strong> de {{ $verdict[$index]['rowsCompared'] }} filas</span>
+                                        @endif
+                                        <span>Declara <strong>{{ $verdict[$index]['declared'] }}</strong> de {{ $verdict[$index]['declarable'] }} datos</span>
+                                    </span>
+
+                                    @if (count($columns) > QuoteComparison::MINIMUM)
+                                        <a
+                                            class="solar-compare__drop"
+                                            href="{{ route('installers.quotes.compare', ['solarProject' => $project, 'cotizaciones' => array_values(array_diff($chosenIds, [$column['quoteRequestId']]))]) }}"
+                                            wire:navigate
+                                        >
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                                            <span class="sr-only">Quitar {{ $column['installerName'] }} de la comparación</span>
+                                        </a>
                                     @endif
                                 </th>
                             @endforeach
@@ -158,6 +262,7 @@
                                             'is-expired' => $columns[$index]['expired'],
                                         ])>
                                             <x-installers.compare-cell :cell="$cell" :format="$row['format']" />
+                                            <x-installers.compare-delta :advantage="$cell['advantage']" :format="$row['format']" />
                                             @if ($cell['best'])
                                                 <span class="solar-compare__best">
                                                     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>
@@ -171,7 +276,7 @@
                         </tbody>
                     @endforeach
 
-                    {{-- The name comes back where the decision ends: talking to them (ADR-0005). --}}
+                    {{-- El nombre vuelve donde termina la decisión: hablando con ellos (ADR-0005). --}}
                     <tfoot>
                         <tr>
                             <th scope="row" class="solar-compare__label">Hablar y leerla completa</th>
@@ -207,8 +312,8 @@
             @endif
         </section>
 
-        {{-- What nobody declared does not deserve an empty row in every column, but it does deserve
-             to be said once: these are the questions the client still has to ask. --}}
+        {{-- Lo que nadie declaró no merece una fila vacía en cada columna, pero sí merece decirse
+             una vez: son las preguntas que al cliente le quedan por hacer. --}}
         @if ($silent !== [])
             <section class="solar-card solar-compare-silent">
                 <h2 class="solar-quote-heading">Lo que ninguna dice</h2>
