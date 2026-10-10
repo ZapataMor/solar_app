@@ -18,7 +18,7 @@ Cerebro del aplicativo solar y de la idea de negocio: qué es, hacia dónde crec
 - Estado actual → `01-estado-actual/`
 - Producto → `02-producto/`
 - Decisiones (ADRs) → `03-diseno/decisiones-adr/`
-- Ideas → [[05-ideas/pendientes-de-limpieza|Pendientes de limpieza]]
+- Ideas → [[05-ideas/nuevas-funcionalidades|Nuevas funcionalidades]] · [[05-ideas/pendientes-de-limpieza|Pendientes de limpieza]]
 - Planes → `08-planes/`
 
 ## Decisiones (ADRs)
